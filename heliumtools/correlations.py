@@ -1,14 +1,21 @@
 #!/usr/bin/env python
 # -*- mode:Python; coding: utf-8 -*-
 
+# ----------------------------------
+# Created on the 30-5-2022 by Victor
+#
+# Copyright (c) 2022 - Helium1@LCF
+# ----------------------------------
+#
 """
-@Author: victor
-@Date:   24 April 2022 @ 17:42
-@Last modified by:   victor
-@Last modified time: 24 April 2022 @ 17:43
+Content of correlations.py
+-----------------------------
 
-Comment : classe pour réaliser des corrélations.
+Definition of Correlation and Variable classes
+
 """
+
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -543,7 +550,7 @@ class Correlation:
         # Calcul de g2
         numerator = np.sum(dataframe["N_1"] * dataframe["N_2"]) / self.n_cycles
         denominator = (
-            np.sum(dataframe["N_1"]) * np.sum(dataframe["N_2"]) / (self.n_cycles**2)
+            np.sum(dataframe["N_1"]) * np.sum(dataframe["N_2"]) / (self.n_cycles ** 2)
         )
         if denominator > 0:
             g2 = numerator / denominator

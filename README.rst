@@ -35,17 +35,13 @@ To use all fonctioncalities of this package, you will need to install HAL from h
         export WORKON_HOME=$HOME/.virtualenvs
         export PROJECT_HOME=$HOME/Devel
         source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
-- install PyQt5 and HAL in the environnent. 
-
-    - ``pip install PyQt5`` : we must install PyQt5 before HAL to prevent issues.
-    - ``cd ~/HAL && pip install -e .`` sot that you will install HAL as a developper. 
-    
 - clone the heliumtools repository and pip install it ``cd /your/path/heliumtools && pip install -e .``
 
 Features
 --------
 
-* TODO
+Here we gather usefull code that we daily use in the lab. 
+TODO : complete
 
 Credits
 -------

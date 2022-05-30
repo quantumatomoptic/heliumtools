@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+
 """The setup script."""
 
 from setuptools import setup, find_packages
@@ -19,6 +20,8 @@ requirements = [
     "seaborn",
     "tqdm",
     "scikit-image",
+    "jsbeautifier",
+    "datetime",
 ]
 
 test_requirements = []
