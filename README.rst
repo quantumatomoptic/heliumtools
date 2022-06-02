@@ -25,7 +25,7 @@ Some tools for the Helium1 team @LCF. We are a group of physicist working on ult
 
 Installation
 --------
-To use all fonctioncalities of this package, you will need to install HAL from https://github.com/adareau/HAL. To do so:
+This package was written in Python3.9 so we recommand to use it with python3.9. On Linux, one can 
 
 - create a new environnement (heliumenv here for exemple). We use mkvirtualenv.
 
