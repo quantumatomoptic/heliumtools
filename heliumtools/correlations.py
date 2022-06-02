@@ -550,7 +550,7 @@ class Correlation:
         # Calcul de g2
         numerator = np.sum(dataframe["N_1"] * dataframe["N_2"]) / self.n_cycles
         denominator = (
-            np.sum(dataframe["N_1"]) * np.sum(dataframe["N_2"]) / (self.n_cycles ** 2)
+            np.sum(dataframe["N_1"]) * np.sum(dataframe["N_2"]) / (self.n_cycles**2)
         )
         if denominator > 0:
             g2 = numerator / denominator
@@ -599,60 +599,38 @@ class Correlation:
         # on somme les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
-        ).sum()
+        ).mean()
+
+        # total["(N_1-N_2)^2-moy(N_1-N_2)^2"] = total["(N_1-N_2)^2"]
 
         error = total.groupby([self.var1.name, self.var2.name], as_index=False).std()
 
         print("Total dataframe is summed already")
 
-        #### !!! WARNING !!! ####
-        ## à partir de maintenant (jusque END WARING) : la plupart des quantités de self.result sont des sommes et non pas moyennes d'où la division potentiellement bizarre par n_cycles.
-        #  self.result[N_1] :  est trop grand d'un facteur n_cycles tout comme N_2, N_1*N_2 ; N_2 ; (N_1-N_2)^2
-
         # ---------------
         # Variance
         # ---------------
         self.result["variance"] = (
-            self.result["(N_1-N_2)^2"] / self.n_cycles
-            - (self.result["N_1-N_2"] / self.n_cycles) ** 2
+            self.result["(N_1-N_2)^2"] - (self.result["N_1-N_2"]) ** 2
         )
 
-        self.result["normalized variance"] = (
-            self.result["variance"]
-            / (self.result["N_1"] + self.result["N_2"])
-            * self.n_cycles
+        self.result["normalized variance"] = self.result["variance"] / (
+            self.result["N_1"] + self.result["N_2"]
         )
 
         # ---------------
         # Calculs de g^2
         # ---------------
-        self.result["g^2"] = (
-            self.result["N_1*N_2"]
-            / (self.result["N_1"] * self.result["N_2"])
-            * self.n_cycles
+        self.result["g^2"] = self.result["N_1*N_2"] / (
+            self.result["N_1"] * self.result["N_2"]
         )
 
         # on enlève le shot noise si cela est demandé par l'utilisateur.
         if self.remove_shot_noise:
             local_condition = self.result[self.var1.name] == self.result[self.var2.name]
             self.result.loc[local_condition, "g^2"] = (
-                (self.result["N_1*N_2"] - self.result["N_1"])
-                / (self.result["N_1"] * self.result["N_2"])
-                * self.n_cycles
-            )
-
-        ###### END WARING  ######
-        # ---------------
-        # Moyennage au lieu de sommes (cf le warining ci-dessus)
-        # ---------------
-        # Pour l'instant, N_1, N_2 et N_1*N_2 sont des sommes et non des moyennes : on les moyenne donc.
-        self.result["N_1"] /= self.n_cycles
-        self.result["N_2"] /= self.n_cycles
-        self.result["N_1*N_2"] /= self.n_cycles
-        self.result["N_1-N_2"] /= self.n_cycles
-        self.result["(N_1-N_2)^2"] /= self.n_cycles
-        self.result["N_1+N_2"] /= self.n_cycles
-        self.result["(N_1-N_2)^4"] /= self.n_cycles
+                self.result["N_1*N_2"] - self.result["N_1"]
+            ) / (self.result["N_1"] * self.result["N_2"])
 
         # ---------------
         # Déviations standards
