@@ -596,11 +596,17 @@ class Correlation:
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
         total["(N_1-N_2)^4"] = (total["N_1"] - total["N_2"]) ** 4
-        # on somme les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
+        # on moyenne les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
         ).mean()
-
+        # On fait ensuite une petite manipulation pour calculer l'erreur sur la variance.
+        # L'idée est de définir la variable (N_1-N_2)^2-moy(N_1-N_2)^2 puis de dire à l'ordinateur de calculer sa variance tout seul pour éviter de mettre la formule très longue et compliquée (wiki du 2 juin 2022). On reconstruit un dataframe avec les numéros de cycles
+        df1 = self.result[[self.var1.name, self.var2.name, "N_1-N_2"]]
+        df2 = pd.DataFrame({"Cycle": np.linspace(1, self.n_cycles, self.n_cycles)})
+        new_df = pd.merge(df1, df2, how="cross")
+        new_df = new_df[["Cycle", self.var1.name, self.var2.name, "N_1-N_2"]]
+        new_df.columns = new_df.columns.str.replace("N_1-N_2", "mean(N_1-N_2)")
         # total["(N_1-N_2)^2-moy(N_1-N_2)^2"] = total["(N_1-N_2)^2"]
 
         error = total.groupby([self.var1.name, self.var2.name], as_index=False).std()
@@ -765,7 +771,7 @@ class Correlation:
         scanned_box = {self.var1.axe: posi_and_size}
         # On a donc deux boîtes maintenant : une avec deux axes (box) qui ne sont pas modifié à chaque position/taille de boîte et une autre (scanned_box) avec un seul axe qui correspond à l'axe scanné var1.axe
         df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
-        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycles", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
+        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycle", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
         result_var1 = self.counts_atoms_in_boxes_one_variable(
             df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
         )
