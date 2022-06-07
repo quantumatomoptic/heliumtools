@@ -596,6 +596,7 @@ class Correlation:
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
         total["(N_1-N_2)^4"] = (total["N_1"] - total["N_2"]) ** 4
+        self.total = total
         # on moyenne les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
@@ -607,7 +608,12 @@ class Correlation:
         new_df = pd.merge(df1, df2, how="cross")
         new_df = new_df[["Cycle", self.var1.name, self.var2.name, "N_1-N_2"]]
         new_df.columns = new_df.columns.str.replace("N_1-N_2", "mean(N_1-N_2)")
-        # total["(N_1-N_2)^2-moy(N_1-N_2)^2"] = total["(N_1-N_2)^2"]
+        # new_df est donc un dataframe avec 4 colonnes : une kz1, une kz2, une avec le cycle et une avec la moyenne (N1-N2). Bien entendu, à chaque cycle la moyenne N1-N2 est la même. NB : kz1 est de façon générale var1.name mais souvent kz1.
+        # On veut ajouter au dataframe total la colonne moy(N1-N2).
+        total = pd.merge(total, new_df)
+        total["(N_1-N_2)^2-mean(N_1-N_2)^2"] = (
+            total["(N_1-N_2)^2"] - total["mean(N_1-N_2)"] ** 2
+        )
 
         error = total.groupby([self.var1.name, self.var2.name], as_index=False).std()
 
@@ -647,6 +653,7 @@ class Correlation:
         self.result["N_1-N_2 std"] = error["N_1-N_2"]
         self.result["(N_1-N_2)^2 std"] = error["(N_1-N_2)^2"]
         self.result["N_1+N_2 std"] = error["N_1+N_2"]
+        self.result["variance std"] = error["(N_1-N_2)^2-mean(N_1-N_2)^2"]
 
         self.result["N_1 error"] = self.result["N_1 std"] / np.sqrt(self.n_cycles)
         self.result["N_2 error"] = self.result["N_2 std"] / np.sqrt(self.n_cycles)
@@ -662,6 +669,16 @@ class Correlation:
         self.result["N_1+N_2 error"] = self.result["N_1+N_2 std"] / np.sqrt(
             self.n_cycles
         )
+        self.result["variance error"] = self.result["variance std"] / np.sqrt(
+            self.n_cycles
+        )
+
+        self.result["normalized variance error"] = self.result[
+            "normalized variance"
+        ] * np.sqrt(
+            (self.result["variance error"] / self.result["variance"]) ** 2
+            + (self.result["N_1+N_2 error"] / self.result["N_1+N_2"]) ** 2
+        )
 
         self.result["g^2 error"] = self.result["g^2"] * np.sqrt(
             (self.result["N_1*N_2 error"] / self.result["N_1*N_2"]) ** 2
@@ -676,17 +693,6 @@ class Correlation:
                 + 2 * (self.result["N_1 error"] / self.result["N_1"]) ** 2
                 + (self.result["N_2 error"] / self.result["N_2"]) ** 2
             )
-        self.result["variance error"] = self.result["variance"] * np.sqrt(
-            (self.result["(N_1-N_2)^2 error"] / self.result["(N_1-N_2)^2"]) ** 2
-            + (self.result["N_1-N_2 error"] / self.result["N_1-N_2"]) ** 2
-        )
-        self.result["normalized variance error"] = self.result[
-            "normalized variance"
-        ] * np.sqrt(
-            (self.result["(N_1-N_2)^2 error"] / self.result["(N_1-N_2)^2"]) ** 2
-            # + (self.result["N_1-N_2 error"] / self.result["N_1-N_2"]) ** 2
-            + (self.result["N_1+N_2 error"] / self.result["N_1+N_2"]) ** 2
-        )
 
         self.result["normalized variance error2"] = (
             (self.result["(N_1-N_2)^4"] - self.result["(N_1-N_2)^2"] ** 2)
