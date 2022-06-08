@@ -83,7 +83,7 @@ class Correlation:
         """
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
         """
-        self.atoms = atoms.copy()
+        self.atoms = copy.deepcopy(atoms)
         self.n_cycles = n_cycles
         self.bec_arrival_time = 308  # temps d'arrivée du BEC, en ms
         self.raman_kick = 42  # mm/s, kick Raman
@@ -796,6 +796,55 @@ class Correlation:
         #### STEP3 : computes quantites of interest
         self.compute_result(total)
 
+    def compute_opposite_momenta_correlations(self):
+        """
+        Calcule des corrélation dans self.result lorsqu'on ne veut scanner qu'une variable et faire des corrélations entre k et -k. Les paramètres qui sont bougés doivent être définis dans var1.
+        """
+        box = self.var1.box
+        if box == "1":
+            box = "2"
+        else:
+            box = "1"
+        axe = self.var1.axe
+        type = self.var1.type
+        name = self.var1.name
+        values = self.var1.values
+        self.define_variable2(
+            box=box, axe=axe, type=type, name="-" + name, values=-1 * values
+        )
+
+        # On fait maintenant la même chose que dans compute_correlations_different_box_scanned_fast() jusqu'à step 2
+        #### STEP 1 : on récupère le nombre d'atome dans les boites associées à var1 et var2. Disons que intuivement, var1 corresponde à la boîte 1 et var2 à la boîte 2 mais ce n'est pas nécessaire dans le code.
+        # --> Start with var1
+        # On ne récupère que les atomes présents dans la boîte selon les deux axes qui ne varient pas. Par exemple, si on est en train de faire varier la position de la boite selon Vx, on récupère les atomes qui vérifient déjà les bonnes conditions selon Vy et Vz pour alléger les calculs.
+        box = self.boxes[self.var1.box].copy()
+        # On enlève l'axe concerné par le scan
+        posi_and_size = box.pop(self.var1.axe)
+        # l'axe concerné par le scan est donc
+        scanned_box = {self.var1.axe: posi_and_size}
+        # On a donc deux boîtes maintenant : une avec deux axes (box) qui ne sont pas modifié à chaque position/taille de boîte et une autre (scanned_box) avec un seul axe qui correspond à l'axe scanné var1.axe
+        df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
+        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycle", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
+        result_var1 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
+        )
+        # --> Do the same with var2
+        box = self.boxes[self.var2.box].copy()
+        posi_and_size = box.pop(self.var2.axe)
+        scanned_box = {self.var2.axe: posi_and_size}
+        df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
+        result_var2 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
+        )
+        #### STEP2
+        result_var1["abs(varname)"] = np.abs(result_var1[self.var1.name])
+        result_var2["abs(varname)"] = np.abs(result_var2[self.var2.name])
+        # On fusionne maintenant les dataframe sur deux clés et non plus sur une seule.
+        total = pd.merge(result_var1, result_var2)
+
+        #### STEP3 : computes quantites of interest
+        self.compute_result(total)
+
 
 class Variable:
     """
@@ -810,10 +859,10 @@ class Variable:
         self.min = 0  # sa valeur minimale, maximale et le nombre d'éléments
         self.max = 2
         self.step = 4
-        self.values = None  # ou bien les valeurs qu'il prend (liste ou numpy array)
+        self.values = []  # ou bien les valeurs qu'il prend (liste ou numpy array)
         self.round_decimal = 7
         self.__dict__.update(kwargs)
-        if self.values == None:
+        if len(self.values) == 0:
             self.built_values()
         self.get_values_caracteristics()
 
@@ -832,68 +881,3 @@ class Variable:
         Renvoie la i-ième value de self.values
         """
         return self.values[i]
-
-
-import os, glob, math, random
-from pathlib import Path
-
-
-def load_data_for_correlation(folder, maximum_number_of_files=1e8):
-    """
-    Charge les .atoms d'une séquence donnée
-    """
-    ext = [".atoms"]
-    selected_files = sorted(
-        [
-            path.as_posix()
-            for path in filter(lambda path: path.suffix in ext, folder.glob("*"))
-        ]
-    )
-
-    N_files = min(len(selected_files), maximum_number_of_files)
-    Xc, Yc, Tc, Cyclec = [], [], [], []
-    for i in range(N_files):
-        path = selected_files[i]
-        X, Y, T = get_data(path)
-        cycle = np.ones(len(X)) * (1 + i)
-        Xc, Yc, Tc, Cyclec = combine(Xc, Yc, Tc, Cyclec, X, Y, T, cycle)
-    # Je crée maintenant un dataframe
-    data = np.transpose(np.array([Cyclec, Xc, Yc, Tc]))
-    df = pd.DataFrame(data, columns=["Cycle", "X", "Y", "T"])
-    return N_files, df
-
-
-def combine(Xc, Yc, Tc, Cyclec, X, Y, T, cycle):
-    """
-        Combine les positions et temps d'arrivée des atomes plus le cycle
-    correspondant aux fichier.
-    """
-    Xc = np.concatenate([Xc, X])
-    Yc = np.concatenate([Yc, Y])
-    Tc = np.concatenate([Tc, T])
-    Cyclec = np.concatenate([Cyclec, cycle])
-    return (Xc, Yc, Tc, Cyclec)
-
-
-def get_data(path):
-    v_perp_x = 1.02  # mm/ns
-    v_perp_y = 1.13  # mm/ns
-    time_resolution = 1.2e-10
-    # time_to_pos = 2 * 0.98e-9
-
-    atoms_file = np.fromfile(path, dtype="uint64")
-
-    atoms = atoms_file * time_resolution
-
-    events_list = atoms.reshape(int(len(atoms) / 4), 4).T
-
-    Xmcp = 0.5 * v_perp_x * 1e9 * (events_list[1] - events_list[0])
-    Ymcp = 0.5 * v_perp_y * 1e9 * (events_list[3] - events_list[2])
-
-    X = (Xmcp + Ymcp) / np.sqrt(2)
-    Y = (Ymcp - Xmcp) / np.sqrt(2)
-    T = (events_list[0] + events_list[1] + events_list[2] + events_list[3]) / 4
-
-    T = T * 1e3
-
-    return (X, Y, T)
