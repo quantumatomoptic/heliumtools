@@ -300,29 +300,19 @@ class Correlation:
         )
         self.result = pd.DataFrame(column_values, columns=column_name)
         step = 0
-        with alive_bar(
-            self.var1.n_step * self.var2.n_step, title="Computing correlations"
-        ) as bar:
-            for i1 in range(self.var1.n_step):
-                for i2 in range(self.var2.n_step):
-                    var1_value = self.var1.get_value_i(i1)
-                    var2_value = self.var2.get_value_i(i2)
-                    # On sélectionne les parties des dataframe où les variables ont la bonne valeur (cemme de l'étape i1, i2) avant de les merger et de les corréler.
-                    var1dataframe = result_var1[
-                        result_var1[self.var1.name] == var1_value
-                    ]
-                    var2dataframe = result_var2[
-                        result_var2[self.var2.name] == var2_value
-                    ]
-                    dataframe = self.merge_dataframe_on_cycles(
-                        var1dataframe, var2dataframe
-                    )
-                    line_result = [var1_value, var2_value] + self.quantity_of_interest(
-                        dataframe
-                    )
-                    self.result.loc[self.result.index[step]] = line_result
-                    step += 1
-                    bar()
+        for i1 in range(self.var1.n_step):
+            for i2 in range(self.var2.n_step):
+                var1_value = self.var1.get_value_i(i1)
+                var2_value = self.var2.get_value_i(i2)
+                # On sélectionne les parties des dataframe où les variables ont la bonne valeur (cemme de l'étape i1, i2) avant de les merger et de les corréler.
+                var1dataframe = result_var1[result_var1[self.var1.name] == var1_value]
+                var2dataframe = result_var2[result_var2[self.var2.name] == var2_value]
+                dataframe = self.merge_dataframe_on_cycles(var1dataframe, var2dataframe)
+                line_result = [var1_value, var2_value] + self.quantity_of_interest(
+                    dataframe
+                )
+                self.result.loc[self.result.index[step]] = line_result
+                step += 1
 
     def compute_correlations_one_box_scanned(self, var):
         """
@@ -360,6 +350,45 @@ class Correlation:
             line_result = [var_value] + self.quantity_of_interest(dataframe)
             self.result.loc[self.result.index[i1]] = line_result
 
+    def define_new_variable_with_one_value(self, var, new_var_number):
+        """Cette fonction génère la variable 1 ou 2 (correspondant à var_number) en copiant les paramètres de var. Par exemple, on scanne la variable 1, la taille de boîtes selon Vz, cette fonction va définir la variable 2 comme scannant la taille des boites dans la boite opposée à la variable 1 avec un seul paramètre, celui définit dans box. Cela permet d'utiliser systématiquement la fonction compute_correlations_different_box_scanned_fast même lorsuq'on a une seule boîte définie.
+
+        Parameters
+        ----------
+        var : objet de la classe Variable
+
+        var_number : entier 1 ou 2
+            Si c'est 1, on va définir une nouvelle variable 1, si c'est 2, on va définir la nouvelle variable 2.
+        """
+        if new_var_number not in [1, 2]:
+            raise (
+                "Error : this variable number is not defined ({}). Choose either 1 or 2.".format(
+                    new_var_number
+                )
+            )
+        # Pour définir une variable, il faut
+        # --> le numéro de sa boîte : "1"  ou "2". C'est celui opposé à var.
+        liste = ["1", "2"]
+        liste.remove(var.box)
+        box_number = liste[0]
+        # --> son axe et son type, qui sont le même que la boîte déjà définie.
+        axe = "Vx"  # l'axe du paramètre scanné (Vx, Vy ou Vz)
+        type = "size"  # le type : size ou position
+        # On récupère son nom en prenant les paramètres par défaut.
+        name = var.built_name(add_box_number=False) + box_number
+        # si jamais le nom de la variable correspond à l'autre, cela va poser problème donc on rajoute un _default.
+        if name == var.name:
+            name += "_default"
+        values = [self.boxes[box_number][axe][type]]
+        if new_var_number == 1:
+            self.define_variable1(
+                box=box_number, axe=axe, type=type, name=name, values=values
+            )
+        elif new_var_number == 2:
+            self.define_variable2(
+                box=box_number, axe=axe, type=type, name=name, values=values
+            )
+
     def compute_correlations(self):
         """
         Cette fonction gère les différents cas de figure de scan.
@@ -376,11 +405,16 @@ class Correlation:
             corr_names = self.quantity_of_interest()
             corr_values = self.quantity_of_interest(total_atoms)
             self.result = pd.DataFrame([corr_values], columns=corr_names)
-        # Cas 2 : on ne scanne qu'un seul paramètre
+        # Cas 2 : on ne scanne qu'un seul paramètre : dans ce cas, on définit la seconde variable scannée avec un seul paramètre en appelant define_new_variable_with_one_value puis on réappelle la méthode compute_correlations pour être dans le cas 3
         elif (self.var1 == None) and (self.var2 != None):
-            self.compute_correlations_one_box_scanned(self.var2)
+            # dans ce cas on va définir la variable 1
+            print("I defined myself variable1")
+            self.define_new_variable_with_one_value(self.var2, 1)
+            self.compute_correlations()
         elif (self.var1 != None) and (self.var2 == None):
-            self.compute_correlations_one_box_scanned(self.var1)
+            print("I defined myself variable2")
+            self.define_new_variable_with_one_value(self.var1, 2)
+            self.compute_correlations()
         # Cas 3 : on scanne des paramètres appartenant à deux boîtes différentes
         elif self.var1.box != self.var2.box:
             self.compute_correlations_different_box_scanned_fast()
@@ -869,6 +903,16 @@ class Variable:
     def built_values(self):
         self.values = np.arange(self.min, self.max, self.step)
         self.values = np.round(self.values, self.round_decimal)
+
+    def built_name(self, add_box_number=True):
+        """built a default name"""
+        name = ""
+        if self.type == "size":
+            name += "Δ"
+        name += self.axe
+        if add_box_number:
+            name += self.box
+        return name
 
     def get_values_caracteristics(self):
         self.values = np.array(self.values)

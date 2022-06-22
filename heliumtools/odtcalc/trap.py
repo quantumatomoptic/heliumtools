@@ -125,8 +125,8 @@ class Trap:
             Byc += byc
             Bzc += bzc
         # compute resulting potential
-        B = np.sqrt(Bx ** 2 + By ** 2 + Bz ** 2)
-        Bc = np.sqrt(Bxc ** 2 + Byc ** 2 + Bzc ** 2)  # at center
+        B = np.sqrt(Bx**2 + By**2 + Bz**2)
+        Bc = np.sqrt(Bxc**2 + Byc**2 + Bzc**2)  # at center
         magnetic_potential = gJ * mJ * mu_B * (B - Bc)
         potential += mult * magnetic_potential
 
@@ -183,17 +183,17 @@ class Trap:
             # - compute
             # beam parameters
             w0 = beam.waist_value  # waist (m)
-            zR = np.pi * w0 ** 2 / beam.wavelength  # Rayleigh length (m)
+            zR = np.pi * w0**2 / beam.wavelength  # Rayleigh length (m)
             P0 = beam.power  # power (W)
-            I0 = 2 * P0 / np.pi / w0 ** 2  # central intensity (W/m^2)
+            I0 = 2 * P0 / np.pi / w0**2  # central intensity (W/m^2)
             # atomic parameters
             alpha = self.atom.get_alpha(beam.wavelength)  # polarizability
             m = self.atom.mass  # atomic mass (kg)
             # trap parameters
             U0 = 1 / 2 / csts.epsilon_0 / csts.c * alpha * I0  # trap depth (J)
             U0_K = U0 / csts.k  # trap depth (K)
-            omega_rad = np.sqrt(4 * U0 / m / w0 ** 2)  # radial trap freq.
-            omega_ax = np.sqrt(2 * U0 / m / zR ** 2)  # axial trap freq.
+            omega_rad = np.sqrt(4 * U0 / m / w0**2)  # radial trap freq.
+            omega_ax = np.sqrt(2 * U0 / m / zR**2)  # axial trap freq.
             f_rad = omega_rad / 2 / pi
             f_ax = omega_ax / 2 / pi
             # - store
@@ -219,7 +219,7 @@ class Trap:
                     n = c.n_turns
                     Bmax = csts.mu_0 * curr * n / 2 / R  # T
                     Bc = Bmax * (1 + (z0 / R) ** 2) ** (-3 / 2)  # T
-                    gradB = -3 * Bc * z0 / R ** 2 / (1 + (z0 / R) ** 2)  # T / m
+                    gradB = -3 * Bc * z0 / R**2 / (1 + (z0 / R) ** 2)  # T / m
                     gradB = gradB * 1e4 / 1e2  # G / cm
                     grad[ax] += gradB
             else:
@@ -230,7 +230,7 @@ class Trap:
                 n = coil.n_turns
                 Bmax = csts.mu_0 * curr * n / 2 / R  # T
                 Bc = Bmax * (1 + (z0 / R) ** 2) ** (-3 / 2)  # T
-                gradB = -3 * Bc * z0 / R ** 2 / (1 + (z0 / R) ** 2)  # T / m
+                gradB = -3 * Bc * z0 / R**2 / (1 + (z0 / R) ** 2)  # T / m
                 gradB = gradB * 1e4 / 1e2  # G / cm
                 grad[ax] += gradB
 
