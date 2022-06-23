@@ -268,80 +268,9 @@ class Correlation:
         result.reset_index(drop=True)
         return result
 
-    def define_new_variable_with_one_value(self, var, new_var_number):
-        """Cette fonction génère la variable 1 ou 2 (correspondant à var_number) en copiant les paramètres de var. Par exemple, on scanne la variable 1, la taille de boîtes selon Vz, cette fonction va définir la variable 2 comme scannant la taille des boites dans la boite opposée à la variable 1 avec un seul paramètre, celui définit dans box. Cela permet d'utiliser systématiquement la fonction compute_correlations_different_box_scanned même lorsuq'on a une seule boîte définie.
-
-        Parameters
-        ----------
-        var : objet de la classe Variable
-
-        var_number : entier 1 ou 2
-            Si c'est 1, on va définir une nouvelle variable 1, si c'est 2, on va définir la nouvelle variable 2.
-        """
-        if new_var_number not in [1, 2]:
-            raise (
-                "Error : this variable number is not defined ({}). Choose either 1 or 2.".format(
-                    new_var_number
-                )
-            )
-        # Pour définir une variable, il faut
-        # --> le numéro de sa boîte : "1"  ou "2". C'est celui opposé à var.
-        liste = ["1", "2"]
-        liste.remove(var.box)
-        box_number = liste[0]
-        # --> son axe et son type, qui sont le même que la boîte déjà définie.
-        axe = "Vx"  # l'axe du paramètre scanné (Vx, Vy ou Vz)
-        type = "size"  # le type : size ou position
-        # On récupère son nom en prenant les paramètres par défaut.
-        name = var.built_name(add_box_number=False) + box_number
-        # si jamais le nom de la variable correspond à l'autre, cela va poser problème donc on rajoute un _default.
-        if name == var.name:
-            name += "_default"
-        values = [self.boxes[box_number][axe][type]]
-        if new_var_number == 1:
-            self.define_variable1(
-                box=box_number, axe=axe, type=type, name=name, values=values
-            )
-        elif new_var_number == 2:
-            self.define_variable2(
-                box=box_number, axe=axe, type=type, name=name, values=values
-            )
-
-    def compute_correlations(self):
-        """
-        Cette fonction gère les différents cas de figure de scan.
-        """
-        # Cas 1 : on ne scanne aucun paramètre, on veut juste la corrélation entre deux boites.
-        if (self.var1 == None) and (self.var2 == None):
-            atoms_box1 = self.obtain_number_of_atoms_per_cycle_in_box(
-                self.atoms, self.boxes["1"], column_name="N_1"
-            )
-            atoms_box2 = self.obtain_number_of_atoms_per_cycle_in_box(
-                self.atoms, self.boxes["2"], column_name="N_2"
-            )
-            total_atoms = self.merge_dataframe_on_cycles(atoms_box1, atoms_box2)
-            corr_names = self.quantity_of_interest()
-            corr_values = self.quantity_of_interest(total_atoms)
-            self.result = pd.DataFrame([corr_values], columns=corr_names)
-        # Cas 2 : on ne scanne qu'un seul paramètre : dans ce cas, on définit la seconde variable scannée avec un seul paramètre en appelant define_new_variable_with_one_value puis on réappelle la méthode compute_correlations pour être dans le cas 3
-        elif (self.var1 == None) and (self.var2 != None):
-            # dans ce cas on va définir la variable 1
-            # print("I defined myself variable1")
-            self.define_new_variable_with_one_value(self.var2, 1)
-            self.compute_correlations()
-        elif (self.var1 != None) and (self.var2 == None):
-            # print("I defined myself variable2")
-            self.define_new_variable_with_one_value(self.var1, 2)
-            self.compute_correlations()
-        # Cas 3 : on scanne des paramètres appartenant à deux boîtes différentes
-        elif self.var1.box != self.var2.box:
-            self.compute_correlations_different_box_scanned()
-        # Cas 4 : on scanne des paramètres appartenant à la même boîte
-        else:
-            self.result = 0
-            print("This is not implemented yet.")
-
-        self.boxes = self.initial_boxes
+    ###########################################################
+    ############### FONCTION D'AFFICHAGE  #####################
+    ###########################################################
 
     def show_density(
         self,
@@ -461,6 +390,167 @@ class Correlation:
         plt.title(z)
         plt.show()
 
+    ###########################################################
+    ######## GESTION DES CAS DE FIGURE AVANT LE CALCUL  #######
+    ###########################################################
+
+    def compute_correlations(self):
+        """
+        Cette fonction gère les différents cas de figure de scan.
+        """
+        # Cas 1 : on ne scanne aucun paramètre, on veut juste la corrélation entre deux boites.
+        if (self.var1 == None) and (self.var2 == None):
+            atoms_box1 = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, self.boxes["1"], column_name="N_1"
+            )
+            atoms_box2 = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, self.boxes["2"], column_name="N_2"
+            )
+            total_atoms = self.merge_dataframe_on_cycles(atoms_box1, atoms_box2)
+            corr_names = self.quantity_of_interest()
+            corr_values = self.quantity_of_interest(total_atoms)
+            self.result = pd.DataFrame([corr_values], columns=corr_names)
+        # Cas 2 : on ne scanne qu'un seul paramètre : dans ce cas, on définit la seconde variable scannée avec un seul paramètre en appelant define_new_variable_with_one_value puis on réappelle la méthode compute_correlations pour être dans le cas 3
+        elif (self.var1 == None) and (self.var2 != None):
+            # dans ce cas on va définir la variable 1
+            # print("I defined myself variable1")
+            self.define_new_variable_with_one_value(self.var2, 1)
+            self.compute_correlations()
+        elif (self.var1 != None) and (self.var2 == None):
+            # print("I defined myself variable2")
+            self.define_new_variable_with_one_value(self.var1, 2)
+            self.compute_correlations()
+        # Cas 3 : on scanne des paramètres appartenant à deux boîtes différentes
+        elif self.var1.box != self.var2.box:
+            self.compute_correlations_different_box_scanned()
+        # Cas 4 : on scanne des paramètres appartenant à la même boîte
+        else:
+            self.result = 0
+            print("This is not implemented yet.")
+
+        self.boxes = self.initial_boxes
+
+    def compute_correlations_different_box_scanned(self):
+        """
+        Méthode pour calcul des corrélations lorsque var1 et var2 (les paramètres scannés) correspondent à deux boites différentes.
+        """
+        #%#% STEP 1 : on récupère le nombre d'atome dans les boites associées à var1 et var2. Disons que intuivement, var1 corresponde à la boîte 1 et var2 à la boîte 2 mais ce n'est pas nécessaire dans le code.
+        # --> Start with var1
+        # On ne récupère que les atomes présents dans la boîte selon les deux axes qui ne varient pas. Par exemple, si on est en train de faire varier la position de la boite selon Vx, on récupère les atomes qui vérifient déjà les bonnes conditions selon Vy et Vz pour alléger les calculs.
+        box = self.boxes[self.var1.box].copy()
+        # On enlève l'axe concerné par le scan
+        posi_and_size = box.pop(self.var1.axe)
+        # l'axe concerné par le scan est donc
+        scanned_box = {self.var1.axe: posi_and_size}
+        # On a donc deux boîtes maintenant : une avec deux axes (box) qui ne sont pas modifié à chaque position/taille de boîte et une autre (scanned_box) avec un seul axe qui correspond à l'axe scanné var1.axe
+        df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
+        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycle", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
+        result_var1 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
+        )
+        # --> Do the same with var2
+        box = self.boxes[self.var2.box].copy()
+        posi_and_size = box.pop(self.var2.axe)
+        scanned_box = {self.var2.axe: posi_and_size}
+        df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
+        result_var2 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
+        )
+        #%#% STEP2
+        # On construit le dataframe total, qui initialement contient 5 colonnes : Cycle le cycle, N_1 et N_2 nombre d'atomes dans la boîte 1 et 2, self.var1 et self.var2 la position/taille des boîtes lors du scan. Le nombre de lignes de total est dont Nombre_de_cycles x Nombre_de_différentes_var1 x Nombre_de_différentes_var2.
+        total = pd.merge(result_var1, result_var2, on="Cycle")
+
+        #%#% STEP3 : computes quantites of interest
+        self.compute_result(total)
+
+    def compute_opposite_momenta_correlations(self):
+        """
+        Calcule des corrélation dans self.result lorsqu'on ne veut scanner qu'une variable et faire des corrélations entre k et -k. Les paramètres qui sont bougés doivent être définis dans var1.
+        """
+        box = self.var1.box
+        if box == "1":
+            box = "2"
+        else:
+            box = "1"
+        axe = self.var1.axe
+        type = self.var1.type
+        name = self.var1.name
+        values = self.var1.values
+        self.define_variable2(
+            box=box, axe=axe, type=type, name="-" + name, values=-1 * values
+        )
+
+        # On fait maintenant la même chose que dans compute_correlations_different_box_scanned() jusqu'à step 2
+        #### STEP 1 : on récupère le nombre d'atome dans les boites associées à var1 et var2. Disons que intuivement, var1 corresponde à la boîte 1 et var2 à la boîte 2 mais ce n'est pas nécessaire dans le code.
+        # --> Start with var1
+        # On ne récupère que les atomes présents dans la boîte selon les deux axes qui ne varient pas. Par exemple, si on est en train de faire varier la position de la boite selon Vx, on récupère les atomes qui vérifient déjà les bonnes conditions selon Vy et Vz pour alléger les calculs.
+        box = self.boxes[self.var1.box].copy()
+        # On enlève l'axe concerné par le scan
+        posi_and_size = box.pop(self.var1.axe)
+        # l'axe concerné par le scan est donc
+        scanned_box = {self.var1.axe: posi_and_size}
+        # On a donc deux boîtes maintenant : une avec deux axes (box) qui ne sont pas modifié à chaque position/taille de boîte et une autre (scanned_box) avec un seul axe qui correspond à l'axe scanné var1.axe
+        df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
+        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycle", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
+        result_var1 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
+        )
+        # --> Do the same with var2
+        box = self.boxes[self.var2.box].copy()
+        posi_and_size = box.pop(self.var2.axe)
+        scanned_box = {self.var2.axe: posi_and_size}
+        df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
+        result_var2 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
+        )
+        #### STEP2
+        result_var1["abs(varname)"] = np.abs(result_var1[self.var1.name])
+        result_var2["abs(varname)"] = np.abs(result_var2[self.var2.name])
+        # On fusionne maintenant les dataframe sur deux clés et non plus sur une seule.
+        total = pd.merge(result_var1, result_var2)
+
+        #### STEP3 : computes quantites of interest
+        self.compute_result(total)
+
+    def define_new_variable_with_one_value(self, var, new_var_number):
+        """Cette fonction génère la variable 1 ou 2 (correspondant à var_number) en copiant les paramètres de var. Par exemple, on scanne la variable 1, la taille de boîtes selon Vz, cette fonction va définir la variable 2 comme scannant la taille des boites dans la boite opposée à la variable 1 avec un seul paramètre, celui définit dans box. Cela permet d'utiliser systématiquement la fonction compute_correlations_different_box_scanned même lorsuq'on a une seule boîte définie.
+
+        Parameters
+        ----------
+        var : objet de la classe Variable
+
+        var_number : entier 1 ou 2
+            Si c'est 1, on va définir une nouvelle variable 1, si c'est 2, on va définir la nouvelle variable 2.
+        """
+        if new_var_number not in [1, 2]:
+            raise (
+                "Error : this variable number is not defined ({}). Choose either 1 or 2.".format(
+                    new_var_number
+                )
+            )
+        # Pour définir une variable, il faut
+        # --> le numéro de sa boîte : "1"  ou "2". C'est celui opposé à var.
+        liste = ["1", "2"]
+        liste.remove(var.box)
+        box_number = liste[0]
+        # --> son axe et son type, qui sont le même que la boîte déjà définie.
+        axe = "Vx"  # l'axe du paramètre scanné (Vx, Vy ou Vz)
+        type = "size"  # le type : size ou position
+        # On récupère son nom en prenant les paramètres par défaut.
+        name = var.built_name(add_box_number=False) + box_number
+        # si jamais le nom de la variable correspond à l'autre, cela va poser problème donc on rajoute un _default.
+        if name == var.name:
+            name += "_default"
+        values = [self.boxes[box_number][axe][type]]
+        if new_var_number == 1:
+            self.define_variable1(
+                box=box_number, axe=axe, type=type, name=name, values=values
+            )
+        elif new_var_number == 2:
+            self.define_variable2(
+                box=box_number, axe=axe, type=type, name=name, values=values
+            )
+
     def quantity_of_interest(self, dataframe=""):
         """
         Prend en argument un dataframe dont les colonnes sont le nombre d'atomes dans les boîtes 1 et 2 à chaque cycle1 Retourne une liste de flottants avec les différentes valeurs d'intérêt. Si dataframe = "", renvoie une liste de strings avec le nom de chaque quantité calculée.
@@ -518,6 +608,10 @@ class Correlation:
             g2,
         ]
         return computed_quantities
+
+    ###########################################################
+    ############### FONCTION DE CALCUL FINALE #################
+    ###########################################################
 
     def compute_result(self, total):
         """
@@ -714,88 +808,6 @@ class Correlation:
         )
 
         print("Computation is done.")
-
-    def compute_correlations_different_box_scanned(self):
-        """
-        Méthode pour calcul des corrélations lorsque var1 et var2 (les paramètres scannés) correspondent à deux boites différentes.
-        """
-        #### STEP 1 : on récupère le nombre d'atome dans les boites associées à var1 et var2. Disons que intuivement, var1 corresponde à la boîte 1 et var2 à la boîte 2 mais ce n'est pas nécessaire dans le code.
-        # --> Start with var1
-        # On ne récupère que les atomes présents dans la boîte selon les deux axes qui ne varient pas. Par exemple, si on est en train de faire varier la position de la boite selon Vx, on récupère les atomes qui vérifient déjà les bonnes conditions selon Vy et Vz pour alléger les calculs.
-        box = self.boxes[self.var1.box].copy()
-        # On enlève l'axe concerné par le scan
-        posi_and_size = box.pop(self.var1.axe)
-        # l'axe concerné par le scan est donc
-        scanned_box = {self.var1.axe: posi_and_size}
-        # On a donc deux boîtes maintenant : une avec deux axes (box) qui ne sont pas modifié à chaque position/taille de boîte et une autre (scanned_box) avec un seul axe qui correspond à l'axe scanné var1.axe
-        df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
-        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycle", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
-        result_var1 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
-        )
-        # --> Do the same with var2
-        box = self.boxes[self.var2.box].copy()
-        posi_and_size = box.pop(self.var2.axe)
-        scanned_box = {self.var2.axe: posi_and_size}
-        df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
-        result_var2 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
-        )
-        #### STEP2
-        # On construit le dataframe total, qui initialement contient 5 colonnes : Cycle le cycle, N_1 et N_2 nombre d'atomes dans la boîte 1 et 2, self.var1 et self.var2 la position/taille des boîtes lors du scan. Le nombre de lignes de total est dont Nombre_de_cycles x Nombre_de_différentes_var1 x Nombre_de_différentes_var2.
-        total = pd.merge(result_var1, result_var2, on="Cycle")
-
-        #### STEP3 : computes quantites of interest
-        self.compute_result(total)
-
-    def compute_opposite_momenta_correlations(self):
-        """
-        Calcule des corrélation dans self.result lorsqu'on ne veut scanner qu'une variable et faire des corrélations entre k et -k. Les paramètres qui sont bougés doivent être définis dans var1.
-        """
-        box = self.var1.box
-        if box == "1":
-            box = "2"
-        else:
-            box = "1"
-        axe = self.var1.axe
-        type = self.var1.type
-        name = self.var1.name
-        values = self.var1.values
-        self.define_variable2(
-            box=box, axe=axe, type=type, name="-" + name, values=-1 * values
-        )
-
-        # On fait maintenant la même chose que dans compute_correlations_different_box_scanned() jusqu'à step 2
-        #### STEP 1 : on récupère le nombre d'atome dans les boites associées à var1 et var2. Disons que intuivement, var1 corresponde à la boîte 1 et var2 à la boîte 2 mais ce n'est pas nécessaire dans le code.
-        # --> Start with var1
-        # On ne récupère que les atomes présents dans la boîte selon les deux axes qui ne varient pas. Par exemple, si on est en train de faire varier la position de la boite selon Vx, on récupère les atomes qui vérifient déjà les bonnes conditions selon Vy et Vz pour alléger les calculs.
-        box = self.boxes[self.var1.box].copy()
-        # On enlève l'axe concerné par le scan
-        posi_and_size = box.pop(self.var1.axe)
-        # l'axe concerné par le scan est donc
-        scanned_box = {self.var1.axe: posi_and_size}
-        # On a donc deux boîtes maintenant : une avec deux axes (box) qui ne sont pas modifié à chaque position/taille de boîte et une autre (scanned_box) avec un seul axe qui correspond à l'axe scanné var1.axe
-        df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
-        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycle", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
-        result_var1 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
-        )
-        # --> Do the same with var2
-        box = self.boxes[self.var2.box].copy()
-        posi_and_size = box.pop(self.var2.axe)
-        scanned_box = {self.var2.axe: posi_and_size}
-        df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
-        result_var2 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
-        )
-        #### STEP2
-        result_var1["abs(varname)"] = np.abs(result_var1[self.var1.name])
-        result_var2["abs(varname)"] = np.abs(result_var2[self.var2.name])
-        # On fusionne maintenant les dataframe sur deux clés et non plus sur une seule.
-        total = pd.merge(result_var1, result_var2)
-
-        #### STEP3 : computes quantites of interest
-        self.compute_result(total)
 
 
 class Variable:
