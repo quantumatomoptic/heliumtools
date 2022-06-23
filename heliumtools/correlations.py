@@ -128,7 +128,10 @@ class Correlation:
         self.atoms = self.atoms.rename(columns={"X": "Vx"})
         self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
         self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-        self.atoms["T"] = self.gravity * (self.atoms["T"] - self.bec_arrival_time)
+        l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
+        self.atoms["T"] = (
+            0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
+        )
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
 
     def define_variable1(self, **kwargs):
