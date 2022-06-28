@@ -140,6 +140,7 @@ def obtain_arrival_times(
     """
     list_of_cycles = atoms["Cycle"].unique()
     list_of_arrival_time = [0 for i in list_of_cycles]
+    number_of_atoms = [0 for i in list_of_cycles]
     print("Starting to gather arrival time of BECs")
     for i, cycle in enumerate(tqdm(list_of_cycles)):
         df = atoms[atoms["Cycle"] == cycle]
@@ -154,8 +155,13 @@ def obtain_arrival_times(
         # find the position of the max
         bec_arrival_time = bin_centers[np.argmax(bin_heights)]
         list_of_arrival_time[i] = bec_arrival_time
+        number_of_atoms[i] = len(df["T"])
     df_arrival_time = pd.DataFrame(
-        {"Cycle": list_of_cycles, "BEC Arrival Time": list_of_arrival_time}
+        {
+            "Cycle": list_of_cycles,
+            "BEC Arrival Time": list_of_arrival_time,
+            "Number of Atoms": number_of_atoms,
+        }
     )
     return df_arrival_time
 
