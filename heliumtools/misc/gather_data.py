@@ -43,7 +43,7 @@ def select_atoms_in_folder(folder):
     return path_list
 
 
-def load_atoms(folder):
+def load_atoms(folder, n_max_cycles=1e8):
     """Charge tous les .atoms.
 
     Parameters
@@ -52,7 +52,7 @@ def load_atoms(folder):
         chemin vers le dossier contenant tous les .atoms
     """
     selected_files = select_atoms_in_folder(Path(folder))
-    N_files = len(selected_files)
+    N_files = min([len(selected_files), n_max_cycles])
     Xc, Yc, Tc, Cyclec = [], [], [], []
     print("Starting to gather atoms")
     for i in tqdm(range(N_files)):
@@ -172,6 +172,7 @@ def export_data_set_to_pickle(
     find_arrival_times=False,
     ROI_for_arrival_times={"T": {"min": 307.3, "max": 308.7}},
     histogramm_width=0.01,
+    n_max_cycles=1e8,
 ):
     """Exporte le dataset folder comme pickle.
 
@@ -192,7 +193,7 @@ def export_data_set_to_pickle(
         largeur des pics de l'histogramme, en ms, by default 0.01
     """
     ### STEP 1 : gather data and save it
-    N_files, atoms = load_atoms(folder)
+    N_files, atoms = load_atoms(folder, n_max_cycles=n_max_cycles)
     atoms_in_ROI = apply_ROI(atoms, ROI_for_atoms)
     filename_dataset = os.path.join(folder, "dataset.pkl")
     atoms_in_ROI.to_pickle(filename_dataset)

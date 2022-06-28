@@ -124,14 +124,26 @@ class Correlation:
         """
         Cette méthode construit le dataframe contenant l'ensemble des positions des atomes : elle construit le dataframe self.atoms, dont les vitesses sont exprimées en mm/s à partir du dataframe initial.
         """
+
         self.atoms["X"] = 1000 * self.atoms["X"] / self.atoms["T"] + self.raman_kick
         self.atoms = self.atoms.rename(columns={"X": "Vx"})
         self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
         self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-        l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
-        self.atoms["T"] = (
-            0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
-        )
+
+        
+        if type(self.bec_arrival_time) == int or type(self.bec_arrival_time) == float:
+            l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
+            self.atoms["T"] = (
+                0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
+            )
+        elif isinstance(self.bec_arrival_time, pd.DataFrame):
+            print("I change the bec arrival time for each cycle.")
+            df = self.merge_dataframe_on_cycles(self.atoms, self.bec_arrival_time)
+            l_fall = 0.5 * self.gravity * df["BEC Arrival Time"] ** 2
+            self.atoms["T"] = (
+                0.5 * self.gravity * (df["T"] - df["BEC Arrival Time"] ** 2 / df["T"])
+            )
+
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
 
     def define_variable1(self, **kwargs):
