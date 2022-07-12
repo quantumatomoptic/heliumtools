@@ -42,7 +42,7 @@ class Pulse:
             return 1.0
         elif self.waveform == "sinc":
             Omega_M = self.amplitude
-            if self.pulse_type == "miror":
+            if self.pulse_type == "mirror":
                 Omega_S = Omega_M
             elif self.pulse_type == "splitter":
                 Omega_S = 2 * Omega_M
