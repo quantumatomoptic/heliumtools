@@ -129,9 +129,15 @@ class Correlation:
         self.atoms = self.atoms.rename(columns={"X": "Vx"})
         self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
         self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-
-        
-        if type(self.bec_arrival_time) == int or type(self.bec_arrival_time) == float:
+        print(type(self.bec_arrival_time))
+        if (
+            type(self.bec_arrival_time) == int
+            or type(self.bec_arrival_time) == float
+            or isinstance(self.bec_arrival_time, np.float64)
+            or isinstance(self.bec_arrival_time, np.float32)
+            or isinstance(self.bec_arrival_time, np.int32)
+            or isinstance(self.bec_arrival_time, np.int64)
+        ):
             l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
@@ -143,7 +149,8 @@ class Correlation:
             self.atoms["T"] = (
                 0.5 * self.gravity * (df["T"] - df["BEC Arrival Time"] ** 2 / df["T"])
             )
-
+        else:
+            print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
 
     def define_variable1(self, **kwargs):
