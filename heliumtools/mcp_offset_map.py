@@ -17,7 +17,22 @@ Content of mcp_offset_map.py
 
 Cette classe sert d'interface avec la base de données permettant de sauvegarder les onnées. Nous avons ainsi affaire à deux tables : 
 La table sequences qui conbtient toutes les séquences ajoutées à la base de données (chaque atome n'a pas un unique id donc on ne veut pas l'ajouter deux fois)
-La table atoms contenant la position et l'offset.
+La table atoms contient la position et l'offset de chaque atome détecté. Elle est donc assez grosse. 
+
+#### USER REMARKS ######
+
+This class is usefull when one requires to build MCP offset maps. It works as follows :
+--> the only argument you give to this class is the path (unix string like object) to the folder in which you want to store the data or in which the data already exist. 
+--> If it is empty, it will creat a empty SQLite database. First thing you have to do is to add sequences to this database. To do so, use the instruction 'add_sequence_to_database('Path/To/your/sequences'). In this case, the programm tries to get the reference of this sequence (of the form yyy/mm/dd/seq) and search into its first database (whos name is sequences) if this sequences was already add to the database or not. If not, it adds it (the 'atoms' table), looping over all cycles of the sequence. Such an operation takes a few minutes for really large sequences.
+--> What we add to the atom database are the following elements : 
+    + deltaX : position on X of the atom,
+    + deltaY : position on Y of the atom,
+    + offset : offset of the atom, X2+X1-Y2-Y2
+--> Once you've built the database, you can compute the statistical properties of your MCP. To do so, you just have to call update_result() : this function will loop over all X pixels of the MCP and load atoms that where found at this X position : we calculate the number of count, the mean offset, std, min and max at each Y position and store it into a dataframe named 'result'. This dataframe (size : 1500x1500x8) is then store into a pkl file whose name is result.pkl. Note that this step is quite long (an hour typically). 
+Note also that if your compute have huge memmory, you might be able to load all the atom database in one shot using :
+    mcp_map = MCP_offset_map("your/folder/database")
+    mcp_map.connect_to_database()
+    all_atoms = pd.read_sql_query("SELECT * FROM atoms", mcp_map.connexion)
 
 
 #### DEVELOPPERS REMARKS ######
@@ -45,13 +60,6 @@ pixels = pd.read_sql_query(("SELECT * FROM pixels", self.connexion)) # charge le
 dataframe.to_sql(name_of_table, self.connexion, if_exists='fail',index = True) 
 # Always use index = False
 # For atoms : use if_exists = 'append'   ;because we always want to append the atom (if we already add an atom with this offset, we have to add it and not to drop it).
-
-
-
-
-Some note (v.g. on the 26 of July) :
-We have a lot of speed issue when constructing the database.I tried to delete each variable 
-
 """
 
 import os, re, json, copy
@@ -61,6 +69,8 @@ import pandas as pd
 import numpy as np
 import sqlite3 as db
 from tqdm import tqdm
+from pylab import cm
+import matplotlib.pyplot as plt
 
 
 class MCP_offset_map:
@@ -387,20 +397,6 @@ class MCP_offset_map:
             self.result = pd.concat([self.result, df])
             del df
 
-        """
-        # On parcourt chaque pixel du MCP
-        for i, row in tqdm(self.result.iterrows()):
-            self.cursor.execute(
-                f"SELECT offset FROM atoms WHERE deltaX = {row.deltaX} AND deltaY = {row.deltaY};"
-            )
-            offset_datas = self.cursor.fetchall()
-            offset_datas = np.array(offset_datas)
-            self.result.at[i, "mean"] = offset_datas.mean()
-            self.result.at[i, "std"] = offset_datas.std()
-            self.result.at[i, "counts"] = offset_datas.size
-            self.result.at[i, "max"] = offset_datas.max()
-            self.result.at[i, "min"] = offset_datas.min()
-        """
         self.unconnect()
 
         self.save_result()
@@ -409,38 +405,120 @@ class MCP_offset_map:
     ########## METHDS TO SHOW THE MCP MAPS
     ##################################################################
     def show_detectivity(self):
-        mean = np.array(
+        """montre un image 2D du nombre de coups par pixel"""
+        counts = np.array(
+            self.result.pivot(index="deltaX", columns="deltaY", values="counts").fillna(
+                0
+            )
+        )
+        fig, ax = plt.subplots()
+        shw = ax.imshow(counts)
+        bar = plt.colorbar(shw)
+        plt.title("Gain map")
+        plt.show()
+
+    def show_dead_pixels(self):
+        """montre les pixels qui n'ont reçu aucun atome"""
+        maxi_counts = self.result.counts.max()
+        counts = np.array(
+            self.result.pivot(index="deltaX", columns="deltaY", values="counts").fillna(
+                3 * maxi_counts
+            )
+        )
+        counts = np.floor(counts / (2 * maxi_counts))
+        fig, ax = plt.subplots()
+        shw = ax.imshow(counts)
+        plt.title("Pixels with zero-detectivity")
+        plt.show()
+
+    def show_offset(self):
+        """représente la carte des offsets"""
+        offset_mean = self.result["mean"].mean()
+        print(offset_mean)
+        offsets = np.array(
             self.result.pivot(index="deltaX", columns="deltaY", values="mean").fillna(0)
         )
-        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        shw = ax.imshow(offsets)
+        bar = plt.colorbar(shw)
+        plt.title("Offset map (mean is {:.0f})".format(offset_mean))
+        plt.show()
 
-        plt.imshow(mean)
+    def show_stds(self):
+        """représente la carte des déviations standards des offsets"""
+        stds = np.array(
+            self.result.pivot(index="deltaX", columns="deltaY", values="std").fillna(0)
+        )
+        fig, ax = plt.subplots()
+        shw = ax.imshow(stds)
+        bar = plt.colorbar(shw)
+        plt.title("Offset stds map ")
+        plt.show()
+
+    def show_offset_cuts_alongY(self, coupe1=-400, coupe2=0, coupe3=200):
+        """Jolie figure avec 3 coupes selon Y"""
+        counts = np.array(
+            self.result.pivot(index="deltaY", columns="deltaX", values="counts").fillna(
+                0
+            )
+        )
+        offset = np.array(
+            self.result.pivot(index="deltaY", columns="deltaX", values="mean").fillna(0)
+        )
+        std = np.array(
+            self.result.pivot(index="deltaY", columns="deltaX", values="std").fillna(0)
+        )
+        offsetX = self.result.deltaX.min()
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+        # Première figure : détectivité
+        shw = ax1.imshow(counts)
+        # ax.set_title("Gain map")
+        from matplotlib.patches import Rectangle
+
+        ax1.add_patch(Rectangle((coupe2 - offsetX - 3, 0), 6, 1400))
+        ax1.add_patch(Rectangle((coupe3 - offsetX - 3, 0), 6, 1400))
+
+        # Deuxièmes figures
+        coupes = [coupe1, coupe2, coupe3]
+        coupes_axes = [ax2, ax3, ax4]
+        my_palette = [
+            "indianred",
+            "steelblue",
+            "olivedrab",
+            "goldenrod",
+            "darkslategrey",
+        ]
+        print(self.result.deltaX.drop_duplicates())
+        for i in range(len(coupes)):
+            print(i)
+            color = my_palette[i]
+            cut = coupes[i]
+            ax1.add_patch(Rectangle((cut - offsetX - 3, 0), 6, 1400, color=color))
+
+            datas = self.result[self.result["deltaX"] == cut]
+            # print(datas)
+            ax = coupes_axes[i]
+            x = datas["deltaY"]
+            y = datas["mean"]
+            u_y = datas["std"].fillna(0)
+
+            # ax.errorbar(x, y, yerr=u_y, fmt=".")
+            ax.plot(x, y, color, label=f"x={cut}")
+            ax.plot(x, y - u_y, alpha=0.5, color=color)
+            ax.plot(x, y + u_y, alpha=0.5, color=color)
+            ax.set_ylim(0, 80)
+            ax.set_xlabel("Position on x")
+            ax.set_ylabel("Offset (with resolution)")
+            ax.legend()
         plt.show()
 
 
 if __name__ == "__main__":
     mcp_map = MCP_offset_map("/home/victor/mcpmaps/")
     # mcp_map.add_sequence_to_database("/mnt/manip_E/2022/07/15/007")
-    mcp_map.update_result()
-
-    deltaX = mcp_map.pixelsX.deltaX
-
-    print("-------------")
-    print("_____ max :_____")
-    print(deltaX.max())
-    print("_____ min :_____")
-    print(deltaX.min())
-    print("_____ size :_____")
-    print(deltaX.size)
-    print("_____ max - min :_____")
-    print(deltaX.max() - deltaX.min())
-    deltaX = mcp_map.pixelsY.deltaY
-    print("-------------")
-    print("_____ max :_____")
-    print(deltaX.max())
-    print("_____ min :_____")
-    print(deltaX.min())
-    print("_____ size :_____")
-    print(deltaX.size)
-    print("_____ max - min :_____")
-    print(deltaX.max() - deltaX.min())
+    # mcp_map.update_result()
+    # mcp_map.show_detectivity()
+    mcp_map.show_dead_pixels()
+    # mcp_map.show_offset()
+    # mcp_map.show_stds()
+    # mcp_map.show_offset_cuts_alongY()
