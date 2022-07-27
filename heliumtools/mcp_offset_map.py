@@ -73,6 +73,7 @@ from pylab import cm
 import matplotlib.pyplot as plt
 import seaborn as sns
 from math import ceil, floor
+import gc
 
 
 class MCP_offset_map:
@@ -355,7 +356,7 @@ class MCP_offset_map:
             df["counts"] = a.count()
             df["max"] = a.max()
             df["min"] = a.min()
-            df["min"] = a.median()
+            df["median"] = a.median()
             df["quantile 5"] = a.quantile(0.05)
             df["quantile 95"] = a.quantile(0.95)
             df["quantile 25"] = a.quantile(0.25)
@@ -377,6 +378,7 @@ class MCP_offset_map:
             total = pd.merge(total, q_high2, on=["deltaX", "deltaY"])
             total = pd.merge(total, q_low2, on=["deltaX", "deltaY"])
             total = pd.merge(total, df_ini, on=["deltaX", "deltaY"])
+            ### WARNING : one can see that we have   <= sign instead of <  : this means that we do not strictly have a decile or a quartile.
             total1 = total[
                 (total["offset"] <= total["high"]) & (total["offset"] >= total["low"])
             ]
@@ -399,7 +401,8 @@ class MCP_offset_map:
             self.result = pd.concat([self.result, df])
             self.save_result()
 
-            del df
+            del df, total2, total, total1, a, q_low2, q_low, q_high, q_high2
+            gc.collect()
 
         self.unconnect()
 
@@ -461,9 +464,9 @@ class MCP_offset_map:
         if column == "counts":
             plt.title("Gain map")
         elif column == "mean":
-            plt.title("Offset map")
+            plt.title("Offset map (mean of offsets)")
         elif column == "std":
-            plt.title("Resolution map (std of offsets")
+            plt.title("Resolution map (std of offsets)")
         else:
             plt.title(f"{column} of offset")
         plt.tight_layout()
@@ -536,6 +539,43 @@ class MCP_offset_map:
             **kwargs,
         )
         ax3.set_title("std of 2nd a 3rd offset quartiles")
+        plt.tight_layout()
+        plt.show()
+
+    def show_three_offset_maps(self, **kwargs):
+        """Montre 3 cartes de résolution. La première est la carte de résolution calculé sur toute la distribution des offset, la seconde est calculé sur le 8 déciles centraux et la dernière sur les deux quartiles centraux.
+
+
+        Parameters
+        ----------
+        column : string
+            result dataframe column
+        """
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+        sns.heatmap(
+            self.result.pivot(index="deltaY", columns="deltaX", values="mean").fillna(
+                0
+            ),
+            ax=ax1,
+            **kwargs,
+        )
+        ax1.set_title("mean of offsets")
+        sns.heatmap(
+            self.result.pivot(
+                index="deltaY", columns="deltaX", values="mean (90)"
+            ).fillna(0),
+            ax=ax2,
+            **kwargs,
+        )
+        ax2.set_title("mean of 2nd to 9th offsets deciles")
+        sns.heatmap(
+            self.result.pivot(
+                index="deltaY", columns="deltaX", values="mean (50)"
+            ).fillna(0),
+            ax=ax3,
+            **kwargs,
+        )
+        ax3.set_title("mean of 2nd a 3rd offset quartiles")
         plt.tight_layout()
         plt.show()
 
@@ -652,9 +692,9 @@ if __name__ == "__main__":
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/008")
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/014")
     # mcp_map.connect_to_database()
-    mcp_map.check_your_computer_ability(size=30)
-    mcp_map.set_computer_ability(size=30)
-    mcp_map.update_result()
+    # mcp_map.check_your_computer_ability(size=30)
+    # mcp_map.set_computer_ability(size=30)
+    # mcp_map.update_result()
     # mcp_map.show_map("counts", cmap="viridis")
     # mcp_map.show_three_maps()
     # mcp_map.show_three_detectivity_maps(vmin=0, vmax=10)
