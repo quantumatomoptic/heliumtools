@@ -83,6 +83,12 @@ class MCP_offset_map:
         self.time_resolution = 120.0e-12  # seconds
         self.dll_temp_lenght = 80.0e-9  # seconds
         self.mcp_diameter = 80  # mm
+        self.pixelsX = np.arange(
+            -707, 708, 1, dtype=int
+        )  # list [-707 -706 .....705 706 707]
+        self.pixelsY = np.arange(
+            -707, 708, 1, dtype=int
+        )  # list [-707 -706 .....705 706 707]
 
         # les séquences qui ont contribué à faire la carte d'offset sous la forme
         # {"2022/08/09/023": number of cycles}
@@ -321,17 +327,14 @@ class MCP_offset_map:
         print(" THIS PROGRAMM IS REALLY SLOW")
         print("Are you sure the result is not already available ?!?")
         ###
-        self.load_pixels()
         # INITIALISATION
 
         self.result = pd.DataFrame(
             columns=["deltaX", "deltaY", "mean", "std", "counts", "max", "min"]
         )
 
-        self.load_pixels()
         self.connect_to_database()
-        print(self.pixelsX)
-        for value in tqdm(self.pixelsX.deltaX):
+        for value in tqdm(self.pixelsX):
             print(f"SELECT deltaY, offset FROM atoms WHERE deltaX = {value};")
             a = pd.read_sql_query(
                 f"SELECT deltaY, offset FROM atoms WHERE deltaX = {value};",
@@ -500,17 +503,18 @@ class MCP_offset_map:
 
 
 if __name__ == "__main__":
-    mcp_map = MCP_offset_map("/home/victor/mcpmaps/")
+    # mcp_map = MCP_offset_map("/home/victor/mcpmaps/")
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/00/010") # --> FAKE SEQUENCE !!!!!
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/15/007")
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/15/029")
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/18/004")
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/18/005")
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/004")
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/005")
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/007")
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/008")
-    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/014")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/15/007")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/15/029")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/18/004")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/18/005")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/004")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/005")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/007")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/008")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/014")
+
     # mcp_map.update_result()
     # mcp_map.show_detectivity()
     # mcp_map.show_dead_pixels()
@@ -518,3 +522,21 @@ if __name__ == "__main__":
     # mcp_map.show_stds()
     # mcp_map.show_offset_cuts_alongY()
     # mcp_map.show_offset_distribution()
+    from collections import Counter
+    from multiprocessing import cpu_count, Pool
+    import itertools as itt
+
+    data_path = Path("/home/victor/gus_data/2022/07/15/007")
+    filenames = data_path.glob("*.atoms")
+
+    N_proc = cpu_count() - 2
+    print(N_proc)
+    chunk_length = int(
+        np.ceil(Counter(p.suffix for p in data_path.glob("*.atoms"))[".atoms"] / N_proc)
+    )
+    print(chunk_length)
+
+    chunked_lists: tuple[tuple[Path], ...] = tuple(
+        itt.zip_longest(*[filenames] * int(chunk_length), fillvalue=None)
+    )
+    print(len(chunked_lists[0]))
