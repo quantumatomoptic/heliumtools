@@ -119,29 +119,18 @@ class MCP_offset_map:
         listofTables = self.cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table';"
         ).fetchall()
-        # On récupère une liste de la forme suivante : [("sequences", ), ("atoms", ), ("pixels", )] si les tables existent et une liste vide sinon.
+        # On récupère une liste de la forme suivante : [("sequences", ), ("atoms", ),] si les tables existent et une liste vide sinon.
         if ("sequences",) not in listofTables:
             self.cursor.execute("CREATE TABLE sequences (name NVARCHAR(50))")
         if ("atoms",) not in listofTables:
             self.cursor.execute(
                 "CREATE TABLE atoms (deltaX INT, deltaY INT, offset INT)"
             )
-        if ("pixelsX",) not in listofTables:
-            self.cursor.execute("CREATE TABLE pixelsX (deltaX INT)")
-        if ("pixelsY",) not in listofTables:
-            self.cursor.execute("CREATE TABLE pixelsY (deltaY INT)")
         self.connexion.commit()  # il faut commit pour prendre en compte l'ajout
         self.unconnect()
 
-        # On charge maintenant les fichiers pixels et results
-        self.load_pixels()
+        # On charge maintenant le fichier results
         self.load_results()
-
-    def load_pixels(self):
-        self.connect_to_database()
-        self.pixelsX = pd.read_sql_query("SELECT * FROM pixelsX", self.connexion)
-        self.pixelsY = pd.read_sql_query("SELECT * FROM pixelsY", self.connexion)
-        self.unconnect()
 
     def load_results(self):
         if os.path.isfile(self.result_name):
@@ -193,7 +182,6 @@ class MCP_offset_map:
                 dtype="int64",
             )
             self.update_atom_table(deltaX, deltaY, offset)
-            self.update_pixel_table(deltaX, deltaY)
             del atoms
             del events_list
             del offset
@@ -221,40 +209,6 @@ class MCP_offset_map:
             columns=["deltaX", "deltaY", "offset"],
         )
         new_atoms.to_sql("atoms", self.connexion, index=False, if_exists="append")
-        self.connexion.commit()  # il faut commit pour prendre en compte l'ajout
-        self.unconnect()
-
-    def update_pixel_table(self, deltaX, deltaY):
-        """Loads the pixelX and pixelY tables from the database, compare it to the two lists deltaX, deltaY and adds pixel that was not already stored in the table.
-
-        Note : in the early version, I had only one table with couples of pixels (pixelX, pixelY) but when comparing at each cycle this dataframe to the "cycle dataframe" was really long and one cycle took 3seconds to be added to the database.
-
-        Parameters
-        ----------
-        deltaX : numpy array of integers
-            positions sur X
-        deltaY : numpy array of integers
-            positions sur Y
-        """
-        # Load all pixel from the pixel database
-        self.connect_to_database()  # connexion to database
-        pixelsX = pd.read_sql_query("SELECT * FROM pixelsX", self.connexion)
-        pixels_to_compare = pd.DataFrame({"deltaX": deltaX}).drop_duplicates()
-        # on vient de charger 2 dataframe pandas. on veut rajouter dans pixels les couples (X,Y) de pixels_to_compare qui ne sont pas dans pixels.
-        pixelsX = pixelsX.merge(
-            pixels_to_compare, on="deltaX", how="outer"
-        ).drop_duplicates()
-        # on sauvegarde ça dans la base de donnée
-        pixelsX.to_sql("pixelsX", self.connexion, index=False, if_exists="replace")
-        # Idem sur Y
-        pixelsY = pd.read_sql_query("SELECT * FROM pixelsY", self.connexion)
-        pixels_to_compare = pd.DataFrame({"deltaY": deltaY}).drop_duplicates()
-        # on vient de charger 2 dataframe pandas. on veut rajouter dans pixels les couples (X,Y) de pixels_to_compare qui ne sont pas dans pixels.
-        pixelsY = pixelsY.merge(
-            pixels_to_compare, on="deltaY", how="outer"
-        ).drop_duplicates()
-        # on sauvegarde ça dans la base de donnée
-        pixelsY.to_sql("pixelsY", self.connexion, index=False, if_exists="replace")
         self.connexion.commit()  # il faut commit pour prendre en compte l'ajout
         self.unconnect()
 
