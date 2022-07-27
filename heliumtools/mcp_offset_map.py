@@ -62,7 +62,7 @@ dataframe.to_sql(name_of_table, self.connexion, if_exists='fail',index = True)
 # For atoms : use if_exists = 'append'   ;because we always want to append the atom (if we already add an atom with this offset, we have to add it and not to drop it).
 """
 
-import os, re, json, copy
+import os, re, json, copy, time
 from pathlib import Path
 from select import select
 import pandas as pd
@@ -71,6 +71,8 @@ import sqlite3 as db
 from tqdm import tqdm
 from pylab import cm
 import matplotlib.pyplot as plt
+import seaborn as sns
+from math import ceil, floor
 
 
 class MCP_offset_map:
@@ -89,7 +91,7 @@ class MCP_offset_map:
         self.pixelsY = np.arange(
             -707, 708, 1, dtype=int
         )  # list [-707 -706 .....705 706 707]
-
+        self.computer_ability = 30
         # les séquences qui ont contribué à faire la carte d'offset sous la forme
         # {"2022/08/09/023": number of cycles}
         self.sequences_that_contributed = {}
@@ -161,7 +163,6 @@ class MCP_offset_map:
         sequence_directory : string
             le répertoire de la séquence que l'on veut ajouter
         """
-        print(sequence_directory)
         # from the sequence directory, we get back the normalized sequence name e.g. 2022/07/15/003.
         boolean, normalized_sequence_name = self.get_normalized_sequence_name(
             sequence_directory
@@ -171,7 +172,9 @@ class MCP_offset_map:
             return
         # check
         if self.check_sequences_table(normalized_sequence_name):
-            print("This sequence was already in the database !!!")
+            print(
+                f"Sequence {normalized_sequence_name} was already in the database !!!"
+            )
             return
         # On récupère tous les .atoms de la séquence
         self.connect_to_database()
@@ -334,13 +337,17 @@ class MCP_offset_map:
         )
 
         self.connect_to_database()
-        for value in tqdm(self.pixelsX):
-            print(f"SELECT deltaY, offset FROM atoms WHERE deltaX = {value};")
+        values = np.arange(
+            np.min(self.pixelsX), np.max(self.pixelsX), self.computer_ability
+        )  # par ex si compu_abi = 10 ; values = [-707 -697 .....693 703]
+        for value in tqdm(values):
             a = pd.read_sql_query(
-                f"SELECT deltaY, offset FROM atoms WHERE deltaX = {value};",
+                f"SELECT deltaX, deltaY, offset FROM atoms WHERE deltaX >= {value} AND deltaX< {value + self.computer_ability};",
                 self.connexion,
             )
-            a = a.groupby("deltaY")
+
+            df_ini = a
+            a = a.groupby(["deltaX", "deltaY"])
             df = a.mean()
             df.columns = df.columns.str.replace("offset", "mean")
 
@@ -348,69 +355,188 @@ class MCP_offset_map:
             df["counts"] = a.count()
             df["max"] = a.max()
             df["min"] = a.min()
-            df.reset_index(inplace=True)  # --> deltaY
+            df["min"] = a.median()
+            df["quantile 5"] = a.quantile(0.05)
+            df["quantile 95"] = a.quantile(0.95)
+            df["quantile 25"] = a.quantile(0.25)
+            df["quantile 75"] = a.quantile(0.75)
+            # Start to compute standard deviation of 90% of the serie
+            q_low = a.quantile(0.1)
+            q_low2 = a.quantile(0.25)
+            q_high = a.quantile(0.9)
+            q_high2 = a.quantile(0.75)
+            q_low.columns = q_low.columns.str.replace("offset", "low")
+            q_low2.columns = q_low2.columns.str.replace("offset", "low2")
+            q_high.columns = q_high.columns.str.replace("offset", "high")
+            q_high2.columns = q_high2.columns.str.replace("offset", "high2")
+            q_high2.reset_index(inplace=True)
+            q_high.reset_index(inplace=True)
+            q_low.reset_index(inplace=True)
+            q_low2.reset_index(inplace=True)
+            total = pd.merge(q_low, q_high, on=["deltaX", "deltaY"])
+            total = pd.merge(total, q_high2, on=["deltaX", "deltaY"])
+            total = pd.merge(total, q_low2, on=["deltaX", "deltaY"])
+            total = pd.merge(total, df_ini, on=["deltaX", "deltaY"])
+            total1 = total[
+                (total["offset"] <= total["high"]) & (total["offset"] >= total["low"])
+            ]
+            total1.columns = total1.columns.str.replace("offset", "std (90)")
+            total1 = total1.groupby(["deltaX", "deltaY"])
+            df["std (90)"] = total1["std (90)"].std()
+            df["mean (90)"] = total1["std (90)"].mean()
+            total2 = total[
+                (total["offset"] <= total["high2"]) & (total["offset"] >= total["low2"])
+            ]
+            total2.columns = total2.columns.str.replace("offset", "std (50)")
+            total2 = total2.groupby(["deltaX", "deltaY"])
+            df["mean (50)"] = total2["std (50)"].mean()
+            df["std (50)"] = total2["std (50)"].std()
+            # end
+
+            df.reset_index(inplace=True)
             df = df.fillna(0)
-            df["deltaX"] = value
 
             self.result = pd.concat([self.result, df])
+            self.save_result()
+
             del df
 
         self.unconnect()
 
         self.save_result()
 
+    def set_computer_ability(self, size):
+        """This methods set your computer ability. The larger is size, the better your computer must be.
+
+        Parameters
+        ----------
+        size : int
+            _description_
+        """
+        size = int(size)
+        self.computer_ability = size
+
+    def check_your_computer_ability(self, size):
+        """This methods show the size of the dataframe you load when you load size pixels X of the database. Before running the update_result method, make sure that the memmory usage is not too large for your computer. You can set the memory usage using the set_computer_ability method.
+
+        Parameters
+        ----------
+        size : _type_
+            _description_
+        """
+        self.connect_to_database()
+        from math import ceil
+
+        start = time.time()
+        a = pd.read_sql_query(
+            f"SELECT deltaX, deltaY, offset FROM atoms WHERE deltaX < {ceil(size/2)} AND deltaX >= {-ceil(size/2)};",
+            self.connexion,
+        )
+        print(a.info(memory_usage="deep"))
+        end = time.time()
+
+        print(f" ==> Request took {end-start} s with a computer_ability = {size}")
+
     ##################################################################
-    ########## METHDS TO SHOW THE MCP MAPS
+    ########## METHODS TO SHOW THE MCP MAPS
     ##################################################################
-    def show_detectivity(self):
-        """montre un image 2D du nombre de coups par pixel"""
-        counts = np.array(
-            self.result.pivot(index="deltaX", columns="deltaY", values="counts").fillna(
+    def show_map(self, column, **kwargs):
+        """Montre une carte d'offset, résolution ou autre selon la valeur de column qui  doit être un des colonnes du dataframe result.
+
+
+        Parameters
+        ----------
+        column : string
+            result dataframe column
+        """
+        datas = self.result.pivot(
+            index="deltaY", columns="deltaX", values=column
+        ).fillna(0)
+        fig, ax = plt.subplots()
+        sns.heatmap(
+            datas,
+            ax=ax,
+            **kwargs,
+        )
+        if column == "counts":
+            plt.title("Gain map")
+        elif column == "mean":
+            plt.title("Offset map")
+        elif column == "std":
+            plt.title("Resolution map (std of offsets")
+        else:
+            plt.title(f"{column} of offset")
+        plt.tight_layout()
+        plt.show()
+
+    def show_three_maps(self, **kwargs):
+        """Montre une carte d'offset, résolution ou autre selon la valeur de column qui  doit être un des colonnes du dataframe result.
+
+
+        Parameters
+        ----------
+        column : string
+            result dataframe column
+        """
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+        sns.heatmap(
+            self.result.pivot(index="deltaY", columns="deltaX", values="counts").fillna(
                 0
-            )
+            ),
+            ax=ax1,
+            **kwargs,
         )
-        fig, ax = plt.subplots()
-        shw = ax.imshow(counts)
-        bar = plt.colorbar(shw)
-        plt.title("Gain map")
+        ax1.set_title("Gain map")
+        sns.heatmap(
+            self.result.pivot(index="deltaY", columns="deltaX", values="mean").fillna(
+                0
+            ),
+            ax=ax2,
+            **kwargs,
+        )
+        ax2.set_title("Offset map")
+        sns.heatmap(
+            self.result.pivot(index="deltaY", columns="deltaX", values="std").fillna(0),
+            ax=ax3,
+            **kwargs,
+        )
+        ax3.set_title("Resolution map")
+        plt.tight_layout()
         plt.show()
 
-    def show_dead_pixels(self):
-        """montre les pixels qui n'ont reçu aucun atome"""
-        maxi_counts = self.result.counts.max()
-        counts = np.array(
-            self.result.pivot(index="deltaX", columns="deltaY", values="counts").fillna(
-                3 * maxi_counts
-            )
-        )
-        counts = np.floor(counts / (2 * maxi_counts))
-        fig, ax = plt.subplots()
-        shw = ax.imshow(counts)
-        plt.title("Pixels with zero-detectivity")
-        plt.show()
+    def show_three_detectivity_maps(self, **kwargs):
+        """Montre 3 cartes de résolution. La première est la carte de résolution calculé sur toute la distribution des offset, la seconde est calculé sur le 8 déciles centraux et la dernière sur les deux quartiles centraux.
 
-    def show_offset(self):
-        """représente la carte des offsets"""
-        offset_mean = self.result["mean"].mean()
-        print(offset_mean)
-        offsets = np.array(
-            self.result.pivot(index="deltaX", columns="deltaY", values="mean").fillna(0)
-        )
-        fig, ax = plt.subplots()
-        shw = ax.imshow(offsets)
-        bar = plt.colorbar(shw)
-        plt.title("Offset map (mean is {:.0f})".format(offset_mean))
-        plt.show()
 
-    def show_stds(self):
-        """représente la carte des déviations standards des offsets"""
-        stds = np.array(
-            self.result.pivot(index="deltaX", columns="deltaY", values="std").fillna(0)
+        Parameters
+        ----------
+        column : string
+            result dataframe column
+        """
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+        sns.heatmap(
+            self.result.pivot(index="deltaY", columns="deltaX", values="std").fillna(0),
+            ax=ax1,
+            **kwargs,
         )
-        fig, ax = plt.subplots()
-        shw = ax.imshow(stds)
-        bar = plt.colorbar(shw)
-        plt.title("Offset stds map ")
+        ax1.set_title("std of offsets")
+        sns.heatmap(
+            self.result.pivot(
+                index="deltaY", columns="deltaX", values="std (90)"
+            ).fillna(0),
+            ax=ax2,
+            **kwargs,
+        )
+        ax2.set_title("std of 2nd to 9th offsets deciles")
+        sns.heatmap(
+            self.result.pivot(
+                index="deltaY", columns="deltaX", values="std (50)"
+            ).fillna(0),
+            ax=ax3,
+            **kwargs,
+        )
+        ax3.set_title("std of 2nd a 3rd offset quartiles")
+        plt.tight_layout()
         plt.show()
 
     def show_offset_cuts_alongY(self, coupe1=-400, coupe2=0, coupe3=200):
@@ -471,7 +597,7 @@ class MCP_offset_map:
         plt.show()
 
     def show_offset_distribution(
-        self, points=[(300, 300), (-150, 150), (-200, -200), (100, -100)]
+        self, points=[(-320, -300), (-100, -45), (-250, -45), (-50, -155)], **kwargs
     ):
         """affiche la distribution des offset pour l'ensemble des points (deltaX, deltaY) de la liste points
 
@@ -487,23 +613,34 @@ class MCP_offset_map:
         fig, axs = plt.subplots(
             n_lines, n_cols, figsize=(10, 6), constrained_layout=True
         )
+
+        from itertools import cycle
+
+        colours = cycle(
+            [
+                "steelblue",
+                "indianred",
+                "olivedrab",
+                "goldenrod",
+                "darkslategrey",
+            ]
+        )
         self.connect_to_database()
         for ax, p in zip(axs.flat, points):
-            deltaX = p[0]
-            deltaY = p[1]
-            offset = np.random.normal(size=100)
+            # offset = np.random.normal(size=100)
             offset = pd.read_sql_query(
-                f"SELECT offset FROM atoms WHERE deltaX = {deltaX} AND deltaY = {deltaY};",
+                f"SELECT offset FROM atoms WHERE deltaX = {p[0]} AND deltaY = {p[1]};",
                 self.connexion,
             )
-            ax.hist(offset, bins=20, label=str(p))
+            ax.hist(offset, bins=20, label=str(p), color=next(colours), **kwargs)
             ax.legend()
         self.unconnect()
+        fig.suptitle("Offset distribution for different MCP points (X,Y)")
         plt.show()
 
 
 if __name__ == "__main__":
-    # mcp_map = MCP_offset_map("/home/victor/mcpmaps/")
+    mcp_map = MCP_offset_map("/home/victor/mcpmaps/")
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/00/010") # --> FAKE SEQUENCE !!!!!
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/15/007")
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/15/029")
@@ -514,29 +651,80 @@ if __name__ == "__main__":
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/007")
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/008")
     # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/014")
-
-    # mcp_map.update_result()
+    # mcp_map.connect_to_database()
+    mcp_map.check_your_computer_ability(size=30)
+    mcp_map.set_computer_ability(size=30)
+    mcp_map.update_result()
+    # mcp_map.show_map("counts", cmap="viridis")
+    # mcp_map.show_three_maps()
+    # mcp_map.show_three_detectivity_maps(vmin=0, vmax=10)
+    # mcp_map.show_map2("counts")
     # mcp_map.show_detectivity()
     # mcp_map.show_dead_pixels()
     # mcp_map.show_offset()
     # mcp_map.show_stds()
     # mcp_map.show_offset_cuts_alongY()
     # mcp_map.show_offset_distribution()
-    from collections import Counter
-    from multiprocessing import cpu_count, Pool
-    import itertools as itt
+    # result_name = "/home/victor/mcpmaps/result.pkl"
+    # a = pd.read_pickle(result_name)
+    # a = a.groupby(["deltaX", "deltaY"])
+    # df = a.mean()
+    # df.columns = df.columns.str.replace("offset", "mean")
 
-    data_path = Path("/home/victor/gus_data/2022/07/15/007")
-    filenames = data_path.glob("*.atoms")
+    # df["std"] = a.std()
+    # df["counts"] = a.count()
+    # df["max"] = a.max()
+    # df["min"] = a.min()
+    # df.reset_index(inplace=True)  # --> deltaY
+    # df = df.fillna(0)
 
-    N_proc = cpu_count() - 2
-    print(N_proc)
-    chunk_length = int(
-        np.ceil(Counter(p.suffix for p in data_path.glob("*.atoms"))[".atoms"] / N_proc)
+    # print(df)
+
+    """
+    from scipy import stats
+
+    values1 = [1, 1, 1, 1, 3, 2, 3, 1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 100]
+    values2 = [1, 1, 1, 1, 3, 2, 3, 1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 1]
+    values3 = [-200, 1, 1, 1, 3, 2, 3, 1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 1]
+    values4 = [1, 1, 1, 1, 3, 2, 3, 1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 100, 100]
+    deltaX = [0 for i in range(len(values1) + len(values2))] + [
+        1 for i in range(len(values3) + len(values4))
+    ]
+    deltaY = (
+        [0 for i in range(len(values1))]
+        + [1 for i in range(len(values2))]
+        + [0 for i in range(len(values3))]
+        + [1 for i in range(len(values4))]
     )
-    print(chunk_length)
-
-    chunked_lists: tuple[tuple[Path], ...] = tuple(
-        itt.zip_longest(*[filenames] * int(chunk_length), fillvalue=None)
+    a = pd.DataFrame(
+        {
+            "deltaX": deltaX,
+            "deltaY": deltaY,
+            "offset": values1 + values2 + values3 + values4,
+        }
     )
-    print(len(chunked_lists[0]))
+    df_ini = a
+    a = a.groupby(["deltaX", "deltaY"])
+    df = a.mean()
+    df.columns = df.columns.str.replace("offset", "mean")
+
+    df["std"] = a.std()
+    df["counts"] = a.count()
+    df["max"] = a.max()
+    df["min"] = a.min()
+    df["quantile 5"] = a.quantile(0.05)
+    df["quantile 95"] = a.quantile(0.95)
+
+    q_low = a.quantile(0.1)
+    q_high = a.quantile(0.9)
+    q_low.columns = q_low.columns.str.replace("offset", "low")
+    q_high.columns = q_high.columns.str.replace("offset", "high")
+    q_high.reset_index(inplace=True)
+    q_low.reset_index(inplace=True)
+    total = pd.merge(q_low, q_high, on=["deltaX", "deltaY"])
+    total = pd.merge(total, df_ini, on=["deltaX", "deltaY"])
+    total = total[(total["offset"] < total["high"]) & (total["offset"] > total["low"])]
+    total.columns = total.columns.str.replace("offset", "std (90)")
+    total = total.groupby(["deltaX", "deltaY"])
+    df["std (90)"] = total["std (90)"].std()
+    """
