@@ -2,7 +2,7 @@
 # -*- mode:Python; coding: utf-8 -*-
 
 # ----------------------------------
-# Created on the 22-7-2022 by Victor, using the code of Quentin
+# Created on the 22-7-2022 by Victor
 #
 # Developped by Victor, ...
 #
@@ -17,40 +17,49 @@ Content of mcp_offset_map.py
 
 Cette classe sert d'interface avec la base de données permettant de sauvegarder les onnées. Nous avons ainsi affaire à deux tables : 
 La table sequences qui conbtient toutes les séquences ajoutées à la base de données (chaque atome n'a pas un unique id donc on ne veut pas l'ajouter deux fois)
-La table atoms contenant la position et l'offset.
+La table atoms contient la position et l'offset de chaque atome détecté. Elle est donc assez grosse. 
 
------------ Table atoms -----------
+#### USER REMARKS ######
 
-
---------- Table sequences ---------
-
-
-
------------ Table pixels ----------
+This class is usefull when one requires to build MCP offset maps. It works as follows :
+--> the only argument you give to this class is the path (unix string like object) to the folder in which you want to store the data or in which the data already exist. 
+--> If it is empty, it will creat a empty SQLite database. First thing you have to do is to add sequences to this database. To do so, use the instruction 'add_sequence_to_database('Path/To/your/sequences'). In this case, the programm tries to get the reference of this sequence (of the form yyy/mm/dd/seq) and search into its first database (whos name is sequences) if this sequences was already add to the database or not. If not, it adds it (the 'atoms' table), looping over all cycles of the sequence. Such an operation takes a few minutes for really large sequences.
+--> What we add to the atom database are the following elements : 
+    + deltaX : position on X of the atom,
+    + deltaY : position on Y of the atom,
+    + offset : offset of the atom, X2+X1-Y2-Y2
+--> Once you've built the database, you can compute the statistical properties of your MCP. To do so, you just have to call update_result() : this function will loop over all X pixels of the MCP and load atoms that where found at this X position : we calculate the number of count, the mean offset, std, min and max at each Y position and store it into a dataframe named 'result'. This dataframe (size : 1500x1500x8) is then store into a pkl file whose name is result.pkl. Note that this step is quite long (an hour typically). 
+Note also that if your compute have huge memmory, you might be able to load all the atom database in one shot using :
+    mcp_map = MCP_offset_map("your/folder/database")
+    mcp_map.connect_to_database()
+    all_atoms = pd.read_sql_query("SELECT * FROM atoms", mcp_map.connexion)
 
 
 #### DEVELOPPERS REMARKS ######
 
 Follows some usefull commands to deal with sql database
 
-*** Basis ***
+*** Basis to use SQL ***
 
 self.database_name = /.../offset.db   # le nom de notre base de donnée
 self.connexion = sqlite3.connect(self.database_name)   # cela permet de nous connecter 
 self.cursor = self.connexion.cursor() # le curseur permettant de nous y connecter.
+NB : les 2 étapes ci-dessus sont contenues dans 'linstruction self.connect_to_database() qui est appelée chaque fois qu'on veut s'y connecter (d'où le nom...).
+
+Pour envoyer une requète à la base de données, on utilise l'instruction execute du curseur : 
+self.cursor.execute("CREATE TABLE sequences (name NVARCHAR(50))") # on crée une table avec une seule colonne du type string de max 50 caractères.
+
+Pour récupérer le résultat d'une requète SQL, il faut envoyer la requète avec notre commande puis "fetch" pour récupérer le résultat. 
+self.cursor.execute(f"SELECT EXISTS (SELECT * FROM sequences WHERE name = '2022/07/157007')")
+resultat = self.cursor.fetchall()
+# Dans ce cas, la commande résultat sera une liste de tuples. Puisque la commande ci-dessous appelle une réponse booléenne, la forme de résultat sera [(0,),] ou [(1,),] 
+
 
 *** SQL and Pandas ***
 pixels = pd.read_sql_query(("SELECT * FROM pixels", self.connexion)) # charge les données de la table 'pixels' de la base de donnée dans un pandas dataframe
 dataframe.to_sql(name_of_table, self.connexion, if_exists='fail',index = True) 
 # Always use index = False
 # For atoms : use if_exists = 'append'   ;because we always want to append the atom (if we already add an atom with this offset, we have to add it and not to drop it).
-# For pixels, it should be 'replace' 
-
-
-
-Some note (v.g. on the 26 of July) :
-We have a lot of speed issue when constructing the database.I tried to delete each variable 
-
 """
 
 import os, re, json, copy
@@ -60,6 +69,8 @@ import pandas as pd
 import numpy as np
 import sqlite3 as db
 from tqdm import tqdm
+from pylab import cm
+import matplotlib.pyplot as plt
 
 
 class MCP_offset_map:
@@ -90,12 +101,13 @@ class MCP_offset_map:
 
     def load_existing_datas(self):
         """
-        Cette méthode vérifie que le dossier self.path_to_folder existe bien. Elle vérifie également que celui-ci contient bien les fichiers avec les données pour réaliser la carte d'offset. Si elle continet des fichiers, elle charge
-        la carte des offsets moyens
-        la carte des offset std
-        la carte du nombre de coups ayant réalisé l'offset
-        les directories de sséquences ayant contribué à la carte d'offset
-        --> on ne charge pas la carte avec la valeur de chaque offset car je pense que ce sera trop gros.
+        Dans l'idée de ce code, on stock tous les données dans un répertoire dont l'adresse est self.path_to_folder. Celui-ci doit contenir :
+        une base de donnée "offset.db",
+        un fichier result au format pkl.
+
+        Cette méthode s'assure que le dossier existe et si non, elle le crée. Elle se connecte ensuite à la base de donnée et récupère l'ensemble des nom des tables qui y sont stockée (listofTables) puis
+
+
         """
         # 1 : on verifie que le dossier renseigné existe bien
         if not os.path.isdir(self.path_to_folder):
@@ -114,8 +126,10 @@ class MCP_offset_map:
             self.cursor.execute(
                 "CREATE TABLE atoms (deltaX INT, deltaY INT, offset INT)"
             )
-        if ("pixels",) not in listofTables:
-            self.cursor.execute("CREATE TABLE pixels (deltaX INT, deltaY INT)")
+        if ("pixelsX",) not in listofTables:
+            self.cursor.execute("CREATE TABLE pixelsX (deltaX INT)")
+        if ("pixelsY",) not in listofTables:
+            self.cursor.execute("CREATE TABLE pixelsY (deltaY INT)")
         self.connexion.commit()  # il faut commit pour prendre en compte l'ajout
         self.unconnect()
 
@@ -125,19 +139,17 @@ class MCP_offset_map:
 
     def load_pixels(self):
         self.connect_to_database()
-        self.pixels = pd.read_sql_query("SELECT * FROM pixels", self.connexion)
+        self.pixelsX = pd.read_sql_query("SELECT * FROM pixelsX", self.connexion)
+        self.pixelsY = pd.read_sql_query("SELECT * FROM pixelsY", self.connexion)
         self.unconnect()
 
     def load_results(self):
         if os.path.isfile(self.result_name):
             self.result = pd.read_pickle(self.result_name)
         else:
-            self.result = copy.deepcopy(self.pixels)
-            self.result["mean"] = 0
-            self.result["std"] = 0
-            self.result["count"] = 0
-            self.result["max"] = 0
-            self.result["min"] = 0
+            self.result = pd.DataFrame(
+                columns=["deltaX", "deltaY", "mean", "std", "counts", "max", "min"]
+            )
 
     def save_result(self):
         """Save the result dataframe as pkl"""
@@ -147,7 +159,7 @@ class MCP_offset_map:
     ########## METHDS TO ADD DATAS TO DATABASE
     ##################################################################
     def add_sequence_to_database(self, sequence_directory):
-        """Ajoute la séquence sequence_directory à la base de donnée des cartes d'offset. Cette fonction cycle sur l'ensemble des .atoms du dossier de séquence, charge le fichier atoms, construit deltaX, deltaY et offset puis envoie ces numpy array (taille = au nombre de coups dans la séquence) aux fonction update_atom_table dans laquelle on ajoute la position d'arrivée de chaque atome plus la valeur d'offset trouvée. Une fios les atomes chargés dans la base de donnée, on appelle la fonction update_pixel_table dont on charge la base de donnée, on la compare avec l'ensemble de positions d'arrivée et on la rajoute. 
+        """Ajoute la séquence sequence_directory à la base de donnée des cartes d'offset. Cette fonction cycle sur l'ensemble des .atoms du dossier de séquence, charge le fichier atoms, construit deltaX, deltaY et offset puis envoie ces numpy array (taille = au nombre de coups dans la séquence) aux fonction update_atom_table dans laquelle on ajoute la position d'arrivée de chaque atome plus la valeur d'offset trouvée. Une fios les atomes chargés dans la base de donnée, on appelle la fonction update_pixel_table dont on charge la base de donnée, on la compare avec l'ensemble de positions d'arrivée et on la rajoute.
 
         Parameters
         ----------
@@ -167,7 +179,7 @@ class MCP_offset_map:
             print("This sequence was already in the database !!!")
             return
         # On récupère tous les .atoms de la séquence
-
+        self.connect_to_database()
         selected_files = self.select_atoms_in_directory(sequence_directory)
         for file in tqdm(selected_files):
             atoms = np.fromfile(file, dtype="uint64")
@@ -187,7 +199,6 @@ class MCP_offset_map:
             del offset
             del deltaY
             del deltaX
-            
 
         self.update_sequences_table(normalized_sequence_name)
         print(f"Sequence {normalized_sequence_name} added to the database :-).")
@@ -205,7 +216,7 @@ class MCP_offset_map:
             offset à la position correspondante
         """
         self.connect_to_database()  # connexion to database
-        new_atoms = pixels_to_compare = pd.DataFrame(
+        new_atoms = pd.DataFrame(
             np.transpose(np.array([deltaX, deltaY, offset], dtype="int64")),
             columns=["deltaX", "deltaY", "offset"],
         )
@@ -214,7 +225,9 @@ class MCP_offset_map:
         self.unconnect()
 
     def update_pixel_table(self, deltaX, deltaY):
-        """Loads the pixel table from the database, compare it to the two lists deltaX, deltaY and adds pixel that was not already stored in the table.
+        """Loads the pixelX and pixelY tables from the database, compare it to the two lists deltaX, deltaY and adds pixel that was not already stored in the table.
+
+        Note : in the early version, I had only one table with couples of pixels (pixelX, pixelY) but when comparing at each cycle this dataframe to the "cycle dataframe" was really long and one cycle took 3seconds to be added to the database.
 
         Parameters
         ----------
@@ -225,16 +238,23 @@ class MCP_offset_map:
         """
         # Load all pixel from the pixel database
         self.connect_to_database()  # connexion to database
-        pixels = pd.read_sql_query("SELECT * FROM pixels", self.connexion)
-        pixels_to_compare = pd.DataFrame(
-            np.transpose(np.array([deltaX, deltaY], dtype="int64")),
-            columns=["deltaX", "deltaY"],
-        )
+        pixelsX = pd.read_sql_query("SELECT * FROM pixelsX", self.connexion)
+        pixels_to_compare = pd.DataFrame({"deltaX": deltaX}).drop_duplicates()
         # on vient de charger 2 dataframe pandas. on veut rajouter dans pixels les couples (X,Y) de pixels_to_compare qui ne sont pas dans pixels.
-        pixels = pixels.merge(
-            pixels_to_compare, on=["deltaX", "deltaY"], how="outer"
+        pixelsX = pixelsX.merge(
+            pixels_to_compare, on="deltaX", how="outer"
         ).drop_duplicates()
-        pixels.to_sql("pixels", self.connexion, index=False, if_exists="replace")
+        # on sauvegarde ça dans la base de donnée
+        pixelsX.to_sql("pixelsX", self.connexion, index=False, if_exists="replace")
+        # Idem sur Y
+        pixelsY = pd.read_sql_query("SELECT * FROM pixelsY", self.connexion)
+        pixels_to_compare = pd.DataFrame({"deltaY": deltaY}).drop_duplicates()
+        # on vient de charger 2 dataframe pandas. on veut rajouter dans pixels les couples (X,Y) de pixels_to_compare qui ne sont pas dans pixels.
+        pixelsY = pixelsY.merge(
+            pixels_to_compare, on="deltaY", how="outer"
+        ).drop_duplicates()
+        # on sauvegarde ça dans la base de donnée
+        pixelsY.to_sql("pixelsY", self.connexion, index=False, if_exists="replace")
         self.connexion.commit()  # il faut commit pour prendre en compte l'ajout
         self.unconnect()
 
@@ -265,6 +285,7 @@ class MCP_offset_map:
         -------
         True if the sequence was already add to database, False otherwise
         """
+        self.connect_to_database()
         self.cursor.execute(
             f"SELECT EXISTS (SELECT * FROM sequences WHERE name = '{normalized_sequence_name}')"
         )
@@ -341,20 +362,23 @@ class MCP_offset_map:
         3. For each pixel we compute statistical properties aka mean, counts, std, max and min.
         4. we save it into a pkl file.
         """
+        print(" --------------------------------------------------- ")
+        print(" /!\ WARNING /!\ ")
+        print(" THIS PROGRAMM IS REALLY SLOW")
+        print("Are you sure the result is not already available ?!?")
         ###
         self.load_pixels()
         # INITIALISATION
-        self.result = copy.deepcopy(self.pixels)
-        self.result["mean"] = 0
-        self.result["std"] = 0
-        self.result["count"] = 0
-        self.result["max"] = 0
-        self.result["min"] = 0
-        self.connect_to_database()
-        serideltaX_serie = self.result.deltaX.unique()
-        self.result = self.result.set_index(["deltaX", "deltaY"])
 
-        for value in tqdm(serideltaX_serie):
+        self.result = pd.DataFrame(
+            columns=["deltaX", "deltaY", "mean", "std", "counts", "max", "min"]
+        )
+
+        self.load_pixels()
+        self.connect_to_database()
+        print(self.pixelsX)
+        for value in tqdm(self.pixelsX.deltaX):
+            print(f"SELECT deltaY, offset FROM atoms WHERE deltaX = {value};")
             a = pd.read_sql_query(
                 f"SELECT deltaY, offset FROM atoms WHERE deltaX = {value};",
                 self.connexion,
@@ -364,29 +388,16 @@ class MCP_offset_map:
             df.columns = df.columns.str.replace("offset", "mean")
 
             df["std"] = a.std()
-            df["count"] = a.count()
+            df["counts"] = a.count()
             df["max"] = a.max()
             df["min"] = a.min()
-            df.reset_index(inplace=True)
+            df.reset_index(inplace=True)  # --> deltaY
             df = df.fillna(0)
             df["deltaX"] = value
-            df = df.set_index(["deltaX", "deltaY"])
-            self.result.update(df)
-        self.result.reset_index(inplace=True)
-        """
-        # On parcourt chaque pixel du MCP
-        for i, row in tqdm(self.result.iterrows()):
-            self.cursor.execute(
-                f"SELECT offset FROM atoms WHERE deltaX = {row.deltaX} AND deltaY = {row.deltaY};"
-            )
-            offset_datas = self.cursor.fetchall()
-            offset_datas = np.array(offset_datas)
-            self.result.at[i, "mean"] = offset_datas.mean()
-            self.result.at[i, "std"] = offset_datas.std()
-            self.result.at[i, "count"] = offset_datas.size
-            self.result.at[i, "max"] = offset_datas.max()
-            self.result.at[i, "min"] = offset_datas.min()
-        """
+
+            self.result = pd.concat([self.result, df])
+            del df
+
         self.unconnect()
 
         self.save_result()
@@ -395,17 +406,161 @@ class MCP_offset_map:
     ########## METHDS TO SHOW THE MCP MAPS
     ##################################################################
     def show_detectivity(self):
-        mean = np.array(
+        """montre un image 2D du nombre de coups par pixel"""
+        counts = np.array(
+            self.result.pivot(index="deltaX", columns="deltaY", values="counts").fillna(
+                0
+            )
+        )
+        fig, ax = plt.subplots()
+        shw = ax.imshow(counts)
+        bar = plt.colorbar(shw)
+        plt.title("Gain map")
+        plt.show()
+
+    def show_dead_pixels(self):
+        """montre les pixels qui n'ont reçu aucun atome"""
+        maxi_counts = self.result.counts.max()
+        counts = np.array(
+            self.result.pivot(index="deltaX", columns="deltaY", values="counts").fillna(
+                3 * maxi_counts
+            )
+        )
+        counts = np.floor(counts / (2 * maxi_counts))
+        fig, ax = plt.subplots()
+        shw = ax.imshow(counts)
+        plt.title("Pixels with zero-detectivity")
+        plt.show()
+
+    def show_offset(self):
+        """représente la carte des offsets"""
+        offset_mean = self.result["mean"].mean()
+        print(offset_mean)
+        offsets = np.array(
             self.result.pivot(index="deltaX", columns="deltaY", values="mean").fillna(0)
         )
-        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots()
+        shw = ax.imshow(offsets)
+        bar = plt.colorbar(shw)
+        plt.title("Offset map (mean is {:.0f})".format(offset_mean))
+        plt.show()
 
-        plt.imshow(mean)
+    def show_stds(self):
+        """représente la carte des déviations standards des offsets"""
+        stds = np.array(
+            self.result.pivot(index="deltaX", columns="deltaY", values="std").fillna(0)
+        )
+        fig, ax = plt.subplots()
+        shw = ax.imshow(stds)
+        bar = plt.colorbar(shw)
+        plt.title("Offset stds map ")
+        plt.show()
+
+    def show_offset_cuts_alongY(self, coupe1=-400, coupe2=0, coupe3=200):
+        """Jolie figure avec 3 coupes selon Y"""
+        counts = np.array(
+            self.result.pivot(index="deltaY", columns="deltaX", values="counts").fillna(
+                0
+            )
+        )
+        offset = np.array(
+            self.result.pivot(index="deltaY", columns="deltaX", values="mean").fillna(0)
+        )
+        std = np.array(
+            self.result.pivot(index="deltaY", columns="deltaX", values="std").fillna(0)
+        )
+        offsetX = self.result.deltaX.min()
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2)
+        # Première figure : détectivité
+        shw = ax1.imshow(counts)
+        # ax.set_title("Gain map")
+        from matplotlib.patches import Rectangle
+
+        ax1.add_patch(Rectangle((coupe2 - offsetX - 3, 0), 6, 1400))
+        ax1.add_patch(Rectangle((coupe3 - offsetX - 3, 0), 6, 1400))
+
+        # Deuxièmes figures
+        coupes = [coupe1, coupe2, coupe3]
+        coupes_axes = [ax2, ax3, ax4]
+        my_palette = [
+            "indianred",
+            "steelblue",
+            "olivedrab",
+            "goldenrod",
+            "darkslategrey",
+        ]
+        print(self.result.deltaX.drop_duplicates())
+        for i in range(len(coupes)):
+            print(i)
+            color = my_palette[i]
+            cut = coupes[i]
+            ax1.add_patch(Rectangle((cut - offsetX - 3, 0), 6, 1400, color=color))
+
+            datas = self.result[self.result["deltaX"] == cut]
+            # print(datas)
+            ax = coupes_axes[i]
+            x = datas["deltaY"]
+            y = datas["mean"]
+            u_y = datas["std"].fillna(0)
+
+            # ax.errorbar(x, y, yerr=u_y, fmt=".")
+            ax.plot(x, y, color, label=f"x={cut}")
+            ax.plot(x, y - u_y, alpha=0.5, color=color)
+            ax.plot(x, y + u_y, alpha=0.5, color=color)
+            ax.set_ylim(0, 80)
+            ax.set_xlabel("Position on x")
+            ax.set_ylabel("Offset (with resolution)")
+            ax.legend()
+        plt.show()
+
+    def show_offset_distribution(
+        self, points=[(300, 300), (-150, 150), (-200, -200), (100, -100)]
+    ):
+        """affiche la distribution des offset pour l'ensemble des points (deltaX, deltaY) de la liste points
+
+        Parameters
+        ----------
+        points : list of tuples of integers (deltaX, deltaY)
+            points dont on veut afficher la distribution, by default [(300, 300), (600,500), (-200, -200), (100, 100)]
+        """
+        from math import sqrt, ceil
+
+        n_cols = int(sqrt(len(points)))
+        n_lines = int(ceil(len(points) / n_cols))
+        fig, axs = plt.subplots(
+            n_lines, n_cols, figsize=(10, 6), constrained_layout=True
+        )
+        self.connect_to_database()
+        for ax, p in zip(axs.flat, points):
+            deltaX = p[0]
+            deltaY = p[1]
+            offset = np.random.normal(size=100)
+            offset = pd.read_sql_query(
+                f"SELECT offset FROM atoms WHERE deltaX = {deltaX} AND deltaY = {deltaY};",
+                self.connexion,
+            )
+            ax.hist(offset, bins=20, label=str(p))
+            ax.legend()
+        self.unconnect()
         plt.show()
 
 
 if __name__ == "__main__":
     mcp_map = MCP_offset_map("/home/victor/mcpmaps/")
-    mcp_map.add_sequence_to_database("/mnt/manip_E/2022/07/15/007")
+    # mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/00/010") # --> FAKE SEQUENCE !!!!!
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/15/007")
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/15/029")
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/18/004")
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/18/005")
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/004")
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/005")
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/007")
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/008")
+    mcp_map.add_sequence_to_database("/home/victor/gus_data/2022/07/19/014")
     # mcp_map.update_result()
-    
+    # mcp_map.show_detectivity()
+    # mcp_map.show_dead_pixels()
+    # mcp_map.show_offset()
+    # mcp_map.show_stds()
+    # mcp_map.show_offset_cuts_alongY()
+    # mcp_map.show_offset_distribution()
