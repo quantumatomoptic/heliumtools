@@ -512,13 +512,45 @@ class MCP_offset_map:
             ax.legend()
         plt.show()
 
+    def show_offset_distribution(
+        self, points=[(300, 300), (-150, 150), (-200, -200), (100, -100)]
+    ):
+        """affiche la distribution des offset pour l'ensemble des points (deltaX, deltaY) de la liste points
+
+        Parameters
+        ----------
+        points : list of tuples of integers (deltaX, deltaY)
+            points dont on veut afficher la distribution, by default [(300, 300), (600,500), (-200, -200), (100, 100)]
+        """
+        from math import sqrt, ceil
+
+        n_cols = int(sqrt(len(points)))
+        n_lines = int(ceil(len(points) / n_cols))
+        fig, axs = plt.subplots(
+            n_lines, n_cols, figsize=(10, 6), constrained_layout=True
+        )
+        self.connect_to_database()
+        for ax, p in zip(axs.flat, points):
+            deltaX = p[0]
+            deltaY = p[1]
+            offset = np.random.normal(size=100)
+            offset = pd.read_sql_query(
+                f"SELECT offset FROM atoms WHERE deltaX = {deltaX} AND deltaY = {deltaY};",
+                self.connexion,
+            )
+            ax.hist(offset, bins=20, label=str(p))
+            ax.legend()
+        self.unconnect()
+        plt.show()
+
 
 if __name__ == "__main__":
     mcp_map = MCP_offset_map("/home/victor/mcpmaps/")
     # mcp_map.add_sequence_to_database("/mnt/manip_E/2022/07/15/007")
     # mcp_map.update_result()
     # mcp_map.show_detectivity()
-    mcp_map.show_dead_pixels()
+    # mcp_map.show_dead_pixels()
     # mcp_map.show_offset()
     # mcp_map.show_stds()
     # mcp_map.show_offset_cuts_alongY()
+    mcp_map.show_offset_distribution()
