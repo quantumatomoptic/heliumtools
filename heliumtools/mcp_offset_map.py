@@ -496,18 +496,11 @@ class MCP_offset_map:
             ax=ax,
             **kwargs,
         )
-        if column == "counts":
-            plt.title("Gain map")
-        elif column == "mean":
-            plt.title("Offset map (mean of offsets)")
-        elif column == "std":
-            plt.title("Resolution map (std of offsets)")
-        else:
-            plt.title(f"{column} of offset")
+        plt.title(f"{column} of offset")
         plt.tight_layout()
         plt.show()
 
-    def show_three_maps(self, **kwargs):
+    def show_three_maps(self, serie_type="", **kwargs):
         """Montre une carte d'offset, résolution ou autre selon la valeur de column qui  doit être un des colonnes du dataframe result.
 
 
@@ -515,73 +508,41 @@ class MCP_offset_map:
         ----------
         column : string
             result dataframe column
+        serie_type : string
+            Le type de données qu'on veut regarder parmis ["", " (+/-10)", " (+/-5)", " (90)", " (50)"]
         """
+
+        serie_type_possibilities = ["", " (+/-10)", " (+/-5)", " (90)", " (50)"]
+        if serie_type not in serie_type_possibilities:
+            print(f"please choose a value in {serie_type_possibilities}")
+            return
         fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
         sns.heatmap(
-            self.result.pivot(index="deltaY", columns="deltaX", values="counts").fillna(
-                0
-            ),
+            self.result.pivot(
+                index="deltaY", columns="deltaX", values="counts" + serie_type
+            ).fillna(0),
             ax=ax1,
             **kwargs,
         )
         ax1.set_title("Gain map")
         sns.heatmap(
-            self.result.pivot(index="deltaY", columns="deltaX", values="mean").fillna(
-                0
-            ),
+            self.result.pivot(
+                index="deltaY", columns="deltaX", values="mean" + serie_type
+            ).fillna(0),
             ax=ax2,
             **kwargs,
         )
         ax2.set_title("Offset map")
         sns.heatmap(
-            self.result.pivot(index="deltaY", columns="deltaX", values="std").fillna(0),
+            self.result.pivot(
+                index="deltaY", columns="deltaX", values="std" + serie_type
+            ).fillna(0),
             ax=ax3,
             **kwargs,
         )
         ax3.set_title("Resolution map")
-        plt.tight_layout()
-        plt.show()
 
-    def show_three_detectivity_maps(self, **kwargs):
-        """Montre 3 cartes de résolution. La première est la carte de résolution calculé sur toute la distribution des offset, la seconde est calculé sur le 8 déciles centraux et la dernière sur les deux quartiles centraux.
-        Update on the 28/07 : je rajoute la maps avec +/-10 et +/-5 time units
-
-
-        Parameters
-        ----------
-        column : string
-            result dataframe column
-        """
-        fig, axs = plt.subplots(2, 3, figsize=(15, 10))
-        axes = [element for sublist in axs for element in sublist]
-        ax0 = axes[0]
-        axes = axes[1:]
-        titles = [
-            "All",
-            "2nd to 9th deciles",
-            "2nd & 3rd quartiles",
-            "Median +/-10 t.u.",
-            "Median +/-5 t.u.",
-        ]
-        indexes = ["std", "std (90)", "std (50)", "std (+/-10)", "std (+/-5)"]
-        sns.heatmap(
-            self.result.pivot(index="deltaY", columns="deltaX", values="counts").fillna(
-                0
-            ),
-            ax=ax0,
-        )
-        ax0.set_title("Gain map")
-        for ax, title, index in zip(axes, titles, indexes):
-
-            sns.heatmap(
-                self.result.pivot(
-                    index="deltaY", columns="deltaX", values=index
-                ).fillna(0),
-                ax=ax,
-                **kwargs,
-            )
-            ax.set_title(title)
-        fig.suptitle("Maps of the standard deviation of offsets series.")
+        fig.suptitle(f"Maps of the serie of offsets {serie_type}.")
         plt.tight_layout()
         plt.show()
 
@@ -614,7 +575,7 @@ class MCP_offset_map:
         fig, axs = plt.subplots(2, ceil(len(count_list) / 2), figsize=(15, 10))
         axes = [element for sublist in axs for element in sublist]
         data_count = self.result.pivot(
-            index="deltaY", columns="deltaX", values=index
+            index="deltaY", columns="deltaX", values="counts"
         ).fillna(0)
         for ax, index in zip(axes, count_list):
             if index == "counts":
@@ -624,54 +585,16 @@ class MCP_offset_map:
                 )
                 ax.set_title(index)
             else:
-                data = (
-                    self.result.pivot(
-                        index="deltaY", columns="deltaX", values=index
-                    ).fillna(0),
-                )
+                data = self.result.pivot(
+                    index="deltaY", columns="deltaX", values=index
+                ).fillna(0)
+
                 sns.heatmap(
                     data / data_count,
                     ax=ax,
                     **kwargs,
                 )
                 ax.set_title(index)
-        plt.tight_layout()
-        plt.show()
-
-    def show_three_offset_maps(self, **kwargs):
-        """Montre 3 cartes de résolution. La première est la carte de résolution calculé sur toute la distribution des offset, la seconde est calculé sur le 8 déciles centraux et la dernière sur les deux quartiles centraux.
-
-
-        Parameters
-        ----------
-        column : string
-            result dataframe column
-        """
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
-        sns.heatmap(
-            self.result.pivot(index="deltaY", columns="deltaX", values="mean").fillna(
-                0
-            ),
-            ax=ax1,
-            **kwargs,
-        )
-        ax1.set_title("mean of offsets")
-        sns.heatmap(
-            self.result.pivot(
-                index="deltaY", columns="deltaX", values="mean (90)"
-            ).fillna(0),
-            ax=ax2,
-            **kwargs,
-        )
-        ax2.set_title("mean of 2nd to 9th offsets deciles")
-        sns.heatmap(
-            self.result.pivot(
-                index="deltaY", columns="deltaX", values="mean (50)"
-            ).fillna(0),
-            ax=ax3,
-            **kwargs,
-        )
-        ax3.set_title("mean of 2nd a 3rd offset quartiles")
         plt.tight_layout()
         plt.show()
 
@@ -790,9 +713,9 @@ if __name__ == "__main__":
     # mcp_map.connect_to_database()
     # mcp_map.check_your_computer_ability(size=30)
     # mcp_map.set_computer_ability(size=30)
-    mcp_map.update_result()
+    # mcp_map.update_result()
     # mcp_map.show_map("counts", cmap="viridis")
-    # mcp_map.show_three_maps()
+    # mcp_map.show_three_maps(" (50)")
     # mcp_map.show_three_detectivity_maps(vmin=0, vmax=10)
     # mcp_map.show_counts_map()
     # mcp_map.show_maps_containing_word("mean")  # ou "std"

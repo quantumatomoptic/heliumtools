@@ -137,6 +137,10 @@ def obtain_arrival_times(
         Region d'interet pour récupérer le temps d'arrivée du BEC
     histogramm_width : float (ms)
         largeur de chaque pic de l'histogramme.
+
+    Return
+    ------
+    dataframe containing BEC arrival time & # of atoms 
     """
     list_of_cycles = atoms["Cycle"].unique()
     list_of_arrival_time = [0 for i in list_of_cycles]
@@ -166,12 +170,39 @@ def obtain_arrival_times(
     return df_arrival_time
 
 
+def find_arrival_times(
+    atoms,
+    directory,
+    ROI_for_fit={"T": {"min": 307.3, "max": 308.7}},
+    histogramm_width=0.01,
+):
+    """_summary_
+
+    Parameters
+    ----------
+    atoms : pandas dataframe.
+        dataframe of atoms, column T, X, Y et Cycle.
+    directory : string or pathlike object
+        directory in which one wants to save the pickle file
+    ROI_for_fit : dict, optional
+        ROI pour fitter les temps d'arrivée, by default {"T": {"min": 307, "max": 309}}
+    histogramm_width : float (ms), optional
+        largeur des pics de l'histogramme, en ms, by default 0.01
+    """
+    # STEP 2 : find arrival times and save them
+
+    atoms_for_arrival_time = apply_ROI(atoms, ROI_for_fit)
+    df_arrival_time = obtain_arrival_times(
+        atoms_for_arrival_time,
+        histogramm_width=histogramm_width,
+    )
+    filename = os.path.join(directory, "arrival_times.pkl")
+    df_arrival_time.to_pickle(filename)
+
+
 def export_data_set_to_pickle(
     folder,
-    ROI_for_atoms={"T": {"min": 290, "max": 370}},
-    find_arrival_times=False,
-    ROI_for_arrival_times={"T": {"min": 307.3, "max": 308.7}},
-    histogramm_width=0.01,
+    ROI,
     n_max_cycles=1e8,
 ):
     """Exporte le dataset folder comme pickle.
@@ -180,33 +211,16 @@ def export_data_set_to_pickle(
     ----------
     folder : path like
         chemin vers le dossier contenant tous les .atoms
-    ROI_for_atoms : dict, optional
-        ROI qu'on applique pour charger les atomes.
-        Pour tout prendre : {"T": {"min": 290, "max": 370}}
-        DCE : {"T": {"min": 298, "max": 318}}
-        Lattice : {"T": {"min": 310, "max": 350}}
-    find_arrival_times : bool, optional
-        _description_, by default False
-    ROI_for_arrival_times : dict, optional
-        ROI pour fitter les temps d'arrivée, by default {"T": {"min": 307, "max": 309}}
-    histogramm_width : float (ms), optional
-        largeur des pics de l'histogramme, en ms, by default 0.01
+    ROI : dictionnaire 
+     Exemple : {"T": {"min": 300, "max": 350}} 
+
     """
     ### STEP 1 : gather data and save it
     N_files, atoms = load_atoms(folder, n_max_cycles=n_max_cycles)
-    atoms_in_ROI = apply_ROI(atoms, ROI_for_atoms)
+    atoms_in_ROI = apply_ROI(atoms, ROI)
     filename_dataset = os.path.join(folder, "dataset.pkl")
     atoms_in_ROI.to_pickle(filename_dataset)
-    # STEP 2 : find arrival times and save them
-
-    if find_arrival_times:
-        atoms_for_arrival_time = apply_ROI(atoms, ROI_for_arrival_times)
-        df_arrival_time = obtain_arrival_times(
-            atoms_for_arrival_time,
-            histogramm_width=histogramm_width,
-        )
-        filename_arrival_times = os.path.join(folder, "arrival_times.pkl")
-        df_arrival_time.to_pickle(filename_arrival_times)
+    return filename_dataset
 
 
 if __name__ == "__main__":
