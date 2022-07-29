@@ -265,6 +265,17 @@ class MCP_offset_map:
         else:
             return True
 
+    def get_sequences_in_database(self):
+        """Print and returns the list of sequences that are in the database.
+        Returns
+        -------
+        """
+        self.connect_to_database()
+        self.cursor.execute(f"SELECT * FROM sequences")
+        seq = self.cursor.fetchall()
+        print(seq)
+        return seq
+
     def select_atoms_in_directory(self, sequence_directory):
         """Select all the .atoms files in the sequence_directory. If the directory is empty, returns empty list.
 
@@ -314,7 +325,7 @@ class MCP_offset_map:
         return True, normalized_sequence_name
 
     ##################################################################
-    ########## METHDS TO UPDATE THE MCP MAPS
+    ########## METHODS TO UPDATE THE MCP MAPS
     ##################################################################
 
     def update_result(self):
@@ -374,25 +385,49 @@ class MCP_offset_map:
             q_high.reset_index(inplace=True)
             q_low.reset_index(inplace=True)
             q_low2.reset_index(inplace=True)
+            m = a.median()
+            m.columns = m.columns.str.replace("offset", "median")
+            m.reset_index(inplace=True)
             total = pd.merge(q_low, q_high, on=["deltaX", "deltaY"])
             total = pd.merge(total, q_high2, on=["deltaX", "deltaY"])
             total = pd.merge(total, q_low2, on=["deltaX", "deltaY"])
             total = pd.merge(total, df_ini, on=["deltaX", "deltaY"])
+            total = pd.merge(total, m, on=["deltaX", "deltaY"])
             ### WARNING : one can see that we have   <= sign instead of <  : this means that we do not strictly have a decile or a quartile.
             total1 = total[
                 (total["offset"] <= total["high"]) & (total["offset"] >= total["low"])
             ]
-            total1.columns = total1.columns.str.replace("offset", "std (90)")
+            total1.columns = total1.columns.str.replace("offset", "(90)")
             total1 = total1.groupby(["deltaX", "deltaY"])
-            df["std (90)"] = total1["std (90)"].std()
-            df["mean (90)"] = total1["std (90)"].mean()
-            total2 = total[
+            df["std (90)"] = total1["(90)"].std()
+            df["mean (90)"] = total1["(90)"].mean()
+            df["counts (90)"] = total1["(90)"].count()
+            total1 = total[
                 (total["offset"] <= total["high2"]) & (total["offset"] >= total["low2"])
             ]
-            total2.columns = total2.columns.str.replace("offset", "std (50)")
-            total2 = total2.groupby(["deltaX", "deltaY"])
-            df["mean (50)"] = total2["std (50)"].mean()
-            df["std (50)"] = total2["std (50)"].std()
+            total1.columns = total1.columns.str.replace("offset", "(50)")
+            total1 = total1.groupby(["deltaX", "deltaY"])
+            df["mean (50)"] = total1["(50)"].mean()
+            df["std (50)"] = total1["(50)"].std()
+            df["counts (50)"] = total1["(50)"].count()
+            # on garde les atomes en dessous et au-dessus de 10 par rapport à la médiane
+            total1 = total[
+                (total["offset"] <= total["median"] + 10)
+                & (total["offset"] >= total["median"] - 10)
+            ]
+            total1 = total1.groupby(["deltaX", "deltaY"])
+            df["mean (+/-10)"] = total1["offset"].mean()
+            df["std (+/-10)"] = total1["offset"].std()
+            df["counts (+/-10)"] = total1["offset"].count()
+            # +/- 5
+            total1 = total[
+                (total["offset"] <= total["median"] + 5)
+                & (total["offset"] >= total["median"] - 5)
+            ]
+            total1 = total1.groupby(["deltaX", "deltaY"])
+            df["mean (+/-5)"] = total1["offset"].mean()
+            df["std (+/-5)"] = total1["offset"].std()
+            df["counts (+/-5)"] = total1["offset"].count()
             # end
 
             df.reset_index(inplace=True)
@@ -401,7 +436,7 @@ class MCP_offset_map:
             self.result = pd.concat([self.result, df])
             self.save_result()
 
-            del df, total2, total, total1, a, q_low2, q_low, q_high, q_high2
+            del df, total, total1, a, q_low2, q_low, q_high, q_high2
             gc.collect()
 
         self.unconnect()
@@ -509,6 +544,7 @@ class MCP_offset_map:
 
     def show_three_detectivity_maps(self, **kwargs):
         """Montre 3 cartes de résolution. La première est la carte de résolution calculé sur toute la distribution des offset, la seconde est calculé sur le 8 déciles centraux et la dernière sur les deux quartiles centraux.
+        Update on the 28/07 : je rajoute la maps avec +/-10 et +/-5 time units
 
 
         Parameters
@@ -516,29 +552,89 @@ class MCP_offset_map:
         column : string
             result dataframe column
         """
-        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+        fig, axs = plt.subplots(2, 3, figsize=(15, 10))
+        axes = [element for sublist in axs for element in sublist]
+        ax0 = axes[0]
+        axes = axes[1:]
+        titles = [
+            "All",
+            "2nd to 9th deciles",
+            "2nd & 3rd quartiles",
+            "Median +/-10 t.u.",
+            "Median +/-5 t.u.",
+        ]
+        indexes = ["std", "std (90)", "std (50)", "std (+/-10)", "std (+/-5)"]
         sns.heatmap(
-            self.result.pivot(index="deltaY", columns="deltaX", values="std").fillna(0),
-            ax=ax1,
-            **kwargs,
+            self.result.pivot(index="deltaY", columns="deltaX", values="counts").fillna(
+                0
+            ),
+            ax=ax0,
         )
-        ax1.set_title("std of offsets")
-        sns.heatmap(
-            self.result.pivot(
-                index="deltaY", columns="deltaX", values="std (90)"
-            ).fillna(0),
-            ax=ax2,
-            **kwargs,
-        )
-        ax2.set_title("std of 2nd to 9th offsets deciles")
-        sns.heatmap(
-            self.result.pivot(
-                index="deltaY", columns="deltaX", values="std (50)"
-            ).fillna(0),
-            ax=ax3,
-            **kwargs,
-        )
-        ax3.set_title("std of 2nd a 3rd offset quartiles")
+        ax0.set_title("Gain map")
+        for ax, title, index in zip(axes, titles, indexes):
+
+            sns.heatmap(
+                self.result.pivot(
+                    index="deltaY", columns="deltaX", values=index
+                ).fillna(0),
+                ax=ax,
+                **kwargs,
+            )
+            ax.set_title(title)
+        fig.suptitle("Maps of the standard deviation of offsets series.")
+        plt.tight_layout()
+        plt.show()
+
+    def show_maps_containing_word(self, word="mean", **kwargs):
+        """montre  toutes cartes dont une colonne possède word en argument."""
+        index_list = [s for s in self.result.columns if word in s]
+        from math import ceil
+
+        fig, axs = plt.subplots(2, ceil(len(index_list) / 2), figsize=(15, 10))
+        axes = [element for sublist in axs for element in sublist]
+        for ax, index in zip(axes, index_list):
+
+            sns.heatmap(
+                self.result.pivot(
+                    index="deltaY", columns="deltaX", values=index
+                ).fillna(0),
+                ax=ax,
+                **kwargs,
+            )
+            ax.set_title(index)
+        fig.suptitle(f"Maps of {word}.")
+        plt.tight_layout()
+        plt.show()
+
+    def show_counts_map(self, **kwargs):
+        """montre la proportion du nombre de coups enlevé par les méthodes d'analyse."""
+        count_list = [s for s in self.result.columns if "count" in s]
+        from math import ceil
+
+        fig, axs = plt.subplots(2, ceil(len(count_list) / 2), figsize=(15, 10))
+        axes = [element for sublist in axs for element in sublist]
+        data_count = self.result.pivot(
+            index="deltaY", columns="deltaX", values=index
+        ).fillna(0)
+        for ax, index in zip(axes, count_list):
+            if index == "counts":
+                sns.heatmap(
+                    data_count,
+                    ax=ax,
+                )
+                ax.set_title(index)
+            else:
+                data = (
+                    self.result.pivot(
+                        index="deltaY", columns="deltaX", values=index
+                    ).fillna(0),
+                )
+                sns.heatmap(
+                    data / data_count,
+                    ax=ax,
+                    **kwargs,
+                )
+                ax.set_title(index)
         plt.tight_layout()
         plt.show()
 
@@ -694,10 +790,12 @@ if __name__ == "__main__":
     # mcp_map.connect_to_database()
     # mcp_map.check_your_computer_ability(size=30)
     # mcp_map.set_computer_ability(size=30)
-    # mcp_map.update_result()
+    mcp_map.update_result()
     # mcp_map.show_map("counts", cmap="viridis")
     # mcp_map.show_three_maps()
     # mcp_map.show_three_detectivity_maps(vmin=0, vmax=10)
+    # mcp_map.show_counts_map()
+    # mcp_map.show_maps_containing_word("mean")  # ou "std"
     # mcp_map.show_map2("counts")
     # mcp_map.show_detectivity()
     # mcp_map.show_dead_pixels()

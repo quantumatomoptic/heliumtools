@@ -50,7 +50,7 @@ def mag_field_coil_xy(x, y, z, radius=1.0, current=1.0):
 
     # -- goes to spherical coordinates
     # rho and phi
-    rho = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    rho = np.sqrt(x**2 + y**2 + z**2)
     phi = np.arctan2(y, x)
     # theta, avoiding origin
     mask = rho == 0
@@ -60,24 +60,24 @@ def mag_field_coil_xy(x, y, z, radius=1.0, current=1.0):
     # get notations from [1]
     a = radius
     r = rho * np.sin(theta)
-    k = np.sqrt(4 * a * r / ((a + r) ** 2 + z ** 2))
+    k = np.sqrt(4 * a * r / ((a + r) ** 2 + z**2))
     # compute
     A = csts.mu_0 * current / 2 / pi  # prefactor
-    E = ellipe(k ** 2)  # complete elliptic integral of second kind
-    K = ellipk(k ** 2)  # complete elliptic integral of first kind
+    E = ellipe(k**2)  # complete elliptic integral of second kind
+    K = ellipk(k**2)  # complete elliptic integral of first kind
     # along z
     Bz = (
         1
-        / np.sqrt((a + r) ** 2 + z ** 2)
-        * (K + (a ** 2 - r ** 2 - z ** 2) / ((a - r) ** 2 + z ** 2) * E)
+        / np.sqrt((a + r) ** 2 + z**2)
+        * (K + (a**2 - r**2 - z**2) / ((a - r) ** 2 + z**2) * E)
     )
     # along r (avoiding r=0)
     z_over_r = np.divide(z, r, where=(r != 0))
     z_over_r = np.clip(z_over_r, -1e10, 1e10)
     Br = (
         z_over_r
-        / np.sqrt((a + r) ** 2 + z ** 2)
-        * (-K + (a ** 2 + r ** 2 + z ** 2) / ((a - r) ** 2 + z ** 2) * E)
+        / np.sqrt((a + r) ** 2 + z**2)
+        * (-K + (a**2 + r**2 + z**2) / ((a - r) ** 2 + z**2) * E)
     )
 
     # -- convert to x, y
@@ -235,7 +235,7 @@ class CoilSet:
         return Bx, By, Bz
 
 
-class Coils:
+class Coils_He1_at_LCF:
     """
     Parameters
     ----------
@@ -545,7 +545,7 @@ if __name__ == "__main__":
         ##Plots 1D
         fig, ax = plt.subplots(3, figsize=(15, 8))
         Bx, By, Bz = cluster.field(0.001 * xs, 0, 0, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         print(np.min(B))
         ax[0].plot(xs, B)
         ax[0].set_title("Selon X")
@@ -560,7 +560,7 @@ if __name__ == "__main__":
         )
         ## Y ##
         Bx, By, Bz = cluster.field(0, 0.001 * ys, 0, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         print(np.min(B))
         ax[1].plot(ys, B)
         ax[1].set_title("Selon Y")
@@ -575,7 +575,7 @@ if __name__ == "__main__":
         )
         ## Z ##
         Bx, By, Bz = cluster.field(0, 0, 0.001 * zs, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         ax[2].plot(zs, B)
         ax[2].set_title("Selon Z")
         # gradient
@@ -612,7 +612,7 @@ if __name__ == "__main__":
         fig, axs = plt.subplots(1, 2, figsize=(15, 6))
         x, y = np.meshgrid(xs, ys)
         Bx, By, Bz = cluster.field(0.001 * x, 0.001 * y, 0, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         axs[0].streamplot(x, y, Bx, By, color="w")
         pcm = axs[0].pcolormesh(x, y, B, vmin=0, cmap="Spectral_r")
         axs[0].set_ylabel("Y (mm)")
@@ -621,7 +621,7 @@ if __name__ == "__main__":
 
         y, z = np.meshgrid(ys, zs)
         Bx, By, Bz = cluster.field(0, 0.001 * y, 0.001 * z, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         y, z = np.meshgrid(ys, zs)
         axs[1].streamplot(y, z, By, Bz, color="w")
         pcm = axs[1].pcolormesh(y, z, B, vmin=0, cmap="Spectral_r")
@@ -641,7 +641,7 @@ if __name__ == "__main__":
         x, z = np.meshgrid(x, z)
         # compute
         Bx, By, Bz = comp_coils.field(0.001 * x, y, 0.001 * z, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
 
         # print
         print("|B|_max = %.2f G" % np.max(B))
@@ -652,7 +652,7 @@ if __name__ == "__main__":
         fig, ax = plt.subplots(1, 1, figsize=(10, 8))
         ax.streamplot(x, z, Bx, Bz, color="k")
         pcm = ax.pcolormesh(
-            x, z, np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2), vmin=0, cmap="Spectral_r"
+            x, z, np.sqrt(Bx**2 + Bz**2 + By**2), vmin=0, cmap="Spectral_r"
         )
         ax.set_ylabel("Z (m)")
         ax.set_xlabel("X (m)")
@@ -676,7 +676,7 @@ if __name__ == "__main__":
         ##Plots 1D selon Y
         fig, ax = plt.subplots(4, figsize=(15, 8))
         Bx, By, Bz = cluster.field(0.001, 0.001 * ys, 0, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         print(np.min(B))
         ax2cluster = ax[0].twinx()
         ax2cluster.set_ylabel("B (G)")
@@ -688,7 +688,7 @@ if __name__ == "__main__":
         ax[0].set_title("Cluster")
 
         Bx, By, Bz = coils.dipole.field(0, 0.001 * ys, 0, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         ax[1].plot(ys, B)
         ax[1].set_title("Dipoles")
         ax2dipole = ax[1].twinx()
@@ -698,7 +698,7 @@ if __name__ == "__main__":
         ax2dipole.plot(ys, Bz, "darkred", label="Bz", linestyle="-.")
 
         Bx, By, Bz = coils.quadrupole.field(0, 0.001 * ys, 0, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         ax[2].plot(ys, B)
         ax[2].set_title("Quadrupoles")
         ax2quadru = ax[2].twinx()
@@ -708,7 +708,7 @@ if __name__ == "__main__":
         ax2quadru.plot(ys, Bz, "darkred", label="Bz", linestyle="-.")
 
         Bx, By, Bz = coils.compensation.field(0, 0.001 * ys, 0, unit="G")
-        B = np.sqrt(Bx ** 2 + Bz ** 2 + By ** 2)
+        B = np.sqrt(Bx**2 + Bz**2 + By**2)
         ax[3].plot(ys, B)
         ax[3].set_title("Compensation")
         ax2comp = ax[3].twinx()
