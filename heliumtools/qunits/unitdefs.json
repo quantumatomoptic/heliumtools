@@ -1,0 +1,2711 @@
+{
+    "hertz" : {
+        "symbols" : ["Hz", "hertz"],
+        "representation in SI or earlier defined unit" : "s^-1",
+        "scale factor" : 1.0,
+        "category" : "Frequency",
+        "representative symbol" : "Hz",
+        "metric prefixes for" : ["Hz"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "newton" : {
+        "symbols" : ["N", "newton"],
+        "representation in SI or earlier defined unit" : "kg m/s^2",
+        "scale factor" : 1.0,
+        "category" : "Force",
+        "representative symbol" : "N",
+        "metric prefixes for" : ["N"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "pascal" : {
+        "symbols" : ["Pa", "pascal"],
+        "representation in SI or earlier defined unit" : "N/m^2",
+        "scale factor" : 1.0,
+        "category" : "Pressure",
+        "representative symbol" : "Pa",
+        "metric prefixes for" : ["Pa"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "joule" : {
+        "symbols" : ["J", "joule"],
+        "representation in SI or earlier defined unit" : "N m",
+        "scale factor" : 1.0,
+        "category" : "Energy",
+        "representative symbol" : "J",
+        "metric prefixes for" : ["J"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "watt" : {
+        "symbols" : ["W", "watt"],
+        "representation in SI or earlier defined unit" : "J/s",
+        "scale factor" : 1.0,
+        "category" : "Power",
+        "representative symbol" : "W",
+        "metric prefixes for" : ["W"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "coulomb" : {
+        "symbols" : ["C", "coulomb"],
+        "representation in SI or earlier defined unit" : "A s",
+        "scale factor" : 1.0,
+        "category" : "Electric charge",
+        "representative symbol" : "C",
+        "metric prefixes for" : ["C"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "volt" : {
+        "symbols" : ["V", "volt"],
+        "representation in SI or earlier defined unit" : "W/A",
+        "scale factor" : 1.0,
+        "category" : "Voltage",
+        "representative symbol" : "V",
+        "metric prefixes for" : ["V"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "farad" : {
+        "symbols" : ["F", "farad"],
+        "representation in SI or earlier defined unit" : "C/V",
+        "scale factor" : 1.0,
+        "category" : "Capacitance",
+        "representative symbol" : "F",
+        "metric prefixes for" : ["F"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "ohm" : {
+        "symbols" : ["ohm"],
+        "representation in SI or earlier defined unit" : "V/A",
+        "scale factor" : 1.0,
+        "category" : "Resistance",
+        "representative symbol" : "ohm",
+        "metric prefixes for" : ["ohm"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "siemens" : {
+        "symbols" : ["S", "siemens"],
+        "representation in SI or earlier defined unit" : "1/ohm",
+        "scale factor" : 1.0,
+        "category" : "Conductance",
+        "representative symbol" : "S",
+        "metric prefixes for" : ["S"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "weber" : {
+        "symbols" : ["Wb", "weber"],
+        "representation in SI or earlier defined unit" : "J/A",
+        "scale factor" : 1.0,
+        "category" : "Magnetic flux",
+        "representative symbol" : "Wb",
+        "metric prefixes for" : ["Wb"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "tesla" : {
+        "symbols" : ["T", "tesla"],
+        "representation in SI or earlier defined unit" : "N/A/m",
+        "scale factor" : 1.0,
+        "category" : "Magnetic field strength",
+        "representative symbol" : "T",
+        "metric prefixes for" : ["T"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "henry" : {
+        "symbols" : ["H", "henry"],
+        "representation in SI or earlier defined unit" : "V s/A",
+        "scale factor" : 1.0,
+        "category" : "Inductance",
+        "representative symbol" : "H",
+        "metric prefixes for" : ["H"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "lumen" : {
+        "symbols" : ["lm", "lumen"],
+        "representation in SI or earlier defined unit" : "cd J",
+        "scale factor" : 1.0,
+        "category" : "Luminous flux",
+        "representative symbol" : "lm",
+        "metric prefixes for" : ["lm"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "lux" : {
+        "symbols" : ["lx", "lux"],
+        "representation in SI or earlier defined unit" : "lm / m^2",
+        "scale factor" : 1.0,
+        "category" : "Luminosity",
+        "representative symbol" : "lx",
+        "metric prefixes for" : ["lx"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "becquerel" : {
+        "symbols" : ["Bq", "becquerel"],
+        "representation in SI or earlier defined unit" : "1/s",
+        "scale factor" : 1.0,
+        "category" : "",
+        "representative symbol" : "",
+        "metric prefixes for" : ["Bq"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "kerma" : {
+        "symbols" : ["Gy", "gray", "kerma"],
+        "representation in SI or earlier defined unit" : "J/kg",
+        "scale factor" : 1.0,
+        "category" : "Radioactive dose",
+        "representative symbol" : "Gy",
+        "metric prefixes for" : ["Gy"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "sievert" : {
+        "symbols" : ["Sv", "sievert"],
+        "representation in SI or earlier defined unit" : "J/kg",
+        "scale factor" : 1.0,
+        "category" : "",
+        "representative symbol" : "",
+        "metric prefixes for" : ["Sv"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "katal" : {
+        "symbols" : ["kat", "katal"],
+        "representation in SI or earlier defined unit" : "mol/s",
+        "scale factor" : 1.0,
+        "category" : "Catalytic activity",
+        "representative symbol" : "kat",
+        "metric prefixes for" : ["kat"],
+        "skipped prefixes" : [],
+        "used in contexts" : ["all", "si"]
+    },
+    "rankine" : {
+        "symbols" : ["R", "rankine"],
+        "representation in SI or earlier defined unit" : "K",
+        "scale factor" : 0.555555555555,
+        "used in contexts" : ["temperature"]
+    },
+    "minute" : {
+        "symbols" : ["minute", "mins", "minutes"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 60,
+        "used in contexts" : ["extended", "time"]
+    },
+    "year" : {
+        "symbols" : ["yr", "year", "years", "year_Gregorian"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 31556952,
+        "used in contexts" : ["extended", "time"]
+    },
+    "year_Julian" : {
+        "symbols" : ["year_Julian"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 31557600,
+        "used in contexts" : ["extended", "time"]
+    },
+    "year_sidereal" : {
+        "symbols" : ["year_sidereal"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 31558149.7632,
+        "used in contexts" : ["extended", "time"]
+    },
+    "year_tropical" : {
+        "symbols" : ["year_tropical"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 31556925,
+        "used in contexts" : ["extended", "time"]
+    },
+    "atomic_unit_of_time" : {
+        "symbols" : ["au", "atomic_unit_of_time"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 2.418884254e-17,
+        "used in contexts" : ["extended", "time"]
+    },
+    "Callippic_cycle" : {
+        "symbols" : ["Callippic_cycle"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 2.3983776e9,
+        "used in contexts" : ["extended", "time"]
+    },
+    "century" : {
+        "symbols" : ["century", "centuries"],
+        "representation in SI or earlier defined unit" : "years",
+        "scale factor" : 100,
+        "used in contexts" : ["extended", "time"]
+    },
+    "day" : {
+        "symbols" : ["d", "day", "days"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 86400,
+        "used in contexts" : ["extended", "time"]
+    },
+    "day_sidereal" : {
+        "symbols" : ["day_sidereal"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 86164.1,
+        "used in contexts" : ["extended", "time"]
+    },
+    "decade" : {
+        "symbols" : ["dec", "decade", "decades"],
+        "representation in SI or earlier defined unit" : "years",
+        "scale factor" : 10,
+        "used in contexts" : ["extended", "time"]
+    },
+    "fortnight" : {
+        "symbols" : ["fn", "fortnight", "fortnights"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 1209600,
+        "used in contexts" : ["extended", "time"]
+    },
+    "helek" : {
+        "symbols" : ["helek"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 3.3,
+        "used in contexts" : ["extended", "time"]
+    },
+    "Hipparchic_cycle" : {
+        "symbols" : ["Hipparchic_cycle"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 9.593424e9,
+        "used in contexts" : ["extended", "time"]
+    },
+    "hour" : {
+        "symbols" : ["hr", "hour", "hrs", "hours"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 3600,
+        "used in contexts" : ["extended", "time"]
+    },
+    "jiffy" : {
+        "symbols" : ["j", "jiffy"],
+        "representation in SI or earlier defined unit" : "ms",
+        "scale factor" : 16,
+        "used in contexts" : ["extended", "time"]
+    },
+    "jiffy_alternate" : {
+        "symbols" : ["ja", "jiffy_alternate"],
+        "representation in SI or earlier defined unit" : "ms",
+        "scale factor" : 10,
+        "used in contexts" : ["extended", "time"]
+    },
+    "ke_quarter_of_an_hour" : {
+        "symbols" : ["ke_quarter_of_an_hour"],
+        "representation in SI or earlier defined unit" : "minutes",
+        "scale factor" : 15,
+        "used in contexts" : ["extended", "time"]
+    },
+    "ke_traditional" : {
+        "symbols" : ["ke_traditional"],
+        "representation in SI or earlier defined unit" : "minutes",
+        "scale factor" : 14.4,
+        "used in contexts" : ["extended", "time"]
+    },
+    "lustre" : {
+        "symbols" : ["lustre", "lustrum"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 1.5768e8,
+        "used in contexts" : ["extended", "time"]
+    },
+    "Metonic_cycle" : {
+        "symbols" : ["Metonic_cycle", "enneadecaeteris"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 5.99616e8,
+        "used in contexts" : ["extended", "time"]
+    },
+    "millennium" : {
+        "symbols" : ["millennium"],
+        "representation in SI or earlier defined unit" : "years",
+        "scale factor" : 1000,
+        "used in contexts" : ["extended", "time"]
+    },
+    "moment" : {
+        "symbols" : ["moment"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 90,
+        "used in contexts" : ["extended", "time"]
+    },
+    "month_full" : {
+        "symbols" : ["month_full"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 2592000,
+        "used in contexts" : ["extended", "time"]
+    },
+    "month_Greg_avg" : {
+        "symbols" : ["month_Greg_avg"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 2.6297e6,
+        "used in contexts" : ["extended", "time"]
+    },
+    "month_hollow" : {
+        "symbols" : ["month_hollow"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 2505600,
+        "used in contexts" : ["extended", "time"]
+    },
+    "month_synodic" : {
+        "symbols" : ["month_synodic"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 2.551e6,
+        "used in contexts" : ["extended", "time"]
+    },
+    "octaeteris" : {
+        "symbols" : ["octaeteris"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 2.524608e8,
+        "used in contexts" : ["extended", "time"]
+    },
+    "Planck_time" : {
+        "symbols" : ["Planck_time"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 1.351211868e-43,
+        "used in contexts" : ["extended", "time"]
+    },
+    "shake" : {
+        "symbols" : ["shake", "shakes"],
+        "representation in SI or earlier defined unit" : "ns",
+        "scale factor" : 10,
+        "used in contexts" : ["extended", "time"]
+    },
+    "sigma" : {
+        "symbols" : ["sigma"],
+        "representation in SI or earlier defined unit" : "us",
+        "scale factor" : 1,
+        "used in contexts" : ["extended", "time"]
+    },
+    "Sothic_cycle" : {
+        "symbols" : ["Sothic_cycle"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 4.6074096e10,
+        "used in contexts" : ["extended", "time"]
+    },
+    "svedberg" : {
+        "symbols" : ["svedberg"],
+        "representation in SI or earlier defined unit" : "fs",
+        "scale factor" : 100,
+        "used in contexts" : ["extended", "time"]
+    },
+    "week" : {
+        "symbols" : ["wk", "wks", "week", "weeks"],
+        "representation in SI or earlier defined unit" : "s",
+        "scale factor" : 604800,
+        "used in contexts" : ["extended", "time"]
+    },
+    "square_metre" : {
+        "symbols" : ["m2", "square_metre"],
+        "representation in SI or earlier defined unit" : "m^2",
+        "scale factor" : 1,
+        "category" : "Area",
+        "used in contexts" : ["extended", "area"]
+    },
+    "acre_international" : {
+        "symbols" : ["acre_international"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 4046.8564224,
+        "used in contexts" : ["extended", "area"]
+    },
+    "acre_US_survey" : {
+        "symbols" : ["acre_US_survey"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 4046.873,
+        "used in contexts" : ["extended", "area"]
+    },
+    "are" : {
+        "symbols" : ["are"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 100,
+        "used in contexts" : ["extended", "area"]
+    },
+    "barn" : {
+        "symbols" : ["barn"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1e-28,
+        "used in contexts" : ["extended", "area"]
+    },
+    "barony" : {
+        "symbols" : ["barony"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1.618742e7,
+        "used in contexts" : ["extended", "area"]
+    },
+    "board" : {
+        "symbols" : ["board"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 7.74192e-3,
+        "used in contexts" : ["extended", "area"]
+    },
+    "boiler_horsepower_equivalent_direct_radiation" : {
+        "symbols" : ["boiler_horsepower_equivalent_direct_radiation", "bhp_EDR"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 12.958174,
+        "used in contexts" : ["extended", "area"]
+    },
+    "circular_inch" : {
+        "symbols" : ["circular_inch", "circ_in"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 5.067075e-4,
+        "used in contexts" : ["extended", "area"]
+    },
+    "circular_mil" : {
+        "symbols" : ["circular_mil", "circular_thou", "circ_mil"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 5.067075e-10,
+        "used in contexts" : ["extended", "area"]
+    },
+    "cord" : {
+        "symbols" : ["cord"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1.48644864,
+        "used in contexts" : ["extended", "area"]
+    },
+    "dunam" : {
+        "symbols" : ["dunam"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1000,
+        "used in contexts" : ["extended", "area"]
+    },
+    "guntha" : {
+        "symbols" : ["guntha"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 101.17,
+        "used in contexts" : ["extended", "area"]
+    },
+    "hectare" : {
+        "symbols" : ["hectare", "ha", "hectares"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 10000,
+        "used in contexts" : ["extended", "area"]
+    },
+    "hide" : {
+        "symbols" : ["hide"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 5e5,
+        "used in contexts" : ["extended", "area"]
+    },
+    "rood" : {
+        "symbols" : ["rood", "ro"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1011.7141056,
+        "used in contexts" : ["extended", "area"]
+    },
+    "section" : {
+        "symbols" : ["section"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 2.589988110336e6,
+        "used in contexts" : ["extended", "area"]
+    },
+    "shed" : {
+        "symbols" : ["shed", "sheds"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1e-52,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_roofing" : {
+        "symbols" : ["square_roofing"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 9.290304,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_chain_international" : {
+        "symbols" : ["square_chain_international", "sq_ch"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 404.68564224,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_chain_US_Survey" : {
+        "symbols" : ["square_chain_US_Survey"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 404.6873,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_foot" : {
+        "symbols" : ["square_foot", "sq_ft"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 9.290304e-2,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_foot_US_Survey" : {
+        "symbols" : ["square_foot_US_Survey"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 9.29034116132749e-2,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_inch" : {
+        "symbols" : ["square_inch", "sq_in"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 6.4516e-4,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_kilometre" : {
+        "symbols" : ["square_kilometre", "square_kilometer", "km2"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1e6,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_link_Gunters_International" : {
+        "symbols" : ["square_link_Gunters_International"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 4.0468564224e-2,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_link_Gunters_US_Survey" : {
+        "symbols" : ["square_link_Gunters_US_Survey"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 4.046872e-2,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_link_Ramsdens" : {
+        "symbols" : ["square_link_Ramsdens"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 0.09290304,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_mil" : {
+        "symbols" : ["square_mil", "square_thou", "sq_mil"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 6.4516e-10,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_mile" : {
+        "symbols" : ["square_mile"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 2.589988110336e6,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_mile_US_Survey" : {
+        "symbols" : ["square_mile_US_Survey"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 2.58999847e6,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_rod" : {
+        "symbols" : ["square_rod", "square_pole", "square_perch", "sq_rd"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 25.29285264,
+        "used in contexts" : ["extended", "area"]
+    },
+    "square_yard_International" : {
+        "symbols" : ["square_yard_International", "sq_yd"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 0.83612736,
+        "used in contexts" : ["extended", "area"]
+    },
+    "stremma" : {
+        "symbols" : ["stremma"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1000,
+        "used in contexts" : ["extended", "area"]
+    },
+    "township" : {
+        "symbols" : ["township"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 9.323994e7,
+        "used in contexts" : ["extended", "area"]
+    },
+    "yardland" : {
+        "symbols" : ["yardland"],
+        "representation in SI or earlier defined unit" : "m2",
+        "scale factor" : 1.2e5,
+        "used in contexts" : ["extended", "area"]
+    },
+    "cubic_metre" : {
+        "symbols" : ["m3", "cubic_metre"],
+        "representation in SI or earlier defined unit" : "m^3",
+        "scale factor" : 1,
+        "category" : "Volume",
+        "used in contexts" : ["extended", "volume"]
+    },
+    "acre_foot" : {
+        "symbols" : ["ac_ft", "acre_foot"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1233.48183754752,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "acre_inch" : {
+        "symbols" : ["acre_inch"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 102.79015312896,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "barrel_imperial" : {
+        "symbols" : ["barrel_imperial", "bl_imp"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.16365924,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "barrel_petroleum" : {
+        "symbols" : ["bbl", "barrel_petroleum", "bl"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.158987294928,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "barrel_US_dry" : {
+        "symbols" : ["barrel_US_dry", "bl_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.115628198985075,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "barrel_US_fluid" : {
+        "symbols" : ["barrel_US_fluid", "fl_bl_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.119240471196,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "board_foot" : {
+        "symbols" : ["board_foot", "fbm"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 2.359737216e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "bucket_imperial" : {
+        "symbols" : ["bucket_imperial", "bkt"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.01818436,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "bushel_imperial" : {
+        "symbols" : ["bushel_imperial", "bu_imp"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.03636872,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "bushel_US_dry_heaped" : {
+        "symbols" : ["bushel_US_dry_heaped", "bu_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.0440488377086,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "bushel_US_dry_level" : {
+        "symbols" : ["bushel_US_dry_level", "bu_US_lvl"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.03523907016688,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "butt_pipe" : {
+        "symbols" : ["butt_pipe"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.476961884784,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "coomb" : {
+        "symbols" : ["coomb"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.14547488,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cord_firewood" : {
+        "symbols" : ["cord_firewood"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 3.624556363776,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cord_foot" : {
+        "symbols" : ["cord_foot"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.453069545472,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cubic_fathom" : {
+        "symbols" : ["cubic_fathom", "cu_fm"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 6.116438863872,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cubic_foot" : {
+        "symbols" : ["cubic_foot", "cu_ft", "cubic_feet"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.028316846592,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cubic_inch" : {
+        "symbols" : ["cubic_inch", "cu_in", "cubic_inches"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 16.387064e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cubic_mile" : {
+        "symbols" : ["cubic_mile", "cu_mi"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 4168181825.440579584,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cubic_yard" : {
+        "symbols" : ["cubic_yard", "cubic_yards", "cu_yd"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.764554857984,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cup_breakfast" : {
+        "symbols" : ["cup_breakfast"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 284.130625e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cup_Canadian" : {
+        "symbols" : ["cup_Canadian", "c_CA"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 227.3045e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cup_metric" : {
+        "symbols" : ["cup_metric"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 250.0e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cup_US_customary" : {
+        "symbols" : ["cup_US_customary", "c_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 236.5882365e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "cup_US_food_nutrition_labeling" : {
+        "symbols" : ["cup_US_food_nutrition_labeling"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 2.4e-4,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "dash_imperial" : {
+        "symbols" : ["dash_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 369.961751302083e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "dash_US" : {
+        "symbols" : ["dash_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 308.057599609375e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "dessertspoon_imperial" : {
+        "symbols" : ["dessertspoon_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 11.8387760416e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "drop_imperial" : {
+        "symbols" : ["drop_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 98.6564670138e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "drop_imperial_alt" : {
+        "symbols" : ["drop_imperial_alt"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 77.886684e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "drop_medical" : {
+        "symbols" : ["drop_medical"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 83.03e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "drop_medical" : {
+        "symbols" : ["drop_medical"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 83.3e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "drop_metric" : {
+        "symbols" : ["drop_metric"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 50.0e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "drop_US" : {
+        "symbols" : ["drop_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 82.14869322916e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "drop_US_alt" : {
+        "symbols" : ["drop_US_alt"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 51.34293326823e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "fifth" : {
+        "symbols" : ["fifth"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 757.0823568e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "firkin" : {
+        "symbols" : ["firkin"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.034068706056,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "fluid_drachm_imperial" : {
+        "symbols" : ["fluid_drachm_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 3.5516328125e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "fluid_dram_US" : {
+        "symbols" : ["fluid_dram_US", " US_fluidram"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 3.6966911953125e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "fluid_scruple_imperial" : {
+        "symbols" : ["fluid_scruple_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1.18387760416e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "gallon_beer" : {
+        "symbols" : ["gallon_beer", " beer_gal"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 4.621152048e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "gallon_imperial" : {
+        "symbols" : ["gal_imp", "gallon_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 4.54609e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "gallon_US_dry" : {
+        "symbols" : ["gal_US", "gallon_US_dry"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 4.40488377086e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "gallon_US_fluid_Wine" : {
+        "symbols" : ["gallon_US_fluid_Wine"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 3.785411784e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "gill_imperial" : {
+        "symbols" : ["gill_imperial", "Noggin", "gi_imp", "nog"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 142.0653125e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "gill_US" : {
+        "symbols" : ["gill_US", "gi_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 118.29411825e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "hogshead_imperial" : {
+        "symbols" : ["hogshead_imperial", "hhd_imp"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.32731848,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "hogshead_US" : {
+        "symbols" : ["hogshead_US", "hhd_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.238480942392,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "jigger_bartending" : {
+        "symbols" : ["jigger_bartending"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 44.36e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "kilderkin" : {
+        "symbols" : ["kilderkin"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.08182962,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "lambda_unit" : {
+        "symbols" : ["lambda_unit"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "last" : {
+        "symbols" : ["last"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 2.9094976,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "litre" : {
+        "symbols" : ["litre", "l", "litres", "liter"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.001,
+        "metric prefixes for" : ["l"],
+        "used in contexts" : ["extended", "volume"]
+    },
+    "load" : {
+        "symbols" : ["load"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1.4158423296,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "minim_imperial" : {
+        "symbols" : ["minim_imperial", "minim"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 59.1938802083e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "minim_US" : {
+        "symbols" : ["minim_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 61.611519921875e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "ounce_fluid_imperial" : {
+        "symbols" : ["ounce_fluid_imperial", "fl_oz_imp"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 28.4130625e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "ounce_fluid_US_customary" : {
+        "symbols" : ["ounce_fluid_US_customary", "US_fl_oz"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 29.5735295625e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "ounce_fluid_US_food_nutrition_labeling" : {
+        "symbols" : ["ounce_fluid_US_food_nutrition_labeling"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 3e-5,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "peck_imperial" : {
+        "symbols" : ["peck_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 9.09218e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "peck_US_dry" : {
+        "symbols" : ["peck_US_dry"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 8.80976754172e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "perch" : {
+        "symbols" : ["perch", "per"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.700841953152,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "pinch_imperial" : {
+        "symbols" : ["pinch_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 739.92350260416e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "pinch_US" : {
+        "symbols" : ["pinch_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 616.11519921875e-9,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "pint_imperial" : {
+        "symbols" : ["pint_imperial", "pt_imp"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 568.26125e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "pint_US_dry" : {
+        "symbols" : ["pint_US_dry", "pt_US_dry"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 550.6104713575e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "pint_US_fluid" : {
+        "symbols" : ["pint_US_fluid", "pt_US_fl"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 473.176473e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "pony" : {
+        "symbols" : ["pony"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 22.180147171875e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "pottle" : {
+        "symbols" : ["pottle", "quartern"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 2.273045e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "quart_imperial" : {
+        "symbols" : ["quart_imperial", "qt_imp"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1.1365225e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "quart_US_dry" : {
+        "symbols" : ["quart_US_dry"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1.101220942715e-3,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "quart_US_fluid" : {
+        "symbols" : ["quart_US_fluid"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 946.352946e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "quarter_pail" : {
+        "symbols" : ["quarter_pail"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.29094976,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "register_ton" : {
+        "symbols" : ["register_ton"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 2.8316846592,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "sack_imperial" : {
+        "symbols" : ["sack_imperial", "bag"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.10910616,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "sack_US" : {
+        "symbols" : ["sack_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.10571721050064,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "seam" : {
+        "symbols" : ["seam"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.28191256133504,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "shot" : {
+        "symbols" : ["shot"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 29.57e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "strike_imperial" : {
+        "symbols" : ["strike_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.07273744,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "strike_US" : {
+        "symbols" : ["strike_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.07047814033376,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "tablespoon_Australian_metric" : {
+        "symbols" : ["tablespoon_Australian_metric"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 20.0e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "tablespoon_Canadian" : {
+        "symbols" : ["tablespoon_Canadian"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 14.20653125e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "tablespoon_imperial" : {
+        "symbols" : ["tablespoon_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 17.7581640625e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "tablespoon_metric" : {
+        "symbols" : ["tablespoon_metric"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 15.0e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "tablespoon_US_customary" : {
+        "symbols" : ["tablespoon_US_customary"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 14.7867647825e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "tablespoon_US_food_nutrition_labeling" : {
+        "symbols" : ["tablespoon_US_food_nutrition_labeling", "tbsp"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1.5e-5,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "teaspoon_Canadian" : {
+        "symbols" : ["teaspoon_Canadian"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 4.735510416e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "teaspoon_imperial" : {
+        "symbols" : ["teaspoon_imperial"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 5.91938802083e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "teaspoon_metric" : {
+        "symbols" : ["teaspoon_metric"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 5.0e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "teaspoon_US_customary" : {
+        "symbols" : ["teaspoon_US_customary"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 4.928921595e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "teaspoon_US_food_nutrition_labeling" : {
+        "symbols" : ["teaspoon_US_food_nutrition_labeling"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 5e-6,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "timber_foot" : {
+        "symbols" : ["timber_foot"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.028316846592,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "ton_displacement" : {
+        "symbols" : ["ton_displacement"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.99108963072,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "ton_freight" : {
+        "symbols" : ["ton_freight"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1.13267386368,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "ton_water" : {
+        "symbols" : ["ton_water"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1.01832416,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "tun" : {
+        "symbols" : ["tun"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 0.953923769568,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "wey_US" : {
+        "symbols" : ["wey_US"],
+        "representation in SI or earlier defined unit" : "m3",
+        "scale factor" : 1.4095628066752,
+        "used in contexts" : ["extended", "volume"]
+    },
+    "gauss" : {
+        "symbols" : ["G", "gauss"],
+        "representation in SI or earlier defined unit" : "T",
+        "scale factor" : 1e-4,
+        "used in contexts" : ["extended", "physics"],
+        "metric prefixes for" : ["G"]
+    },
+    "pascal_second" : {
+        "symbols" : ["Pa_s", "pascal_second"],
+        "representation in SI or earlier defined unit" : "Pa s",
+        "category": "Dynamic viscosity",
+        "scale factor" : 1,
+        "used in contexts" : ["extended", "viscosity"]
+    },
+    "poise_cgs_unit" : {
+        "symbols" : ["poise_cgs_unit"],
+        "representation in SI or earlier defined unit" : "Pa s",
+        "scale factor" : 0.1,
+        "used in contexts" : ["extended", "viscosity"]
+    },
+    "pound_per_foot_hour" : {
+        "symbols" : ["pound_per_foot_hour"],
+        "representation in SI or earlier defined unit" : "Pa s",
+        "scale factor" : 4.133789e-4,
+        "used in contexts" : ["extended", "viscosity"]
+    },
+    "pound_per_foot_second" : {
+        "symbols" : ["pound_per_foot_second"],
+        "representation in SI or earlier defined unit" : "Pa s",
+        "scale factor" : 1.488164,
+        "used in contexts" : ["extended", "viscosity"]
+    },
+    "pound_force_second_per_square_foot" : {
+        "symbols" : ["pound_force_second_per_square_foot"],
+        "representation in SI or earlier defined unit" : "Pa s",
+        "scale factor" : 47.88026,
+        "used in contexts" : ["extended", "viscosity"]
+    },
+    "pound_force_second_per_square_inch" : {
+        "symbols" : ["pound_force_second_per_square_inch"],
+        "representation in SI or earlier defined unit" : "Pa s",
+        "scale factor" : 6894.757,
+        "used in contexts" : ["extended", "viscosity"]
+    },
+    "stokes_cgs_unit" : {
+        "symbols" : ["St", "stokes_cgs_unit"],
+        "representation in SI or earlier defined unit" : "m^2/s",
+        "scale factor" : 1e-4,
+        "category": "Kinematic viscosity",
+        "used in contexts" : ["extended", "viscosity"]
+    },
+    "barrel_of_oil_equivalent" : {
+        "symbols" : ["boe", "barrel_of_oil_equivalent"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 6.12e9,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "BTUISO British_thermal_unit_ISO" : {
+        "symbols" : ["BTU", "BTUISO British_thermal_unit_ISO"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.0545e3,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "British_thermal_unit_International_Table" : {
+        "symbols" : ["BTUIT", "British_thermal_unit_International_Table"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.05505585262e3,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "British_thermal_unit_mean" : {
+        "symbols" : ["BTUmean", "British_thermal_unit_mean"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.05587e3,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "British_thermal_unit_thermochemical" : {
+        "symbols" : ["BTUth", "British_thermal_unit_thermochemical"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.054350e3,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "British_thermal_unit_39_F" : {
+        "symbols" : ["British_thermal_unit_39_F"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.05967e3 ,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "British_thermal_unit_59_F" : {
+        "symbols" : ["British_thermal_unit_59_F"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.054804e3 ,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "British_thermal_unit_60_F" : {
+        "symbols" : ["British_thermal_unit_60_F"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.05468e3 ,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "British_thermal_unit_63_F" : {
+        "symbols" : ["British_thermal_unit_63_F"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.0546e3 ,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "calorie_International_Table" : {
+        "symbols" : ["calorie_International_Table", "cal", "calIT"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.1868,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "calorie_mean" : {
+        "symbols" : ["calorie_mean", "calmean"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.19002,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "calorie_thermochemical" : {
+        "symbols" : ["calorie_thermochemical", "calth"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.184,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "calorie_3_98_C" : {
+        "symbols" : ["calorie_3_98_C"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.2045,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "calorie_15_C" : {
+        "symbols" : ["calorie_15_C"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.1855,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "calorie_20_C" : {
+        "symbols" : ["calorie_20_C"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.1819,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "Celsius_heat_unit_International_Table" : {
+        "symbols" : ["Celsius_heat_unit_International_Table", "CHUIT"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.899100534716e3,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "cubic_centimetre_of_atmosphere" : {
+        "symbols" : ["cubic_centimetre_of_atmosphere", "cc", "scc", "cc_atm", "standard_cubic_centimetre"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 0.101325,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "cubic_foot_of_atmosphere" : {
+        "symbols" : ["scf", "cu_ft_atm", "cubic_foot_of_atmosphere", "standard_cubic_foot"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 2.8692044809344e3,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "cubic_foot_of_natural_gas" : {
+        "symbols" : ["cubic_foot_of_natural_gas"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.05505585262e6,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "cubic_yard_of_atmosphere" : {
+        "symbols" : ["scy", "cubic_yard_of_atmosphere", " standard_cubic_yard", "cu_yd_atm"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 77.4685209852288e3,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "electronvolt" : {
+        "symbols" : ["eV", "electronvolt"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.602176634e-19,
+        "used in contexts" : ["extended", "energy", "physics"]
+    },
+    "erg" : {
+        "symbols" : ["erg", "erg_cgs_unit"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1e-7,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "foot_pound_force" : {
+        "symbols" : ["foot_pound_force", "ft_lbf"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.3558179483314004,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "foot_poundal" : {
+        "symbols" : ["ft_pdl", "foot_poundal"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.21401100938048e-2,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "gallon_atmosphere_imperial" : {
+        "symbols" : ["imp_gal_atm", "gallon_atmosphere_imperial"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 460.63256925,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "gallon_atmosphere_US" : {
+        "symbols" : ["gallon_atmosphere_US", "US_gal_atm"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 383.5568490138,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "hartree" : {
+        "symbols" : ["Eh", "hartree", "atomic_unit_of_energy"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.359744e-18,
+        "used in contexts" : ["extended", "energy", "physics"]
+    },
+    "horsepower_hour" : {
+        "symbols" : ["hph", "horsepower_hour"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 2.684519537696172792e6,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "inch_pound_force" : {
+        "symbols" : ["in_lbf ", "inch_pound_force"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 0.1129848290276167,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "kilocalorie" : {
+        "symbols" : ["kcal", "Cal", "kilocalorie", "large_calorie"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.1868e3,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "kilowatt_hour" : {
+        "symbols" : ["kWh", "kilowatt_hour", "Board_of_Trade_Unit"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 3.6e6,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "litre_atmosphere" : {
+        "symbols" : ["litre_atmosphere", "l_atm", "sl"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 101.325,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "quad" : {
+        "symbols" : ["quad"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 1.05505585262e18,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "rydberg" : {
+        "symbols" : ["rydberg", "Ry"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 2.179872e-18,
+        "used in contexts" : ["extended", "energy", "physics"]
+    },
+    "therm_EC" : {
+        "symbols" : ["therm_EC"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 105.505585262e6,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "therm_US" : {
+        "symbols" : ["therm_US"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 105.4804e6,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "thermie" : {
+        "symbols" : ["thermie", "th"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.1868e6,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "ton_of_coal_equivalent" : {
+        "symbols" : ["TCE", "ton_of_coal_equivalent"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 29.3076e9,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "ton_of_oil_equivalent" : {
+        "symbols" : ["TOE", "ton_of_oil_equivalent"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 41.868e9,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "ton_of_TNT" : {
+        "symbols" : ["ton_of_TNT", "tTNT"],
+        "representation in SI or earlier defined unit" : "J",
+        "scale factor" : 4.184e9,
+        "used in contexts" : ["extended", "energy"]
+    },
+    "cubic_metre_per_second" : {
+        "symbols" : ["cubic_metre_per_second", "m3ps"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 1,
+        "category" : "Volumetric Flow",
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "cmh" : {
+        "symbols" : ["cmh"],
+        "representation in SI or earlier defined unit" : "m^3 / hr",
+        "scale factor" : 1,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "cubic_foot_per_minute" : {
+        "symbols" : ["cubic_foot_per_minute", "CFM", "cfm"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 4.719474432e-4,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "cubic_foot_per_second" : {
+        "symbols" : ["CFS", "cfs ", "cubic_foot_per_second"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 0.028316846592,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "cubic_inch_per_minute" : {
+        "symbols" : ["cubic_inch_per_minute"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 2.7311773e-7,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "cubic_inch_per_second" : {
+        "symbols" : ["cubic_inch_per_second"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 1.6387064e-5,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "gallon_US_fluid_per_day" : {
+        "symbols" : ["GPD ", "gallon_US_fluid_per_day"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 4.381263638e-8,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "gallon_US_fluid_per_hour" : {
+        "symbols" : ["GPH ", "gallon_US_fluid_per_hour"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 1.051503273e-6,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "gallon_US_fluid_per_minute" : {
+        "symbols" : ["GPM ", "gallon_US_fluid_per_minute"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 6.30901964e-5,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "litre_per_minute" : {
+        "symbols" : ["LPM", "litre_per_minute"],
+        "representation in SI or earlier defined unit" : "m^3 / s",
+        "scale factor" : 1.6e-5,
+        "used in contexts" : ["extended", "vol_flow"]
+    },
+    "atomic_unit_of_force" : {
+        "symbols" : ["atomic_unit_of_force"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 8.23872206e-8,
+        "used in contexts" : ["extended", "force"]
+    },
+    "dyne" : {
+        "symbols" : ["dyn", "dyne", "dynes", "dyne_cgs_unit"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 1e-5,
+        "used in contexts" : ["extended", "force"]
+    },
+    "kilogram_force" : {
+        "symbols" : ["kgf", "kp", "Gf", "kilogram_force", "kilopond", "grave_force"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 9.80665,
+        "used in contexts" : ["extended", "force"]
+    },
+    "kip_force" : {
+        "symbols" : ["kip_force", "kipf", " klbf"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 4.4482216152605e3,
+        "used in contexts" : ["extended", "force"]
+    },
+    "milligrave_force" : {
+        "symbols" : ["mGf", "milligrave_force", "gravet_force", "gf"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 9.80665e-3,
+        "used in contexts" : ["extended", "force"]
+    },
+    "ounce_force" : {
+        "symbols" : ["ozf", "ounce_force"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 0.2780138509537812,
+        "used in contexts" : ["extended", "force"]
+    },
+    "pound_force" : {
+        "symbols" : ["lbf", "pound_force"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 4.4482216152605,
+        "used in contexts" : ["extended", "force"]
+    },
+    "poundal" : {
+        "symbols" : ["pdl", "poundal"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 0.138254954376,
+        "used in contexts" : ["extended", "force"]
+    },
+    "sthene_mts_unit" : {
+        "symbols" : ["sn", "sthene_mts_unit"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 1e3,
+        "used in contexts" : ["extended", "force"]
+    },
+    "ton_force" : {
+        "symbols" : ["tnf", "ton_force"],
+        "representation in SI or earlier defined unit" : "N",
+        "scale factor" : 8.896443230521e3,
+        "used in contexts" : ["extended", "force"]
+    },
+    "angstrom" : {
+        "symbols" : ["angstrom"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1e-10,
+        "used in contexts" : ["extended", "length"]
+    },
+    "astronomical_unit" : {
+        "symbols" : ["astronomical_unit", "AU"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 149597870700,
+        "used in contexts" : ["extended", "length"]
+    },
+    "barleycorn" : {
+        "symbols" : ["barleycorn"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 8.46e-3,
+        "used in contexts" : ["extended", "length"]
+    },
+    "bohr" : {
+        "symbols" : ["a0", "bohr", "atomic_unit_of_length"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 5.2917720859e-11,
+        "used in contexts" : ["extended", "length"]
+    },
+    "cable_length_imperial" : {
+        "symbols" : ["cable_length_imperial"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 185.3184,
+        "used in contexts" : ["extended", "length"]
+    },
+    "cable_length_International" : {
+        "symbols" : ["cable_length_International"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 185.2,
+        "used in contexts" : ["extended", "length"]
+    },
+    "cable_length_US" : {
+        "symbols" : ["cable_length_US"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 219.456,
+        "used in contexts" : ["extended", "length"]
+    },
+    "chain_Gunters_Surveyors" : {
+        "symbols" : ["ch", "chain_Gunters_Surveyors"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 20.11684,
+        "used in contexts" : ["extended", "length"]
+    },
+    "cubit" : {
+        "symbols" : ["cubit", "cubits"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.5,
+        "used in contexts" : ["extended", "length"]
+    },
+    "ell" : {
+        "symbols" : ["ell"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1.143,
+        "used in contexts" : ["extended", "length"]
+    },
+    "fathom" : {
+        "symbols" : ["fathom"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1.8288,
+        "used in contexts" : ["extended", "length"]
+    },
+    "fermi" : {
+        "symbols" : ["fermi"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1e-15,
+        "used in contexts" : ["extended", "length"]
+    },
+    "finger" : {
+        "symbols" : ["finger"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.022225,
+        "used in contexts" : ["extended", "length"]
+    },
+    "finger_cloth" : {
+        "symbols" : ["finger_cloth"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.1143,
+        "used in contexts" : ["extended", "length"]
+    },
+    "foot_Benoit" : {
+        "symbols" : ["ft_Ben", "foot_Benoit"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.304799735,
+        "used in contexts" : ["extended", "length"]
+    },
+    "foot_Cape" : {
+        "symbols" : ["foot_Cape"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.314858,
+        "used in contexts" : ["extended", "length"]
+    },
+    "foot_Clarkes" : {
+        "symbols" : ["foot_Clarkes"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.3047972654,
+        "used in contexts" : ["extended", "length"]
+    },
+    "foot_Indian" : {
+        "symbols" : ["foot_Indian", "ft_Ind"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.304799514,
+        "used in contexts" : ["extended", "length"]
+    },
+    "foot" : {
+        "symbols" : ["ft", "foot", " feet", "foot_International"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.3048,
+        "used in contexts" : ["extended", "length"]
+    },
+    "foot_Sears" : {
+        "symbols" : ["foot_Sears", "ft_Sear"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.30479947,
+        "used in contexts" : ["extended", "length"]
+    },
+    "foot_US_Survey" : {
+        "symbols" : ["ft_US", "foot_US_Survey"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.304800610,
+        "used in contexts" : ["extended", "length"]
+    },
+    "french_charriere" : {
+        "symbols" : ["french_charriere"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.3e-3,
+        "used in contexts" : ["extended", "length"]
+    },
+    "furlong" : {
+        "symbols" : ["fur", "furlong"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 201.168,
+        "used in contexts" : ["extended", "length"]
+    },
+    "hand" : {
+        "symbols" : ["hand"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.1016,
+        "used in contexts" : ["extended", "length"]
+    },
+    "inch" : {
+        "symbols" : ["inch", "inch_International"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.0254,
+        "used in contexts" : ["extended", "length"]
+    },
+    "league_land" : {
+        "symbols" : ["lea", "league_land"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 4828.032,
+        "used in contexts" : ["extended", "length"]
+    },
+    "light_day" : {
+        "symbols" : ["light_day"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 2.59020683712e13,
+        "used in contexts" : ["extended", "length"]
+    },
+    "light_hour" : {
+        "symbols" : ["light_hour"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1.0792528488e12,
+        "used in contexts" : ["extended", "length"]
+    },
+    "light_minute" : {
+        "symbols" : ["light_minute"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1.798754748e10,
+        "used in contexts" : ["extended", "length"]
+    },
+    "light_second" : {
+        "symbols" : ["light_second"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 299792458,
+        "used in contexts" : ["extended", "length"]
+    },
+    "light_year" : {
+        "symbols" : ["ly", "light_year"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 9.4607304725808e15,
+        "used in contexts" : ["extended", "length"]
+    },
+    "line" : {
+        "symbols" : ["line", "ln"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.002116,
+        "used in contexts" : ["extended", "length"]
+    },
+    "link_Gunters" : {
+        "symbols" : ["lnk", "link_Gunters"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.201168,
+        "used in contexts" : ["extended", "length"]
+    },
+    "link_Ramsdens" : {
+        "symbols" : ["link_Ramsdens"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.3048,
+        "used in contexts" : ["extended", "length"]
+    },
+    "mickey" : {
+        "symbols" : ["mickey"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1.27e-4,
+        "used in contexts" : ["extended", "length"]
+    },
+    "micron" : {
+        "symbols" : ["micron"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1e-6,
+        "used in contexts" : ["extended", "length"]
+    },
+    "mil" : {
+        "symbols" : ["mil", "thou"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 2.54e-5,
+        "used in contexts" : ["extended", "length"]
+    },
+    "mil_Sweden_and_Norway" : {
+        "symbols" : ["mil_Sweden_and_Norway"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 10000,
+        "used in contexts" : ["extended", "length"]
+    },
+    "mile_geographical" : {
+        "symbols" : ["mile_geographical"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1853.7936,
+        "used in contexts" : ["extended", "length"]
+    },
+    "mile" : {
+        "symbols" : ["mi", "mile", "mile_international"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1609.344,
+        "used in contexts" : ["extended", "length"]
+    },
+    "mile_tactical_or_data" : {
+        "symbols" : ["mile_tactical_or_data"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1828.8,
+        "used in contexts" : ["extended", "length"]
+    },
+    "mile_telegraph" : {
+        "symbols" : ["mile_telegraph"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1855.3176,
+        "used in contexts" : ["extended", "length"]
+    },
+    "mile_US_Survey" : {
+        "symbols" : ["mile_US_Survey"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1609.347219,
+        "used in contexts" : ["extended", "length"]
+    },
+    "nail_cloth" : {
+        "symbols" : ["nail_cloth"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.05715,
+        "used in contexts" : ["extended", "length"]
+    },
+    " nautical_league" : {
+        "symbols" : ["NL", " nautical_league"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 5556,
+        "used in contexts" : ["extended", "length"]
+    },
+    "nautical_mile_Admiralty" : {
+        "symbols" : ["nautical_mile_Admiralty", "NM_Adm", "nmi_Adm"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1853.184,
+        "used in contexts" : ["extended", "length"]
+    },
+    "nautical_mile_international" : {
+        "symbols" : ["NM", "nmi", "nautical_mile_international"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1852,
+        "used in contexts" : ["extended", "length"]
+    },
+    "nautical_mile_US_pre_1954" : {
+        "symbols" : ["nautical_mile_US_pre_1954"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1853.248,
+        "used in contexts" : ["extended", "length"]
+    },
+    "pace" : {
+        "symbols" : ["pace"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.762,
+        "used in contexts" : ["extended", "length"]
+    },
+    "palm" : {
+        "symbols" : ["palm"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.0762,
+        "used in contexts" : ["extended", "length"]
+    },
+    "parsec" : {
+        "symbols" : ["parsec", "pc"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 3.08567782e16,
+        "used in contexts" : ["extended", "length", "physics"]
+    },
+    "point_American_English" : {
+        "symbols" : ["point_American_English", "pt"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.000351450,
+        "used in contexts" : ["extended", "length"]
+    },
+    "point_Didot_European" : {
+        "symbols" : ["point_Didot_European"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.00037593985,
+        "used in contexts" : ["extended", "length"]
+    },
+    "point_PostScript" : {
+        "symbols" : ["point_PostScript"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.0003527,
+        "used in contexts" : ["extended", "length"]
+    },
+    "point_TeX" : {
+        "symbols" : ["point_TeX"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.0003514598,
+        "used in contexts" : ["extended", "length"]
+    },
+    "quarter" : {
+        "symbols" : ["quarter"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.2286,
+        "used in contexts" : ["extended", "length"]
+    },
+    "pole" : {
+        "symbols" : ["rod", "pole", "rd"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 5.0292,
+        "used in contexts" : ["extended", "length"]
+    },
+    "rope" : {
+        "symbols" : ["rope"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 6.096,
+        "used in contexts" : ["extended", "length"]
+    },
+    "span" : {
+        "symbols" : ["span"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.2286,
+        "used in contexts" : ["extended", "length"]
+    },
+    "spat" : {
+        "symbols" : ["spat"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1e12,
+        "used in contexts" : ["extended", "length"]
+    },
+    "stick" : {
+        "symbols" : ["stick"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.0508,
+        "used in contexts" : ["extended", "length"]
+    },
+    "stigma" : {
+        "symbols" : ["stigma", "bicron_picometre"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1e-12,
+        "used in contexts" : ["extended", "length"]
+    },
+    "twip" : {
+        "symbols" : ["twip", "twp"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1.7638e-5,
+        "used in contexts" : ["extended", "length"]
+    },
+    "siegbahn" : {
+        "symbols" : ["xu", "x_unit ", "siegbahn"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 1.0021e-13,
+        "used in contexts" : ["extended", "length"]
+    },
+    "yard" : {
+        "symbols" : ["yd", "yard", "yard_international"],
+        "representation in SI or earlier defined unit" : "m",
+        "scale factor" : 0.9144,
+        "used in contexts" : ["extended", "length"]
+    },
+    "atomic_mass_unit_unified" : {
+        "symbols" : ["mu", "atomic_mass_unit_unified"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1.66053873e-27,
+        "used in contexts" : ["extended", "mass", "physics"]
+    },
+    "electron_rest_mass" : {
+        "symbols" : ["me", "electron_rest_mass"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 9.10938215e-31,
+        "used in contexts" : ["extended", "mass", "physics"]
+    },
+    "bag_coffee" : {
+        "symbols" : ["bag_coffee"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 60,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "bag_Portland_cement" : {
+        "symbols" : ["bag_Portland_cement"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 42.63768278,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "barge" : {
+        "symbols" : ["barge"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 20411.65665,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "carat" : {
+        "symbols" : ["carat"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 205.196548333e-6,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "carat_metric" : {
+        "symbols" : ["ct", "carat_metric"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 200e-6,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "clove" : {
+        "symbols" : ["clove"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 3.62873896,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "crith" : {
+        "symbols" : ["crith"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 89.9349e-6,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "dalton" : {
+        "symbols" : ["dalton", "Da"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1.66090210e-27,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "dram_apothecary" : {
+        "symbols" : ["dram_apothecary", "dr_t"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 3.8879346e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "dram_avoirdupois" : {
+        "symbols" : ["dram_avoirdupois", "dr_av"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1.7718451953125e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "gamma" : {
+        "symbols" : ["gamma"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1e-9,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "grain" : {
+        "symbols" : ["gr", "grain"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 64.79891e-6,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "grave" : {
+        "symbols" : ["grave"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "hundredweight_long" : {
+        "symbols" : ["hundredweight_long", "long_cwt_or_cwt"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 50.80234544,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "hundredweight_short" : {
+        "symbols" : ["hundredweight_short", "cental", "sh_cwt"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 45.359237,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "kip" : {
+        "symbols" : ["kip"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 453.59237,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "mark" : {
+        "symbols" : ["mark"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 248.8278144e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "mite" : {
+        "symbols" : ["mite"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 3.2399455e-6,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "mite_metric" : {
+        "symbols" : ["mite_metric"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 50e-6,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "ounce_apothecary" : {
+        "symbols" : ["oz_t", "ounce_apothecary"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 31.1034768e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "ounce_avoirdupois" : {
+        "symbols" : ["oz_av", "ounce_avoirdupois"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 28.349523125e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "ounce_US_food_nutrition_labeling" : {
+        "symbols" : ["oz", "ounce_US_food_nutrition_labeling"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 28e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "pennyweight" : {
+        "symbols" : ["pennyweight", "dwt", "pwt"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1.55517384e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "point" : {
+        "symbols" : ["point"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 2e-6,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "pound" : {
+        "symbols" : ["lb", "pound"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 0.45359237,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "pound_avoirdupois" : {
+        "symbols" : ["lb_av", "pound_avoirdupois"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 0.45359237,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "pound_metric" : {
+        "symbols" : ["pound_metric"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 500e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "pound_troy" : {
+        "symbols" : ["lb_t", "pound_troy"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 0.3732417216,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "quarter_imperial" : {
+        "symbols" : ["quarter_imperial"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 12.70058636,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "quarter_informal" : {
+        "symbols" : ["quarter_informal"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 226.796185,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "quarter_long_informal" : {
+        "symbols" : ["quarter_long_informal"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 254.0117272,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "quintal_metric" : {
+        "symbols" : ["quintal_metric", "q"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 100,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "scruple_apothecary" : {
+        "symbols" : ["scruple_apothecary", "s_ap"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1.2959782e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "sheet" : {
+        "symbols" : ["sheet"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 647.9891e-6,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "slug" : {
+        "symbols" : ["slug", "geepound", "hyl"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 14.593903,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "stone" : {
+        "symbols" : ["stone", "st"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 6.35029318,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "ton_assay_long" : {
+        "symbols" : ["ton_assay_long", "AT"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 32.666667e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "ton_assay_short" : {
+        "symbols" : ["ton_assay_short"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 29.166667e-3,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "ton_long" : {
+        "symbols" : ["ton_long", "long_tn_or_ton", "long_ton"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1016.0469088,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "ton_short" : {
+        "symbols" : ["ton_short", "sh_tn", "short_ton"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 907.18474,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "tonne" : {
+        "symbols" : ["t", "tonne", "tonne_mts_unit", "metric_ton"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 1000,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "wey" : {
+        "symbols" : ["wey"],
+        "representation in SI or earlier defined unit" : "kg",
+        "scale factor" : 114.30527724,
+        "used in contexts" : ["extended", "mass"]
+    },
+    "atmosphere_cubic_centimetre_per_minute" : {
+        "symbols" : ["atmosphere_cubic_centimetre_per_minute", "atm_ccm"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 1.68875e-3,
+        "used in contexts" : ["extended", "power"]
+    },
+    "atmosphere_cubic_centimetre_per_second" : {
+        "symbols" : ["atmosphere_cubic_centimetre_per_second", "atm_ccs"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 0.101325,
+        "used in contexts" : ["extended", "power"]
+    },
+    "atmosphere_cubic_foot_per_hour" : {
+        "symbols" : ["atmosphere_cubic_foot_per_hour", "atm_cfh"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 0.797001244704,
+        "used in contexts" : ["extended", "power"]
+    },
+    "atmosphere_cubic_foot_per_minute" : {
+        "symbols" : ["atmosphere_cubic_foot_per_minute", "atm_cfm"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 47.82007468224,
+        "used in contexts" : ["extended", "power"]
+    },
+    "atmosphere_cubic_foot_per_second" : {
+        "symbols" : ["atmosphere_cubic_foot_per_second", "atm_cfs"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 2.8692044809344e3,
+        "used in contexts" : ["extended", "power"]
+    },
+    "BTU_International_Table_per_hour" : {
+        "symbols" : ["BTU_International_Table_per_hour", "BTUITph"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 0.293071,
+        "used in contexts" : ["extended", "power"]
+    },
+    "BTU_International_Table_per_minute" : {
+        "symbols" : ["BTU_International_Table_per_minute", "BTUITpm"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 17.584264,
+        "used in contexts" : ["extended", "power"]
+    },
+    "BTU_International_Table_per_second" : {
+        "symbols" : ["BTU_International_Table_per_second", "BTUITps"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 1.05505585262e3,
+        "used in contexts" : ["extended", "power"]
+    },
+    "calorie_International_Table_per_second" : {
+        "symbols" : ["calorie_International_Table_per_second", "calITps"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 4.1868,
+        "used in contexts" : ["extended", "power"]
+    },
+    "erg_per_second" : {
+        "symbols" : ["erg_per_second", "ergps"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 1e-7,
+        "used in contexts" : ["extended", "power"]
+    },
+    "foot_pound_force_per_hour" : {
+        "symbols" : ["foot_pound_force_per_hour"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 3.766161e-4,
+        "used in contexts" : ["extended", "power"]
+    },
+    "foot_pound_force_per_minute" : {
+        "symbols" : ["foot_pound_force_per_minute"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 2.259696580552334e-2,
+        "used in contexts" : ["extended", "power"]
+    },
+    "foot_pound_force_per_second" : {
+        "symbols" : ["foot_pound_force_per_second"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 1.3558179483314004,
+        "used in contexts" : ["extended", "power"]
+    },
+    "horsepower_boiler" : {
+        "symbols" : ["horsepower_boiler", "bhp"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 9.810657e3,
+        "used in contexts" : ["extended", "power"]
+    },
+    "horsepower_European_electrical" : {
+        "symbols" : ["horsepower_European_electrical", "hp"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 736,
+        "used in contexts" : ["extended", "power"]
+    },
+    "horsepower_imperial_electrical" : {
+        "symbols" : ["horsepower_imperial_electrical"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 746 ,
+        "used in contexts" : ["extended", "power"]
+    },
+    "horsepower_imperial_mechanical" : {
+        "symbols" : ["horsepower_imperial_mechanical"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 745.69987158227022,
+        "used in contexts" : ["extended", "power"]
+    },
+    "horsepower_metric" : {
+        "symbols" : ["horsepower_metric"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 735.49875,
+        "used in contexts" : ["extended", "power"]
+    },
+    "litre_atmosphere_per_minute" : {
+        "symbols" : ["litre_atmosphere_per_minute"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 1.68875,
+        "used in contexts" : ["extended", "power"]
+    },
+    "litre_atmosphere_per_second" : {
+        "symbols" : ["litre_atmosphere_per_second"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 101.325,
+        "used in contexts" : ["extended", "power"]
+    },
+    "lusec" : {
+        "symbols" : ["lusec"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 1.333e-4,
+        "used in contexts" : ["extended", "power"]
+    },
+    "poncelet" : {
+        "symbols" : ["poncelet", "p"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 980.665,
+        "used in contexts" : ["extended", "power"]
+    },
+    "square_foot_equivalent_direct_radiation" : {
+        "symbols" : ["square_foot_equivalent_direct_radiation", "sq_ft_EDR"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 70.337057,
+        "used in contexts" : ["extended", "power"]
+    },
+    "ton_of_air_conditioning" : {
+        "symbols" : ["ton_of_air_conditioning"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 3504,
+        "used in contexts" : ["extended", "power"]
+    },
+    "ton_of_refrigeration_imperial" : {
+        "symbols" : ["ton_of_refrigeration_imperial"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 3.938875e3,
+        "used in contexts" : ["extended", "power"]
+    },
+    "ton_of_refrigeration_IT" : {
+        "symbols" : ["ton_of_refrigeration_IT"],
+        "representation in SI or earlier defined unit" : "W",
+        "scale factor" : 3.516853e3,
+        "used in contexts" : ["extended", "power"]
+    },
+    "atmosphere_standard" : {
+        "symbols" : ["atm", "atmosphere_standard"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 101325,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "atmosphere_technical" : {
+        "symbols" : ["atmosphere_technical", "at"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 9.80665e4,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "bar" : {
+        "symbols" : ["bar"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 1e5,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "mbar" : {
+        "symbols" : ["mbar"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 1e2,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "barye_cgs_unit" : {
+        "symbols" : ["barye_cgs_unit"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 0.1,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "centimetre_of_mercury" : {
+        "symbols" : ["centimetre_of_mercury", " cmHg"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 1.33322e3,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "centimetre_of_water_4degC" : {
+        "symbols" : ["centimetre_of_water_4degC", "cmH2O"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 98.0638,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "foot_of_mercury_conventional" : {
+        "symbols" : ["foot_of_mercury_conventional", "ftHg"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 40.63666e3,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "foot_of_water_39_2_F" : {
+        "symbols" : ["foot_of_water_39_2_F", "ftH2O"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 2.98898e3,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "inch_of_mercury_conventional" : {
+        "symbols" : ["inch_of_mercury_conventional", "inHg"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 3.386389e3,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "inch_of_water_39_2_F" : {
+        "symbols" : ["inch_of_water_39_2_F", "inH2O"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 249.082,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "kilogram_force_per_square_millimetre" : {
+        "symbols" : ["kilogram_force_per_square_millimetre"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 9.80665e6,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "kip_per_square_inch" : {
+        "symbols" : ["kip_per_square_inch", "ksi"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 6.894757e6,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "micron_micrometre_of_mercury" : {
+        "symbols" : ["micron_micrometre_of_mercury", "mHg"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 0.1333224,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "millimetre_of_mercury" : {
+        "symbols" : ["mmHg", "millimetre_of_mercury"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 133.3224,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "millimetre_of_water_3_98_C" : {
+        "symbols" : ["millimetre_of_water_3_98_C", "mmH2O"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 9.80638,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "pieze_mts_unit" : {
+        "symbols" : ["pz", "pieze_mts_unit"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 1e3,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "pound_per_square_foot" : {
+        "symbols" : ["psf", "pound_per_square_foot"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 47.88026,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "pound_per_square_inch" : {
+        "symbols" : ["psi", "pound_per_square_inch"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 6.894757e3,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "poundal_per_square_foot" : {
+        "symbols" : [""],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 1.488164,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "short_ton_per_square_foot" : {
+        "symbols" : ["short_ton_per_square_foot"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 95.760518e3,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "torr" : {
+        "symbols" : ["torr"],
+        "representation in SI or earlier defined unit" : "Pa",
+        "scale factor" : 133.3224,
+        "used in contexts" : ["extended", "pressure"]
+    },
+    "metre_per_second" : {
+        "symbols" : ["metre_per_second"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 1,
+        "category" : "Velocity",
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "foot_per_hour" : {
+        "symbols" : ["fph", "foot_per_hour"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 8.466667e-5,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "foot_per_minute" : {
+        "symbols" : ["fpm", "foot_per_minute"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 5.08e-3,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "foot_per_second" : {
+        "symbols" : ["fps", "foot_per_second"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 3.048e-1,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "furlong_per_fortnight" : {
+        "symbols" : ["furlong_per_fortnight"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 1.663095e-4,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "inch_per_hour" : {
+        "symbols" : ["inch_per_hour", "iph"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 7.05556e-6,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "inch_per_minute" : {
+        "symbols" : ["inch_per_minute", "ipm"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 4.23333e-4,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "inch_per_second" : {
+        "symbols" : ["inch_per_second", "ips"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 2.54e-2,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "kilometre_per_hour" : {
+        "symbols" : ["kph", "kilometre_per_hour"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 2.777778e-1,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "knot" : {
+        "symbols" : ["kt", "kn", "knot"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 0.514444,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "knot_Admiralty" : {
+        "symbols" : ["knot_Admiralty"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 0.514773,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "mach_number" : {
+        "symbols" : ["mach_number", "M"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 340,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "mile_per_hour" : {
+        "symbols" : ["mph", "mile_per_hour"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 0.44704,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "mile_per_minute" : {
+        "symbols" : ["mile_per_minute", "mpm"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 26.8224,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "mile_per_second" : {
+        "symbols" : ["mile_per_second", "mps"],
+        "representation in SI or earlier defined unit" : "m/s",
+        "scale factor" : 1609.344,
+        "used in contexts" : ["extended", "velocity"]
+    },
+    "kg_m3" : {
+        "symbols" : ["kg_m3"],
+        "representation in SI or earlier defined unit" : "kg/m^3",
+        "scale factor" : 1,
+        "category" : "Mass density",
+        "used in contexts" : ["extended", "engineering"]
+    },
+    "kg_hr" : {
+        "symbols" : ["kg_hr"],
+        "representation in SI or earlier defined unit" : "kg/hr",
+        "scale factor" : 1,
+        "category" : "Mass flowrate",
+        "used in contexts" : ["extended", "engineering"]
+    },
+    "kJ_kg_K" : {
+        "symbols" : ["kJ_kg_K"],
+        "representation in SI or earlier defined unit" : "kJ/kg/K",
+        "scale factor" : 1,
+        "category" : "Heat capacity mass",
+        "used in contexts" : ["extended", "engineering"]
+    },
+    "kJ_kmol_K" : {
+        "symbols" : ["kJ_kmol_K"],
+        "representation in SI or earlier defined unit" : "kJ/kmol/K",
+        "scale factor" : 1,
+        "category" : "Heat capacity mole",
+        "used in contexts" : ["extended", "engineering"]
+    },
+    "kJ_kmol" : {
+        "symbols" : ["kJ_kmol"],
+        "representation in SI or earlier defined unit" : "kJ/kmol",
+        "scale factor" : 1,
+        "category" : "Specific enthalpy mole",
+        "used in contexts" : ["extended", "engineering"]
+    },
+    "W_m_K" : {
+        "symbols" : ["W_m_K"],
+        "representation in SI or earlier defined unit" : "W/m/K",
+        "scale factor" : 1,
+        "category" : "Thermal conductivity",
+        "used in contexts" : ["extended", "engineering"]
+    },
+    "N_m" : {
+        "symbols" : ["N_m"],
+        "representation in SI or earlier defined unit" : "N/m",
+        "scale factor" : 1,
+        "category" : "Surface tension",
+        "used in contexts" : ["extended", "engineering"]
+    },
+    "g_mol" : {
+        "symbols" : ["g_mol"],
+        "representation in SI or earlier defined unit" : "g/mol",
+        "scale factor" : 1,
+        "category" : "Molecular weight",
+        "used in contexts" : ["extended", "engineering"]
+    }
+}
+
