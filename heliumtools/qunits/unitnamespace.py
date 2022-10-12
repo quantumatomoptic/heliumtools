@@ -14,15 +14,13 @@ import json
 import inspect
 import os.path as osp
 
-from qunits.siprefixes import siprefixes_sym
-import qunits.quantities
-from qunits.quantities import ScalarQuantity, ESignatureAlreadyRegistered
+from heliumtools.qunits.siprefixes import siprefixes_sym
+import heliumtools.qunits.quantities
+from heliumtools.qunits.quantities import ScalarQuantity, ESignatureAlreadyRegistered
 
 
 class UnitNamespace(object):
-    """A namespace for all defined units.
-
-    """
+    """A namespace for all defined units."""
 
     si_symbols = ["m", "kg", "s", "A", "K", "cd", "mol"]
 
@@ -41,7 +39,7 @@ class UnitNamespace(object):
         """
         # dimensionless is special
         self.dimensionless = ScalarQuantity(1.0)
-        qunits.quantities.add_unitcategory(
+        heliumtools.qunits.quantities.add_unitcategory(
             self.dimensionless.to_list(), "Dimensionless"
         )
         self.known_units = ["dimensionless"]
@@ -158,9 +156,9 @@ class UnitNamespace(object):
             Scale factor **wrt the SI units** of the unit.
 
         unit_category : string (default: "")
-            Category the unit belongs to. A unit category is defined by having a unique 
-            decomposition in SI base units. This should be specified for the first unit 
-            per category only. Otherwise a ESignatureAlreadyRegistered is triggered, 
+            Category the unit belongs to. A unit category is defined by having a unique
+            decomposition in SI base units. This should be specified for the first unit
+            per category only. Otherwise a ESignatureAlreadyRegistered is triggered,
             which is caugth and translated into a warning.
 
         representative_symbol : string (default: "")
@@ -191,7 +189,7 @@ class UnitNamespace(object):
         if not unit_category == "":
             # print("Adding type {} to category {}".format(unit.units(), unit_category))
             try:
-                qunits.quantities.add_unitcategory(
+                heliumtools.qunits.quantities.add_unitcategory(
                     unit.to_list(), str(unit_category)
                 )
             except ESignatureAlreadyRegistered as e:
@@ -203,7 +201,7 @@ class UnitNamespace(object):
         # Set representative symbol
         if not representative_symbol == "":
             self._check_represent(representative_symbol, symbols)
-            qunits.quantities.setrepresent(
+            heliumtools.qunits.quantities.setrepresent(
                 unit, as_unit=unit, symbol=representative_symbol
             )
         # Metric prefixes
@@ -213,7 +211,7 @@ class UnitNamespace(object):
                 self.create_metric_prefixes(symbol, unit, metric_skip_function)
 
     def create_metric_prefixes(self, symbol, unit, skipfunction=None):
-        """ Populates the UNITREGISTRY and the namespace with all the
+        """Populates the UNITREGISTRY and the namespace with all the
         SI-prefixed versions of the given symbol.
 
         """
@@ -254,20 +252,16 @@ class UnitNamespace(object):
         self.known_units.append(symb)
 
     def _add_to_registry(self, symbol, unit):
-        """Add symbol representing unit to the UNITREGISTRY.
-
-        """
-        if symbol not in qunits.quantities.UNITREGISTRY.keys():
-            qunits.quantities.UNITREGISTRY[symbol] = unit
+        """Add symbol representing unit to the UNITREGISTRY."""
+        if symbol not in heliumtools.qunits.quantities.UNITREGISTRY.keys():
+            heliumtools.qunits.quantities.UNITREGISTRY[symbol] = unit
         else:
             raise ValueError(
                 "Unit symbol {s} already present in the registry.".format(s=symbol)
             )
 
     def _create_derived_units(self, context):
-        """Create derived units according to the requested context.
-
-        """
+        """Create derived units according to the requested context."""
         datapath = osp.join(osp.dirname(__file__), "unitdefs.json")
         with open(datapath) as f:
             unitdefs = json.load(f, object_pairs_hook=OrderedDict)
@@ -320,7 +314,7 @@ class UnitNamespace(object):
     def from_string(self, string):
         """Create a Unit instance from the supplied string.
 
-        The string has to be in the format that qunits uses for string representations, i.e.
+        The string has to be in the format that heliumtools.qunits uses for string representations, i.e.
         the following works:
 
         1.0 m
@@ -372,6 +366,7 @@ class UnitNamespace(object):
         unit.set_si_representation(si_repr)
         return unit
 
+
 # ----- helpers -----
 
 
@@ -380,9 +375,9 @@ def units_to_this_ns(unit_namespace):
 
     Use call this to have direct access to the units, i.e. in your module do:
 
-        import qunits
-        u = qunits.UnitNamespace()
-        qunits.units_to_this_ns(u)
+        import heliumtools.qunits
+        u = heliumtools.qunits.UnitNamespace()
+        heliumtools.qunits.units_to_this_ns(u)
 
     Note that this uses a bit of black magic...
 
@@ -522,9 +517,7 @@ def dimensions(**_params_):
                 )
                 assert (
                     param.unitcategory() == category
-                ), 'Parameter "{}" must be unit type "{}".'.format(
-                    name, category
-                )
+                ), 'Parameter "{}" must be unit type "{}".'.format(name, category)
             return _func_(**kw)
 
         modified.__name__ = _func_.__name__
@@ -590,9 +583,9 @@ if __name__ == "__main__":
 
     tt = 4 * R
     print(tt)
-    qunits.quantities.setrepresent(K, R, "R")
+    heliumtools.qunits.quantities.setrepresent(K, R, "R")
     print(4 * R)
-    qunits.quantities.setrepresent(K, K, "K")
+    heliumtools.qunits.quantities.setrepresent(K, K, "K")
     print(4 * R)
 
     k_val_from_c(5)
@@ -618,7 +611,7 @@ if __name__ == "__main__":
     bb = 1e-18 * u.J
     print(bb)
     # report energies in Hz
-    qunits.quantities.setrepresent(
+    heliumtools.qunits.quantities.setrepresent(
         J, symbol="Hz", convert_function=lambda u, mag: mag / 6.62607004e-34
     )
     print(bb)

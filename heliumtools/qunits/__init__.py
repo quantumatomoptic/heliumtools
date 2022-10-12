@@ -1,7 +1,7 @@
 # the core
-from qunits.unitnamespace import UnitNamespace, units_to_this_ns
+from heliumtools.qunits.unitnamespace import UnitNamespace, units_to_this_ns
 
-from qunits.quantities import (
+from heliumtools.qunits.quantities import (
     ScalarQuantity,
     ArrayQuantity,
     EIncompatibleUnits,
@@ -10,7 +10,7 @@ from qunits.quantities import (
 )
 
 # the conversion helpers
-from qunits.unitnamespace import (
+from heliumtools.qunits.unitnamespace import (
     k_val_from_c,
     c_val_from_k,
     k_val_from_f,
@@ -20,7 +20,7 @@ from qunits.unitnamespace import (
 )
 
 # the wrappers
-from qunits.unitnamespace import noquantity, calc_unitless, dimensions
+from heliumtools.qunits.unitnamespace import noquantity, calc_unitless, dimensions
 
 # the constants
-from qunits.physicalconstants import PhysConst
+from heliumtools.qunits.physicalconstants import PhysConst
