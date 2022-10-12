@@ -22,6 +22,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm, trange
 import copy
+from scipy.special import factorial
+import matplotlib.cm as cm
+import matplotlib.colors as colors
+
 
 
 class Correlation:
