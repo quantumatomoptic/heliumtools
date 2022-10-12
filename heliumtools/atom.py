@@ -89,14 +89,14 @@ class Helium:
         wavelength : float, optional
             wavelenght of the lattice (in nanometers), by default 1064
         theta : int, optional
-            angle beween the two beams, by default 166
+            angle in degrees beween the two beams, by default 166
 
         Returns
         -------
         relative :float
             speed comapre to lattice momentum
         """
-        klatt = 2 * np.pi / (wavelength * 1e-9) * np.sin(theta)
+        klatt = 2 * np.pi / (wavelength * 1e-9) * np.sin(2 * np.pi * theta / 360)
 
         return 0.001 * self.mass * v / (csts.hbar * klatt)
 
