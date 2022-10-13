@@ -30,6 +30,7 @@ from math import pi
 from numpy import linalg as LA
 from heliumtools import qunits
 from scipy import interpolate
+from scipy.optimize import fsolve
 
 
 class Lattice:
@@ -51,16 +52,27 @@ class Lattice:
     """
 
     def __init__(self, **kwargs):
+
         self.up_frequency = 200 * u.MHz
-        self.down_frequency = 200.100 * u.MHz
+        self.down_frequency = (
+            200.120 * u.MHz
+        )  # 90 kHz de différence donne 0.5klatt et 180 kHz donne 1klat
         self.up_power = 85 * u.mW
         self.down_power = 85 * u.mW
         self.up_waist = 200 * u.um
         self.down_waist = 200 * u.um
         self.theta = 166 / 360 * 2 * pi
         self.wavelength = 1064 * u.nm
+        self.atomic_density = 1.3e13 / ((1 * u.cm) ** 3)
         self.atom = Heliumqunits()
         self.Cjmatrix_size = 41  # see Dussarat PhD thesis page 45
+        self.__dict__.update(kwargs)
+        self.build_lattice_properties()
+
+    def upddate_property(self, **kwargs):
+        """permet de mofifier des attributs de la classe lattice.  On update ensuite les propriétés qui découlent de la classe.
+        Attention donc à ne pas modifier une propriété qui serait ensuite redéfinie dans la méthode build_lattice_properties (comme le detuning, issu des fréquences up et down du réseau).
+        """
         self.__dict__.update(kwargs)
         self.build_lattice_properties()
 
@@ -71,6 +83,9 @@ class Lattice:
         self.detuning = 2 * pi * (self.up_frequency - self.down_frequency)
         self.k = np.sin(self.theta / 2) * 2 * pi / self.wavelength
         self.v = self.detuning / 2 / self.k
+        self.v_in_klatt = (self.atom.speed_to_momentum(self.v) / self.k).to(
+            u.dimensionless
+        )
         self.E = const.hbar**2 * self.k**2 / 2 / self.atom.mass
         if self.down_intensity != self.up_intensity:
             warnings.warn(
@@ -81,6 +96,15 @@ class Lattice:
         ## TO BE CHECKED BY SOMEONE ELSE
         alpha = self.atom.get_alpha(self.wavelength)  # Polarisability
         self.V0 = np.abs(0.5 / const.eps0 / const.c * alpha * self.intensity)
+
+    def show_lattice_properties(self, all=True):
+        print("--------------------------")
+        print(f"Lattice depth V0/E_latt = {self.V0/self.E}")
+        print(f"Detuning δ/k_latt = {self.atom.speed_to_momentum(self.v) / self.k}")
+        print("--------------------------")
+        if all is True:
+            for element, value in enumerate(self.__dict__):
+                print(f"{element} : {value}")
 
     def check_attributs(self):
         """fonction appelée après l'itnitialisation pour vérifier tous les attributs."""
@@ -133,18 +157,102 @@ class Lattice:
         q_list = np.linspace(-1, 1, precision) * self.k
         energy_list = np.zeros((self.Cjmatrix_size, precision))
         for i, q in enumerate(q_list):
-            matrix = self._generate_matrix(q)
+            matrix = self._generate_Cjmatrix(q)
             w, v = LA.eig(matrix)
             w.sort()
             energy_list[:, i] = w
         energy_list *= self.E  # convert energy to its real unit.
         return (q_list, energy_list)
 
+    def momentum_to_quasimomentum(self, k, units=False):
+        """Méthode retournant la quasiimpulsion d'une particule étant donnée son impulsion. /!\ Si k est qunits d'inverse de longueur, il faut absolument le sépcifier en mettant unit à True.
+
+        Parameters
+        ----------
+        k : sans dimension ou inverse de longueur (--> mais préciser dans ce cas qu'il a une unité en mettant units = True !!!)
+            vecteur d'onde (array ou scalaire)
+
+        units : bool, optional
+            Si k a la dimension de l'inverse d'une longueur, mettre units =  True
+
+        Returns
+        -------
+        quasi momentum dans la même unité que l'input.
+        """
+        if units:
+            adim_k = (k / self.k).to(u.dimensionless)
+            adim_q = self.momentum_to_quasimomentum(adim_k, units=False)
+            return adim_q * self.k
+        else:
+            return k - 2 * ((k + 1) // 2)
+
+    def get_pairs_quasi_momentum(self, bec_speed=0 * u.mm / u.s):
+        # /!\/!\/!\
+        # Dans la suite de la fonction, on travaille sans dimension !!
+        # /!\/!\/!\
+        bec_quasi_momentum = (
+            self.atom.speed_to_momentum(bec_speed - self.v) / self.k
+        ).to(u.dimensionless)
+        if np.abs(bec_quasi_momentum) >= 1:
+            warnings.warn(
+                f"The BEC quasimomentum is greater than 1 ({bec_quasi_momentum}): this is not taken account in the model. Please modify me. "
+            )
+            return (bec_quasi_momentum, -1, 1)
+        elif np.abs(bec_quasi_momentum) < 0.5:
+            warnings.warn(
+                f"The BEC quasimomentum seems too low to creat pairs. Trying anyway but result might be false."
+            )
+        ## En faisant quelques test, je me rends compte que si q0 > 0, il fatu que la taille de la matrice soit 41 alors que si q0 < 0, il faut que la taille de la matrice soit 43. Vraiment très bizarre mais j'en ai marre de me prendre la tête sur ça.
+        if bec_quasi_momentum < 0:
+            size = 43
+        else:
+            size = 41
+
+        mean_field_energy = (self.atomic_density * self.atom.g / self.E).to(
+            u.dimensionless
+        )
+        V0 = (self.V0 / self.E).to(u.dimensionless)
+
+        def generate_matrix(size, q):
+            if size % 2 != 1:
+                print("**Warning** Matrix size must be odd")
+                return 0
+            a = np.zeros((size, size))
+            nbsim = int((size - 1) / 2)
+            for k in range(size):
+                j = k - nbsim
+                a[k, k] = (q + 2 * j) ** 2 + (V0 / 2)
+                if k != size - 1:
+                    a[k, k + 1] = -V0 / 4
+                    a[k + 1, k] = -V0 / 4
+            #    print(nbsim)
+            return a
+
+        def energie(q):
+            # q = latt.momentum_to_quasimomentum(q)
+            u = generate_matrix(size, q)
+            vlp, vpr = LA.eig(u)
+            return min(vlp)
+
+        def equations(p):
+            q1, q2 = p
+            return (
+                q1 + q2 - 2 * bec_quasi_momentum + np.sign(bec_quasi_momentum) * 2,
+                energie(q1)
+                + energie(q2)
+                - 2 * energie(bec_quasi_momentum)
+                + 2 * mean_field_energy,
+            )
+
+        q1, q2 = fsolve(equations, (0.5, 0.5))
+        quu = self.momentum_to_quasimomentum(np.array([q1, q2]))
+        return (bec_quasi_momentum, np.min(quu), np.max(quu))
+
     ######################################################
     ### INTERNAL FUNCTIONS FOR CALCULATIONS
     ######################################################
 
-    def _generate_matrix(self, q):
+    def _generate_Cjmatrix(self, q):
         """Génère la mtrice des coefficients Cj permettant d'avoir fonctions d'ondes et énergies dans le réseau.
 
         Parameters
@@ -168,24 +276,49 @@ class Lattice:
                 matrix[k + 1, k] = -self.V0 / (4 * self.E)
         return matrix
 
-    def momentum_to_quasimomentum(self, k, units=False):
-        if units:
-            adim_k = (k / self.k).to(u.dimensionless)
-            adim_q = self.momentum_to_quasimomentum(adim_k, units=False)
-            return adim_q * self.k
-        else:
-            return k - np.sign(k) * 2 * ((k + 1) // 2)
+    def energy_conservation(self, q1, q2, density=0):
 
-    def get_pairs_quasi_momentum(self, bec_speed=0 * u.mm / u.s, precision=201):
-        bec_quasi_momentum = (
-            self.atom.speed_to_momentum(bec_speed - self.v) / self.k
-        ).to(u.dimensionless)
+        print(1)
+        # g_GP = 1.58e-49  # constante de couplage GP
+        # n0 = alpha * Erec / (2 * g_GP)
+        return 1
+
+    def get_pairs_quasi_momentum_not_working(
+        self,
+        atomic_density=1.3e13 / ((1 * u.cm) ** 3),
+        bec_speed=0 * u.mm / u.s,
+        precision=201,
+    ):
+        """Cett fonction ne marche pas bien et je ne sais pas pourquoi....
+
+        Parameters
+        ----------
+        atomic_density : int, optional
+            _description_, by default 0
+        bec_speed : _type_, optional
+            _description_, by default 0*u.mm/u.s
+        precision : int, optional
+            _description_, by default 201
+
+        Returns
+        -------
+        _type_
+            _description_
+        """
+
         ## D'abord, il faut trouver la relation de disperion de la bande fondamentale
-        n_bands = 5
+        n_bands = 41  # cf thèse de Maxime
         quasimomentum, energies = self.get_bands_structure(
             n=n_bands, precision=precision
         )
-        # On récupère ensuite seulement la bande fondamentale. On traite maintenant le problème SANS DIMENSION car concaténer des arrays avec des dimensions pose problème.
+        # /!\/!\/!\
+        # Dans la suite de la fonction, on travaille sans dimension !!
+        # /!\/!\/!\
+        # On traite maintenant le problème SANS DIMENSION car concaténer des arrays avec des dimensions pose problème.
+        bec_quasi_momentum = (
+            self.atom.speed_to_momentum(bec_speed - self.v) / self.k
+        ).to(u.dimensionless)
+        # On récupère seulement la bande fondamentale.
         fondam = (energies[0, :] / self.E).to(u.dimensionless)
         fondam = np.concatenate((fondam, fondam, fondam))
         momentum = (quasimomentum / self.k).to(u.dimensionless)
@@ -193,28 +326,29 @@ class Lattice:
         ### RECHERCHE DE LA PAIRE
         ## On définit une fonction E (l'énergie du fondamental) qui interpole notre résultat
         E = interpolate.interp1d(momentum, fondam)
+        mean_field_energy = (atomic_density * self.atom.g / self.E).to(u.dimensionless)
         # On recherche maintenant les paires (recherche dummy de racine)
         def energy_conservation(q):
-            return 2 * E(bec_quasi_momentum) - E(q) - E(2 * bec_quasi_momentum - q)
+            return (
+                2 * E(bec_quasi_momentum)
+                - E(q)
+                - E(2 * bec_quasi_momentum - q)
+                + 2 * mean_field_energy
+            )
 
         # Now we want to fin the zero of the function (I cannot use fsolve because the function is not defined evrywhere and it brake the programm.)
-        q = bec_quasi_momentum - 1
-        step = 1 / 10000.0
-        if precision > 10000:
-            step = 1 / precision
-        timeout = False
-        while (
-            q < bec_quasi_momentum + 1
-            and energy_conservation(q) * energy_conservation(q + step) > 0
-        ):
-            q += step
-        if timeout:
+        q = np.linspace(bec_quasi_momentum - 1, bec_quasi_momentum + 1, 5 * precision)
+        indice_first_zero = np.argmin(
+            np.sign(energy_conservation(q[0:-1]) * energy_conservation(q[1:]))
+        )
+        if indice_first_zero == 0:
             q1 = bec_quasi_momentum
             q2 = bec_quasi_momentum
         else:
-            q1 = q
-            q2 = 2 * bec_quasi_momentum - q
+            q1 = q[indice_first_zero]
+            q2 = 2 * bec_quasi_momentum - q1
 
         ## CONVERSION MOMENTUM --> QUASIMOMENTUM
-
-        return (self.momentum_to_quasimomentum(q1), self.momentum_to_quasimomentum(q2))
+        q1 = self.momentum_to_quasimomentum(q1)
+        q2 = self.momentum_to_quasimomentum(q2)
+        return (bec_quasi_momentum, min(q1, q2), max(q1, q2))

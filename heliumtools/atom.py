@@ -9,7 +9,7 @@ Comments : contains atomic data (for Helium)
 # -- imports
 import scipy.constants as csts
 from heliumtools.units import u, const
-
+from math import pi
 import numpy as np
 
 
@@ -29,6 +29,8 @@ class Heliumqunits:
         self.atomic_width = 2 * np.pi * 1.62 * u.MHz
         self.atomic_omega = 2 * np.pi * const.c / self.atomic_wavelength
         self.scattering_length = 7.512 * u.nm  # m, s-wave scattering length
+        self.a_s = self.scattering_length
+        self.g = 4 * pi * const.hbar**2 * self.a_s / self.mass
         # magnetic
         self.lande_g_factor = 2
         self.zeeman_state = -1
@@ -100,7 +102,7 @@ class Heliumqunits:
         """
         klatt = 2 * np.pi / wavelength * np.sin(theta)
 
-        return self.mass * v / (const.hbar * klatt)
+        return (self.mass * v / (const.hbar * klatt)).to(u.dimensionless)
 
 
 # -- define atom data dictionnary
