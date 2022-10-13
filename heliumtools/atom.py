@@ -66,7 +66,7 @@ class Heliumqunits:
         Gamma_sc = (
             3
             * np.pi
-            * csts.c**2
+            * const.c**2
             / 2
             / const.hbar
             / omega_0**3
@@ -75,6 +75,9 @@ class Heliumqunits:
             * intensity
         )
         return Gamma_sc
+
+    def speed_to_momentum(self, v):
+        return self.mass * v / const.hbar
 
     def convert_speed_to_lattice_momentum(
         self, v, wavelength=1064 * u.nm, theta=166 * 2 * np.pi / 360
@@ -203,4 +206,4 @@ if __name__ == "__main__":
     P = 5.6 * 1.2  # Watts
     w = 135e-6  # meters
     I0 = intensity_gauss(0, 0, w, P)
-    print(he.get_scattering_rate(I0))
+    print(he.get_scattering_rate(I0) * u.V / u.cm)
