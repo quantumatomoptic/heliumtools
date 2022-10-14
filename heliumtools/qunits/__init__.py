@@ -1,4 +1,7 @@
 # the core
+import pyximport
+pyximport.install()
+
 from heliumtools.qunits.unitnamespace import UnitNamespace, units_to_this_ns
 
 from heliumtools.qunits.quantities import (

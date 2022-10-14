@@ -22,6 +22,8 @@ requirements = [
     "scikit-image",
     "jsbeautifier",
     "datetime",
+    "cython",
+    "pytest",
 ]
 
 test_requirements = []
