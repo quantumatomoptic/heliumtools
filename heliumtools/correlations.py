@@ -150,7 +150,6 @@ class Correlation:
             self.atoms = self.merge_dataframe_on_cycles(
                 self.atoms, self.bec_arrival_time
             )
-            print(np.max(self.atoms["Cycle"]))
             l_fall = 0.5 * self.gravity * self.atoms["BEC Arrival Time"] ** 2
             self.atoms["T"] = (
                 0.5
@@ -160,7 +159,8 @@ class Correlation:
                     - self.atoms["BEC Arrival Time"] ** 2 / self.atoms["T"]
                 )
             )
-            print(print(self.atoms["Cycle"]))
+            self.atoms.drop("BEC Arrival Time", inplace=True, axis=1)
+
         else:
             print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
