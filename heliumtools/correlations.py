@@ -27,7 +27,6 @@ import matplotlib.cm as cm
 import matplotlib.colors as colors
 
 
-
 class Correlation:
     """
     Classe corrélation. Prend en entrée un dataframe avec X, Y et T et calcule de corrélations etc...
@@ -148,11 +147,20 @@ class Correlation:
             )
         elif isinstance(self.bec_arrival_time, pd.DataFrame):
             print("I change the bec arrival time for each cycle.")
-            df = self.merge_dataframe_on_cycles(self.atoms, self.bec_arrival_time)
-            l_fall = 0.5 * self.gravity * df["BEC Arrival Time"] ** 2
-            self.atoms["T"] = (
-                0.5 * self.gravity * (df["T"] - df["BEC Arrival Time"] ** 2 / df["T"])
+            self.atoms = self.merge_dataframe_on_cycles(
+                self.atoms, self.bec_arrival_time
             )
+            print(np.max(self.atoms["Cycle"]))
+            l_fall = 0.5 * self.gravity * self.atoms["BEC Arrival Time"] ** 2
+            self.atoms["T"] = (
+                0.5
+                * self.gravity
+                * (
+                    self.atoms["T"]
+                    - self.atoms["BEC Arrival Time"] ** 2 / self.atoms["T"]
+                )
+            )
+            print(print(self.atoms["Cycle"]))
         else:
             print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
@@ -832,9 +840,9 @@ class Correlation:
 
         print("Computation is done.")
 
-
-
-    def get_atoms_distribution(self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY):
+    def get_atoms_distribution(
+        self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
+    ):
         """
         Permet de tracer la distribution du nombre d'atomes moyenne sur tous les cycles, soit dans une boîte soit dans une moyenne de boîtes
         Parameters
@@ -845,42 +853,44 @@ class Correlation:
 
         """
         n_cycles = self.n_cycles
-        tbin = np.arange(0,nbMax+1,1)
-        pro = np.zeros(nbMax+1)
+        tbin = np.arange(0, nbMax + 1, 1)
+        pro = np.zeros(nbMax + 1)
         nb = 0
 
         for i in range(nbPt):
             box_proba = {
-            "Vz": {"position": posZ + sizeZ*i, "size": sizeZ},
-            "Vy": {"position": posY, "size": sizeY},
-            "Vx": {"position": posX, "size": sizeX},
+                "Vz": {"position": posZ + sizeZ * i, "size": sizeZ},
+                "Vy": {"position": posY, "size": sizeY},
+                "Vx": {"position": posX, "size": sizeX},
             }
-            atoms_in_box = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms,box_proba, "toto")
+            atoms_in_box = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, box_proba, "toto"
+            )
             nb_bin = int(np.max(atoms_in_box["toto"]))
-            a,b = np.histogram(atoms_in_box["toto"],bins = nbMax+1,range=(0,nbMax))
+            a, b = np.histogram(atoms_in_box["toto"], bins=nbMax + 1, range=(0, nbMax))
             pro = a + pro
             if nb_bin > nb:
                 nb = nb_bin
-        #pro contient la somme des histogrammes sur tous les cycles et toutes les boîtes -> on normalise
-        proF = [px/n_cycles/nbPt for px in pro]
-        proF = proF[0:(nb+1)]
-        tbin = tbin[0:(nb+1)]
-        moy = np.sum(tbin*proF)
-        print("population moyenne = ","{:.3f}".format(moy))
-        print("Vérification normalisation : ","{:.3f}".format(np.sum(proF)))
-        yerr = [np.sqrt(px)/n_cycles/nbPt for px in pro]
-        yerr = yerr[0:(nb+1)]
-        #calcul des distributions théoriques
-        therm = moy**tbin/(1+moy)**(tbin+1)
-        pois = np.exp(-moy)*moy**tbin/factorial(tbin)
+        # pro contient la somme des histogrammes sur tous les cycles et toutes les boîtes -> on normalise
+        proF = [px / n_cycles / nbPt for px in pro]
+        proF = proF[0 : (nb + 1)]
+        tbin = tbin[0 : (nb + 1)]
+        moy = np.sum(tbin * proF)
+        print("population moyenne = ", "{:.3f}".format(moy))
+        print("Vérification normalisation : ", "{:.3f}".format(np.sum(proF)))
+        yerr = [np.sqrt(px) / n_cycles / nbPt for px in pro]
+        yerr = yerr[0 : (nb + 1)]
+        # calcul des distributions théoriques
+        therm = moy**tbin / (1 + moy) ** (tbin + 1)
+        pois = np.exp(-moy) * moy**tbin / factorial(tbin)
 
-        #tracé du graphe
+        # tracé du graphe
         plt.figure()
-        plt.errorbar(tbin,proF, yerr=yerr,label='exp')
-        plt.plot(tbin, therm, label='therm')
-        plt.plot(tbin, pois, label='pois')
+        plt.errorbar(tbin, proF, yerr=yerr, label="exp")
+        plt.plot(tbin, therm, label="therm")
+        plt.plot(tbin, pois, label="pois")
         plt.yscale("log")
-        plt.ylim([1e-6,1])
+        plt.ylim([1e-6, 1])
         plt.xlabel("Number of atoms")
         plt.ylabel("Probability")
         plt.grid(True)
@@ -895,26 +905,30 @@ class Correlation:
         vz_list_1 : liste (ou numpy array) des centres à considérer
         sizeZ, posX, sizeX, posY, sizeY : paramètres de la boîte
         """
-        nb_atoms_in_box_1=[]
+        nb_atoms_in_box_1 = []
 
         for k in range(len(vz_list_1)):
             box_proba = {
-            "Vz": {"position": vz_list_1[k], "size": sizeZ},
-            "Vy": {"position": posY, "size": sizeX},
-            "Vx": {"position": posX, "size": sizeY},
+                "Vz": {"position": vz_list_1[k], "size": sizeZ},
+                "Vy": {"position": posY, "size": sizeX},
+                "Vx": {"position": posX, "size": sizeY},
             }
-            atoms_in_box = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms, box_proba, "toto")
+            atoms_in_box = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, box_proba, "toto"
+            )
             nb_atoms_in_box_1.append(np.mean(atoms_in_box["toto"]))
 
         plt.figure()
-        plt.plot(vz_list_1,nb_atoms_in_box_1)
+        plt.plot(vz_list_1, nb_atoms_in_box_1)
         plt.grid(True)
-        #plt.legend()
-        plt.xlabel('center Vz of the box (mm/s)')
-        plt.ylabel('mean number of atoms in box')
+        # plt.legend()
+        plt.xlabel("center Vz of the box (mm/s)")
+        plt.ylabel("mean number of atoms in box")
         plt.show()
 
-    def get_joint_atoms_distribution_in_two_boxes(self, nbMax, nbPt, posZ1, posZ2, sizeZ, posX, sizeX, posY, sizeY):
+    def get_joint_atoms_distribution_in_two_boxes(
+        self, nbMax, nbPt, posZ1, posZ2, sizeZ, posX, sizeX, posY, sizeY
+    ):
         """
         Permet de tracer la distribution jointe moyenne du nombre d'atomes sur tous les cycles, dans deux boîtes données.
         Le nombre de boîtes considérées est impair de façon à toujours prendre autant de boîtes de part et d'autre de la boîte centrale
@@ -928,68 +942,93 @@ class Correlation:
         /!\ nbPt doit être impair
         """
         n_cycles = self.n_cycles
-        #fonction auxiliaire pour construire les boîtes
-        def return_boxes(i,posZ1,posZ2,posX,posY,sizeZ,sizeX,sizeY):
-            assert(nbPt%2==1)
-            if i==0:
+        # fonction auxiliaire pour construire les boîtes
+        def return_boxes(i, posZ1, posZ2, posX, posY, sizeZ, sizeX, sizeY):
+            assert nbPt % 2 == 1
+            if i == 0:
                 box1_proba = {
-                "Vz": {"position": posZ1, "size": sizeZ},
-                "Vy": {"position": posY, "size": sizeY},
-                "Vx": {"position": posX, "size": sizeX},
+                    "Vz": {"position": posZ1, "size": sizeZ},
+                    "Vy": {"position": posY, "size": sizeY},
+                    "Vx": {"position": posX, "size": sizeX},
                 }
                 box2_proba = {
-                "Vz": {"position": posZ2, "size": sizeZ},
-                "Vy": {"position": posY, "size": sizeY},
-                "Vx": {"position": posX, "size": sizeX},
+                    "Vz": {"position": posZ2, "size": sizeZ},
+                    "Vy": {"position": posY, "size": sizeY},
+                    "Vx": {"position": posX, "size": sizeX},
                 }
             else:
-                if i%2 ==1:
+                if i % 2 == 1:
                     box1_proba = {
-                    "Vz": {"position": posZ1+sizeZ*i, "size": sizeZ},
-                    "Vy": {"position": posY, "size": sizeY},
-                    "Vx": {"position": posX, "size": sizeX},
+                        "Vz": {"position": posZ1 + sizeZ * i, "size": sizeZ},
+                        "Vy": {"position": posY, "size": sizeY},
+                        "Vx": {"position": posX, "size": sizeX},
                     }
                     box2_proba = {
-                    "Vz": {"position": posZ2-sizeZ*i, "size": sizeZ},
-                    "Vy": {"position": posY, "size": sizeY},
-                    "Vx": {"position": posX, "size": sizeX},
+                        "Vz": {"position": posZ2 - sizeZ * i, "size": sizeZ},
+                        "Vy": {"position": posY, "size": sizeY},
+                        "Vx": {"position": posX, "size": sizeX},
                     }
                 else:
                     box1_proba = {
-                    "Vz": {"position": posZ1-sizeZ*i, "size": sizeZ},
-                    "Vy": {"position": posY, "size": sizeY},
-                    "Vx": {"position": posX, "size": sizeX},
+                        "Vz": {"position": posZ1 - sizeZ * i, "size": sizeZ},
+                        "Vy": {"position": posY, "size": sizeY},
+                        "Vx": {"position": posX, "size": sizeX},
                     }
                     box2_proba = {
-                    "Vz": {"position": posZ2+sizeZ*i, "size": sizeZ},
-                    "Vy": {"position": posY, "size": sizeY},
-                    "Vx": {"position": posX, "size": sizeX},
+                        "Vz": {"position": posZ2 + sizeZ * i, "size": sizeZ},
+                        "Vy": {"position": posY, "size": sizeY},
+                        "Vx": {"position": posX, "size": sizeX},
                     }
-            return (box1_proba,box2_proba)
+            return (box1_proba, box2_proba)
 
-        tbin = np.arange(0,nbMax+1,1)
-        pro2D = np.zeros([nbMax+1,nbMax+1], dtype = int)
-        pro1 = np.zeros(nbMax+1, dtype = int)
-        pro2 = np.zeros(nbMax+1, dtype = int)
+        tbin = np.arange(0, nbMax + 1, 1)
+        pro2D = np.zeros([nbMax + 1, nbMax + 1], dtype=int)
+        pro1 = np.zeros(nbMax + 1, dtype=int)
+        pro2 = np.zeros(nbMax + 1, dtype=int)
         nb = 0
         for i in range(nbPt):
-            box1_proba,box2_proba = return_boxes(i,posZ1,posZ2,posX,posY,sizeZ,sizeX,sizeY)
-            atoms1_in_box = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms, box1_proba, "toto")
-            atoms2_in_box = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms, box2_proba, "toto")
-            a2D,b,c = np.histogram2d(atoms1_in_box["toto"],atoms2_in_box["toto"],bins = nbMax+1,range=([[0,nbMax], [0,nbMax]]))
-            a1,b = np.histogram(atoms1_in_box["toto"],bins = nbMax+1,range=(0,nbMax))
-            a2,b = np.histogram(atoms2_in_box["toto"],bins = nbMax+1,range=(0,nbMax))
+            box1_proba, box2_proba = return_boxes(
+                i, posZ1, posZ2, posX, posY, sizeZ, sizeX, sizeY
+            )
+            atoms1_in_box = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, box1_proba, "toto"
+            )
+            atoms2_in_box = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, box2_proba, "toto"
+            )
+            a2D, b, c = np.histogram2d(
+                atoms1_in_box["toto"],
+                atoms2_in_box["toto"],
+                bins=nbMax + 1,
+                range=([[0, nbMax], [0, nbMax]]),
+            )
+            a1, b = np.histogram(
+                atoms1_in_box["toto"], bins=nbMax + 1, range=(0, nbMax)
+            )
+            a2, b = np.histogram(
+                atoms2_in_box["toto"], bins=nbMax + 1, range=(0, nbMax)
+            )
             pro2D = a2D + pro2D
             pro1 = a1 + pro1
             pro2 = a2 + pro2
-        moy1 = np.sum(tbin*pro1)/n_cycles/nbPt
-        moy2 = np.sum(tbin*pro2)/n_cycles/nbPt
-        print("Population moyenne zone 1 : ","{:.3f}".format(moy1),"  ---   Population moyenne zone 2 : ","{:.3f}".format(moy2))
-        pro2D = pro2D/nbPt/n_cycles
-        im=plt.imshow(pro2D, interpolation='nearest', origin='lower', cmap=cm.rainbow, norm=colors.LogNorm())
+        moy1 = np.sum(tbin * pro1) / n_cycles / nbPt
+        moy2 = np.sum(tbin * pro2) / n_cycles / nbPt
+        print(
+            "Population moyenne zone 1 : ",
+            "{:.3f}".format(moy1),
+            "  ---   Population moyenne zone 2 : ",
+            "{:.3f}".format(moy2),
+        )
+        pro2D = pro2D / nbPt / n_cycles
+        im = plt.imshow(
+            pro2D,
+            interpolation="nearest",
+            origin="lower",
+            cmap=cm.rainbow,
+            norm=colors.LogNorm(),
+        )
         plt.colorbar(im)
         plt.show()
-
 
 
 class Variable:
