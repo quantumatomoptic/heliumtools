@@ -89,7 +89,7 @@ class Correlation:
         self.atoms = copy.deepcopy(atoms)
         self.n_cycles = n_cycles
         self.bec_arrival_time = 308  # temps d'arrivée du BEC, en ms
-        self.raman_kick = 42  # mm/s, kick Raman
+        self.raman_kick = 42.5  # mm/s, kick Raman
         self.gravity = 9.81
         self.var1 = None
         self.var2 = None

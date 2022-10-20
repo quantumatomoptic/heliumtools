@@ -140,7 +140,7 @@ def obtain_arrival_times(
 
     Return
     ------
-    dataframe containing BEC arrival time & # of atoms 
+    dataframe containing BEC arrival time & # of atoms
     """
     list_of_cycles = atoms["Cycle"].unique()
     list_of_arrival_time = [0 for i in list_of_cycles]
@@ -170,7 +170,7 @@ def obtain_arrival_times(
     return df_arrival_time
 
 
-def find_arrival_times(
+def function_find_arrival_times(
     atoms,
     directory,
     ROI_for_fit={"T": {"min": 307.3, "max": 308.7}},
@@ -203,7 +203,9 @@ def find_arrival_times(
 def export_data_set_to_pickle(
     folder,
     ROI,
+    find_arrival_times=False,
     n_max_cycles=1e8,
+    **kwargs,
 ):
     """Exporte le dataset folder comme pickle.
 
@@ -211,8 +213,8 @@ def export_data_set_to_pickle(
     ----------
     folder : path like
         chemin vers le dossier contenant tous les .atoms
-    ROI : dictionnaire 
-     Exemple : {"T": {"min": 300, "max": 350}} 
+    ROI : dictionnaire
+     Exemple : {"T": {"min": 300, "max": 350}}
 
     """
     ### STEP 1 : gather data and save it
@@ -220,6 +222,8 @@ def export_data_set_to_pickle(
     atoms_in_ROI = apply_ROI(atoms, ROI)
     filename_dataset = os.path.join(folder, "dataset.pkl")
     atoms_in_ROI.to_pickle(filename_dataset)
+    if find_arrival_times:
+        function_find_arrival_times(atoms_in_ROI, directory=folder, **kwargs)
     return filename_dataset
 
 
