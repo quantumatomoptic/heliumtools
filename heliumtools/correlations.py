@@ -82,18 +82,21 @@ class Correlation:
 
     """
 
-    def __init__(self, atoms, n_cycles, **kwargs):
+    def __init__(self, atoms, **kwargs):
         """
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
         """
         self.atoms = copy.deepcopy(atoms)
-        self.n_cycles = n_cycles
-        self.bec_arrival_time = 308  # temps d'arrivée du BEC, en ms
+        self.n_cycles = len(atoms["Cycle"].unique())
+        self.bec_arrival_time = 308.07  # temps d'arrivée du BEC, en ms
+        self.theoretical_arrival_time = 308.07  # 24/06/2022 & 17/05/2022
         self.raman_kick = 42.5  # mm/s, kick Raman
         self.gravity = 9.81
+        self.bad_shot_limit = 100
         self.var1 = None
         self.var2 = None
         self.remove_shot_noise = True
+        self.additionnal_bec_speed = 0
         self.ROI = {}  # Region Of Interest
         self.ROD = {}  # Region Of Desinterest.
         self.round_decimal = 7
@@ -132,6 +135,7 @@ class Correlation:
         self.atoms = self.atoms.rename(columns={"X": "Vx"})
         self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
         self.atoms = self.atoms.rename(columns={"Y": "Vy"})
+
         print(type(self.bec_arrival_time))
         if (
             type(self.bec_arrival_time) == int
@@ -150,16 +154,31 @@ class Correlation:
             self.atoms = self.merge_dataframe_on_cycles(
                 self.atoms, self.bec_arrival_time
             )
-            l_fall = 0.5 * self.gravity * self.atoms["BEC Arrival Time"] ** 2
+            l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
             self.atoms["T"] = (
-                0.5
-                * self.gravity
-                * (
-                    self.atoms["T"]
-                    - self.atoms["BEC Arrival Time"] ** 2 / self.atoms["T"]
-                )
+                0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
+            # compute the speed of BECs
+            self.atoms["BEC Arrival Time"] = (
+                0.5 * self.gravity * self.atoms["BEC Arrival Time"]
+                - l_fall / self.atoms["BEC Arrival Time"]
+            )
+            # take off the speed of each BEC
+            self.atoms["T"] = (
+                self.atoms["T"]
+                - self.atoms["BEC Arrival Time"]
+                + self.additionnal_bec_speed
+            )
+            # drop the column with no more interest.
             self.atoms.drop("BEC Arrival Time", inplace=True, axis=1)
+
+            ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
+            df = self.bec_arrival_time[
+                self.bec_arrival_time["Number of Atoms"] < self.bad_shot_limit
+            ]
+            for cycle, nb_atoms in zip(df["Cycle"], df["Number of Atoms"]):
+                print(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
+                self.n_cycles -= 1
 
         else:
             print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")

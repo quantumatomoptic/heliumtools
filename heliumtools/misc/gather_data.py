@@ -145,21 +145,25 @@ def obtain_arrival_times(
     list_of_cycles = atoms["Cycle"].unique()
     list_of_arrival_time = [0 for i in list_of_cycles]
     number_of_atoms = [0 for i in list_of_cycles]
+    print(histogramm_width)
     print("Starting to gather arrival time of BECs")
     for i, cycle in enumerate(tqdm(list_of_cycles)):
         df = atoms[atoms["Cycle"] == cycle]
         if len(df) < 100:
-            print(f"WARNING : shot {cycle} seems empty")
-        bin_heights, bin_borders, _ = plt.hist(
-            df["T"],
-            bins=np.arange(np.min(df["T"]), np.max(df["T"]), histogramm_width),
-        )
-        plt.close()
-        bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
-        # find the position of the max
-        bec_arrival_time = bin_centers[np.argmax(bin_heights)]
-        list_of_arrival_time[i] = bec_arrival_time
-        number_of_atoms[i] = len(df["T"])
+            print(f"WARNING : shot {cycle} seems empty. I take it off the sequence.")
+            list_of_arrival_time[i] = 308.07  # 24/06/2022 & 17/05/2022
+            number_of_atoms[i] = len(df["T"])
+        else:
+            bin_heights, bin_borders, _ = plt.hist(
+                df["T"],
+                bins=np.arange(np.min(df["T"]), np.max(df["T"]), histogramm_width),
+            )
+            plt.close()
+            bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
+            # find the position of the max
+            bec_arrival_time = bin_centers[np.argmax(bin_heights)]
+            list_of_arrival_time[i] = bec_arrival_time
+            number_of_atoms[i] = len(df["T"])
     df_arrival_time = pd.DataFrame(
         {
             "Cycle": list_of_cycles,
