@@ -946,7 +946,7 @@ class Correlation:
         plt.show()
 
     def get_joint_atoms_distribution_in_two_boxes(
-        self, nbMax, nbPt, posZ1, posZ2, sizeZ, posX, sizeX, posY, sizeY
+        self, nbMax, nbPt, posZ1, posZ2, sizeZ, posX, sizeX, posY, sizeY, show=True
     ):
         """
         Permet de tracer la distribution jointe moyenne du nombre d'atomes sur tous les cycles, dans deux boîtes données.
@@ -959,6 +959,7 @@ class Correlation:
         nbMax : nombre d'atomes simultanés détectés à considérer
         nbPt : nombre de boîtes sur lesquelles on moyenne (la 1e boîte est celle centrée sur PosZ et de taille sizeZ, puis les autres boîtes sont les voisines selon Vz dans le sens des Vz croissants et de taille sizeZ
         /!\ nbPt doit être impair
+        show = est ce que on montre la 2D map
         """
         n_cycles = self.n_cycles
         # fonction auxiliaire pour construire les boîtes
@@ -1039,15 +1040,17 @@ class Correlation:
             "{:.3f}".format(moy2),
         )
         pro2D = pro2D / nbPt / n_cycles
-        im = plt.imshow(
-            pro2D,
-            interpolation="nearest",
-            origin="lower",
-            cmap=cm.rainbow,
-            norm=colors.LogNorm(),
-        )
-        plt.colorbar(im)
-        plt.show()
+        if show:
+            im = plt.imshow(
+                pro2D,
+                interpolation="nearest",
+                origin="lower",
+                cmap=cm.rainbow,
+                norm=colors.LogNorm(),
+            )
+            plt.colorbar(im)
+            plt.show()
+        return (moy1, moy2, pro2D)
 
 
 class Variable:

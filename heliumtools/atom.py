@@ -36,7 +36,7 @@ class Heliumqunits:
         self.lande_g_factor = 2
         self.zeeman_state = -1
 
-    def get_alpha(self, wavelength=1550 * u.nm, unit="SI"):
+    def get_alpha(self, wavelength=1550 * u.nm):
         """
         computes the polarizability.
         input  : wavelength = laser wavelength (qunits)
