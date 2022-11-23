@@ -12,7 +12,7 @@ Content of gather_data.py
 
 In this file are defined some functions to gather data.
 """
-import glob, os
+import glob, os, re, json
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -33,6 +33,7 @@ def select_atoms_in_folder(folder):
     list of paths
         liste des chemins avec des .atoms dans le fichier.
     """
+    folder = Path(folder)
     ext = [".atoms"]
     path_list = sorted(
         [
@@ -41,6 +42,36 @@ def select_atoms_in_folder(folder):
         ]
     )  # string object
     return path_list
+
+
+def return_cycle_from_path(path):
+    """return the cycle from a path. If no cycle is found, return -1
+
+    Parameters
+    ----------
+    path : _type_
+        _description_
+    """
+    pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][.]"
+    path = str(path)  # on s'assure que path soit bien un string (pas un Path object)
+    result = re.findall(pattern, path)
+    if len(result) == 0:
+        pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][.]"
+        # On test si jamais le cycle est supérieur à 1000.
+        result = re.findall(pattern, path)
+        if len(result) == 0:
+            return -1
+    if len(result) > 1:
+        print("Strange, I found two regular expression : {}".format(result))
+        expr = result[-1]
+    else:
+        expr = result[0]
+    # On a maitnenant expr qui est de la forme '003_002.' --> on récupère juste 002 dans ce cas
+    expr = expr.replace(".", "")
+    seq = int(expr[0:3])
+    expr = expr[4:]
+    cycle = int(expr)
+    return seq, cycle
 
 
 def load_atoms(folder, n_max_cycles=1e8):
@@ -229,6 +260,35 @@ def export_data_set_to_pickle(
     if find_arrival_times:
         function_find_arrival_times(atoms_in_ROI, directory=folder, **kwargs)
     return filename_dataset
+
+
+def gather_saved_sequence_parameters(folder):
+    """Cette fonction récupère tous les paramètres sauvegardés pour chaque cycle de
+    la séquence et les mets dans un dataframe avec le numéro du cycle.
+
+    Parameters
+    ----------
+    folder : path like
+        chemin vers le dossier contenant tous les .atoms
+    """
+    atoms = select_atoms_in_folder(folder)
+    dataframe = pd.DataFrame()
+    for atom_name in atoms:
+        filename = atom_name.replace(".atoms", ".json")
+        f = open(filename)
+        data = json.load(f)
+        column_names = ["Sequence", "Cycle"]
+        seq, cycle = return_cycle_from_path(atom_name)
+        column_values = [seq, cycle]
+        for element in data:
+            column_names.append("{} ({})".format(element["name"], element["unit"]))
+            column_values.append(element["value"])
+        new_df = pd.DataFrame([column_values], columns=column_names)
+        dataframe = pd.concat([dataframe, new_df])
+    dataframe.reset_index(drop=True, inplace=True)
+    filename_parameters = os.path.join(folder, "parameters.pkl")
+    dataframe.to_pickle(filename_parameters)
+    return dataframe
 
 
 if __name__ == "__main__":

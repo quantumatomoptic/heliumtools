@@ -88,8 +88,8 @@ class Correlation:
         """
         self.atoms = copy.deepcopy(atoms)
         self.n_cycles = len(atoms["Cycle"].unique())
-        self.bec_arrival_time = 308.07  # temps d'arrivée du BEC, en ms
-        self.theoretical_arrival_time = 308.07  # 24/06/2022 & 17/05/2022
+        self.bec_arrival_time = 307.763  # temps d'arrivée du BEC, en ms
+        self.theoretical_arrival_time = 307.763  # 24/06/2022 & 17/05/2022
         self.raman_kick = 42.5  # mm/s, kick Raman
         self.gravity = 9.81
         self.bad_shot_limit = 100
@@ -136,7 +136,6 @@ class Correlation:
         self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
         self.atoms = self.atoms.rename(columns={"Y": "Vy"})
 
-        print(type(self.bec_arrival_time))
         if (
             type(self.bec_arrival_time) == int
             or type(self.bec_arrival_time) == float
