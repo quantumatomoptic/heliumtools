@@ -583,8 +583,8 @@ class Correlation:
         liste.remove(var.box)
         box_number = liste[0]
         # --> son axe et son type, qui sont le même que la boîte déjà définie.
-        axe = "Vx"  # l'axe du paramètre scanné (Vx, Vy ou Vz)
-        type = "size"  # le type : size ou position
+        axe = var.axe  # l'axe du paramètre scanné (Vx, Vy ou Vz)
+        type = var.type  # le type : size ou position
         # On récupère son nom en prenant les paramètres par défaut.
         name = var.built_name(add_box_number=False) + box_number
         # si jamais le nom de la variable correspond à l'autre, cela va poser problème donc on rajoute un _default.
