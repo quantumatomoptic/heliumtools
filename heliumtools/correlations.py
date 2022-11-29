@@ -1089,7 +1089,7 @@ class Variable:
     def get_values_caracteristics(self):
         self.values = np.array(self.values)
         self.min = np.min(self.values)
-        self.max = np.min(self.values)
+        self.max = np.max(self.values)
         self.n_step = len(self.values)
 
     def get_value_i(self, i):
