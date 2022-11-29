@@ -59,13 +59,14 @@ class Lattice:
         )  # 90 kHz de différence donne 0.5klatt et 180 kHz donne 1klat
         self.up_power = 85 * u.mW
         self.down_power = 85 * u.mW
-        self.up_waist = 200 * u.um
-        self.down_waist = 200 * u.um
+        self.up_waist = 585 * u.um
+        self.down_waist = 585 * u.um
         self.theta = 166 / 360 * 2 * pi
         self.wavelength = 1064 * u.nm
         self.atomic_density = 1.3e13 / ((1 * u.cm) ** 3)
         self.atom = Heliumqunits()
         self.Cjmatrix_size = 41  # see Dussarat PhD thesis page 45
+        self.clebsch = 1  # 1 / np.sqrt(3)
         self.__dict__.update(kwargs)
         self.build_lattice_properties()
 
@@ -96,16 +97,37 @@ class Lattice:
         ## TO BE CHECKED BY SOMEONE ELSE
         alpha = self.atom.get_alpha(self.wavelength)  # Polarisability
         self.V0 = np.abs(0.5 / const.eps0 / const.c * alpha * self.intensity)
+        rabi_up = (
+            self.atom.atomic_width
+            * np.sqrt(self.up_intensity / self.atom.i_sat / 2)
+            * self.clebsch
+        )
+        rabi_down = (
+            self.atom.atomic_width
+            * np.sqrt(self.down_intensity / self.atom.i_sat / 2)
+            * self.clebsch
+        )
+        delta = (
+            2 * pi * const.c * (1 / self.wavelength - 1 / self.atom.atomic_wavelength)
+        )
+
+        self.rabi_frequency = (
+            rabi_up * rabi_down / delta / 2 / (2 * pi)
+        )  # On exprime en Hz
+        self.rabi_frequency2 = (
+            2 * self.V0 / const.hbar / (2 * pi)
+        )  # page 191 Quentin's thesis
 
     def show_lattice_properties(self, all=True):
         print("--------------------------")
         print(f"Lattice depth V0/E_latt = {self.V0/self.E}")
         print(f"Detuning δ/k_latt = {self.atom.speed_to_momentum(self.v) / self.k}")
+        print(f"Rabi frequency = {self.rabi_frequency}")
         print("--------------------------")
         if all is True:
-            dico = self.__dict__
-            for number, element in enumerate(dico):
-                print(f"{number} : {element} = {self.__dict__[element]}")
+            for number, element in enumerate(self.__dict__):
+                print(f"{element} : {self.__dict__[element]}")
+
 
     def check_attributs(self):
         """fonction appelée après l'itnitialisation pour vérifier tous les attributs."""
@@ -395,3 +417,9 @@ class Lattice:
         q1 = self.momentum_to_quasimomentum(q1)
         q2 = self.momentum_to_quasimomentum(q2)
         return (bec_quasi_momentum, min(q1, q2), max(q1, q2))
+
+
+# -- TESTS
+if __name__ == "__main__":
+    lat = Lattice()
+    lat.show_lattice_properties()

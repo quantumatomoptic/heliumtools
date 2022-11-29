@@ -31,11 +31,12 @@ class Heliumqunits:
         self.scattering_length = 7.512 * u.nm  # m, s-wave scattering length
         self.a_s = self.scattering_length
         self.g = 4 * pi * const.hbar**2 * self.a_s / self.mass
+        self.i_sat = 0.16 * u.mW / (u.cm) ** 2
         # magnetic
         self.lande_g_factor = 2
         self.zeeman_state = -1
 
-    def get_alpha(self, wavelength=1550 * u.nm, unit="SI"):
+    def get_alpha(self, wavelength=1550 * u.nm):
         """
         computes the polarizability.
         input  : wavelength = laser wavelength (qunits)

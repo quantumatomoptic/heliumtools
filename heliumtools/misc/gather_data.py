@@ -12,7 +12,7 @@ Content of gather_data.py
 
 In this file are defined some functions to gather data.
 """
-import glob, os
+import glob, os, re, json
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -33,6 +33,7 @@ def select_atoms_in_folder(folder):
     list of paths
         liste des chemins avec des .atoms dans le fichier.
     """
+    folder = Path(folder)
     ext = [".atoms"]
     path_list = sorted(
         [
@@ -41,6 +42,36 @@ def select_atoms_in_folder(folder):
         ]
     )  # string object
     return path_list
+
+
+def return_cycle_from_path(path):
+    """return the cycle from a path. If no cycle is found, return -1
+
+    Parameters
+    ----------
+    path : _type_
+        _description_
+    """
+    pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][.]"
+    path = str(path)  # on s'assure que path soit bien un string (pas un Path object)
+    result = re.findall(pattern, path)
+    if len(result) == 0:
+        pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][.]"
+        # On test si jamais le cycle est supérieur à 1000.
+        result = re.findall(pattern, path)
+        if len(result) == 0:
+            return -1
+    if len(result) > 1:
+        print("Strange, I found two regular expression : {}".format(result))
+        expr = result[-1]
+    else:
+        expr = result[0]
+    # On a maitnenant expr qui est de la forme '003_002.' --> on récupère juste 002 dans ce cas
+    expr = expr.replace(".", "")
+    seq = int(expr[0:3])
+    expr = expr[4:]
+    cycle = int(expr)
+    return seq, cycle
 
 
 def load_atoms(folder, n_max_cycles=1e8):
@@ -140,26 +171,30 @@ def obtain_arrival_times(
 
     Return
     ------
-    dataframe containing BEC arrival time & # of atoms 
+    dataframe containing BEC arrival time & # of atoms
     """
     list_of_cycles = atoms["Cycle"].unique()
     list_of_arrival_time = [0 for i in list_of_cycles]
     number_of_atoms = [0 for i in list_of_cycles]
+    print(histogramm_width)
     print("Starting to gather arrival time of BECs")
     for i, cycle in enumerate(tqdm(list_of_cycles)):
         df = atoms[atoms["Cycle"] == cycle]
         if len(df) < 100:
-            print(f"WARNING : shot {cycle} seems empty")
-        bin_heights, bin_borders, _ = plt.hist(
-            df["T"],
-            bins=np.arange(np.min(df["T"]), np.max(df["T"]), histogramm_width),
-        )
-        plt.close()
-        bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
-        # find the position of the max
-        bec_arrival_time = bin_centers[np.argmax(bin_heights)]
-        list_of_arrival_time[i] = bec_arrival_time
-        number_of_atoms[i] = len(df["T"])
+            print(f"WARNING : shot {cycle} seems empty. I take it off the sequence.")
+            list_of_arrival_time[i] = 308.07  # 24/06/2022 & 17/05/2022
+            number_of_atoms[i] = len(df["T"])
+        else:
+            bin_heights, bin_borders, _ = plt.hist(
+                df["T"],
+                bins=np.arange(np.min(df["T"]), np.max(df["T"]), histogramm_width),
+            )
+            plt.close()
+            bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
+            # find the position of the max
+            bec_arrival_time = bin_centers[np.argmax(bin_heights)]
+            list_of_arrival_time[i] = bec_arrival_time
+            number_of_atoms[i] = len(df["T"])
     df_arrival_time = pd.DataFrame(
         {
             "Cycle": list_of_cycles,
@@ -170,7 +205,7 @@ def obtain_arrival_times(
     return df_arrival_time
 
 
-def find_arrival_times(
+def function_find_arrival_times(
     atoms,
     directory,
     ROI_for_fit={"T": {"min": 307.3, "max": 308.7}},
@@ -203,7 +238,9 @@ def find_arrival_times(
 def export_data_set_to_pickle(
     folder,
     ROI,
+    find_arrival_times=False,
     n_max_cycles=1e8,
+    **kwargs,
 ):
     """Exporte le dataset folder comme pickle.
 
@@ -211,8 +248,8 @@ def export_data_set_to_pickle(
     ----------
     folder : path like
         chemin vers le dossier contenant tous les .atoms
-    ROI : dictionnaire 
-     Exemple : {"T": {"min": 300, "max": 350}} 
+    ROI : dictionnaire
+     Exemple : {"T": {"min": 300, "max": 350}}
 
     """
     ### STEP 1 : gather data and save it
@@ -220,7 +257,38 @@ def export_data_set_to_pickle(
     atoms_in_ROI = apply_ROI(atoms, ROI)
     filename_dataset = os.path.join(folder, "dataset.pkl")
     atoms_in_ROI.to_pickle(filename_dataset)
+    if find_arrival_times:
+        function_find_arrival_times(atoms_in_ROI, directory=folder, **kwargs)
     return filename_dataset
+
+
+def gather_saved_sequence_parameters(folder):
+    """Cette fonction récupère tous les paramètres sauvegardés pour chaque cycle de
+    la séquence et les mets dans un dataframe avec le numéro du cycle.
+
+    Parameters
+    ----------
+    folder : path like
+        chemin vers le dossier contenant tous les .atoms
+    """
+    atoms = select_atoms_in_folder(folder)
+    dataframe = pd.DataFrame()
+    for atom_name in atoms:
+        filename = atom_name.replace(".atoms", ".json")
+        f = open(filename)
+        data = json.load(f)
+        column_names = ["Sequence", "Cycle"]
+        seq, cycle = return_cycle_from_path(atom_name)
+        column_values = [seq, cycle]
+        for element in data:
+            column_names.append("{} ({})".format(element["name"], element["unit"]))
+            column_values.append(element["value"])
+        new_df = pd.DataFrame([column_values], columns=column_names)
+        dataframe = pd.concat([dataframe, new_df])
+    dataframe.reset_index(drop=True, inplace=True)
+    filename_parameters = os.path.join(folder, "parameters.pkl")
+    dataframe.to_pickle(filename_parameters)
+    return dataframe
 
 
 if __name__ == "__main__":

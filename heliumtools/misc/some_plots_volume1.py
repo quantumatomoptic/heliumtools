@@ -44,7 +44,7 @@ def histogram_plots_with_inset(df, X1, X2, Y, X1_label="", X2_label="", title=""
         bins=100,
         color="steelblue",
         label="Statistical properties\n mean = {:.3f} \n σ ={:.3f} ms ".format(
-            sigma0, mean0
+            mean0, sigma0
         ),
     )
     plt.legend(loc="upper right")
