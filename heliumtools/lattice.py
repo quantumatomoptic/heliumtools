@@ -103,8 +103,9 @@ class Lattice:
         print(f"Detuning δ/k_latt = {self.atom.speed_to_momentum(self.v) / self.k}")
         print("--------------------------")
         if all is True:
-            for element, value in enumerate(self.__dict__):
-                print(f"{element} : {value}")
+            dico = self.__dict__
+            for number, element in enumerate(dico):
+                print(f"{number} : {element} = {self.__dict__[element]}")
 
     def check_attributs(self):
         """fonction appelée après l'itnitialisation pour vérifier tous les attributs."""
@@ -198,7 +199,7 @@ class Lattice:
                 f"The BEC quasimomentum is greater than 1 ({bec_quasi_momentum}): this is not taken account in the model. Please modify me. "
             )
             return (bec_quasi_momentum, -1, 1)
-        elif np.abs(bec_quasi_momentum) < 0.5:
+        if np.abs(bec_quasi_momentum) < 0.5:
             warnings.warn(
                 f"The BEC quasimomentum seems too low to creat pairs. Trying anyway but result might be false."
             )
@@ -248,9 +249,51 @@ class Lattice:
         quu = self.momentum_to_quasimomentum(np.array([q1, q2]))
         return (bec_quasi_momentum, np.min(quu), np.max(quu))
 
+    def get_atomic_density(self, z_born=1.5, z_size=1000, bec_speed=0 * u.mm / u.s):
+        bec_quasi_momentum = (
+            self.atom.speed_to_momentum(bec_speed - self.v) / self.k
+        ).to(u.dimensionless)
+        Cjmatrix = self._generate_Cjmatrix_dimensionless(bec_quasi_momentum)
+        vlp, vpr = LA.eig(
+            Cjmatrix
+        )  # vlp are eigenvalues --> energies and vpr is the eigenvector associated.
+        fondam_cj_coefficients = vpr[:, list(vlp).index(min(vlp))]
+        # les coefficients Cj sont rangées de -Cjmatrix_size/2 à Cjmatrix_size/2
+
+        a = pi / 1  # we place our self with dimensionless units therefore 1 = self.k
+        z = np.linspace(-z_born * a, z_born * a, z_size)
+
+        def densite(z):
+            sum = 0
+            for k in range(self.Cjmatrix_size):
+                sum = sum + fondam_cj_coefficients[k] * np.exp(
+                    1j
+                    * z
+                    * (bec_quasi_momentum + 2 * np.pi * (k - self.Cjmatrix_size - 1))
+                    / a
+                )
+
+            return np.abs(sum) ** 2
+
+        densityprofile = densite(z)
+        return z, densityprofile
+
     ######################################################
     ### INTERNAL FUNCTIONS FOR CALCULATIONS
     ######################################################
+    def _generate_Cjmatrix_dimensionless(self, q):
+        V0 = (self.V0 / self.E).to(u.dimensionless)
+        self.check_Cjmatrixsize()
+
+        a = np.zeros((self.Cjmatrix_size, self.Cjmatrix_size))
+        nbsim = int((self.Cjmatrix_size - 1) / 2)
+        for k in range(self.Cjmatrix_size):
+            j = k - nbsim
+            a[k, k] = (q + 2 * j) ** 2 + (V0 / 2)
+            if k != self.Cjmatrix_size - 1:
+                a[k, k + 1] = -V0 / 4
+                a[k + 1, k] = -V0 / 4
+        return a
 
     def _generate_Cjmatrix(self, q):
         """Génère la mtrice des coefficients Cj permettant d'avoir fonctions d'ondes et énergies dans le réseau.
