@@ -30,6 +30,8 @@ on écrit dans un fichier de configuration
 #include <algorithm>
 #include <iterator>
 using namespace std;
+using namespace std::chrono; // to measure the execution time of the programm
+
 typedef uint64_t timedata;
 struct atomdata
 {
@@ -63,6 +65,9 @@ void reconstruction1(list<timedata> &X1_p,
                      list<timedata> &Y2_p,
                      vector<atomdata> &atoms_p,
                      paramstruct params);
+void WriteStatistics(string filename, map<string, float> &reconstruction_statistics);
+void WriteAtoms(string filename, vector<atomdata> &atoms);
+timedata AbsDiff(timedata T1, timedata T2);
 /*
 ==============================================================================================================
 FONCTION PRINCIPALE DU CODE
@@ -120,28 +125,65 @@ int main()
     cout << "\n ... Starting to load .times files... \n";
     for (auto i = cycles.begin(); i != cycles.end(); ++i)
     { // ------ LOAD TIMES ------
-        X1 = load_timedata(params.seq_folder + "/" + *i + ".timesx1");
-        X2 = load_timedata(params.seq_folder + "/" + *i + ".timesx2");
-        Y1 = load_timedata(params.seq_folder + "/" + *i + ".timesy1");
-        Y2 = load_timedata(params.seq_folder + "/" + *i + ".timesy2");
+        string inputfile = params.seq_folder + "/" + *i;
+        string outputfile = params.new_seq_folder + "/" + *i;
+        X1 = load_timedata(inputfile + ".timesx1");
+        X2 = load_timedata(inputfile + ".timesx2");
+        Y1 = load_timedata(inputfile + ".timesy1");
+        Y2 = load_timedata(inputfile + ".timesy2");
         reconstruction_statistics["Number of X1"] = X1.size();
         reconstruction_statistics["Number of X2"] = X2.size();
         reconstruction_statistics["Number of Y1"] = Y1.size();
         reconstruction_statistics["Number of Y2"] = Y2.size();
-        cout << "Starting reconstruction for cycle " << *i << "...";
+        // ------- START RECONSTRUCTION --------
+        // Choose reconstruction number between :
+        // 1 : reconstruction until september 2022 (no offset map, first atom that match is chosen)
+        // 2 : reconstruction used from september 2022 with offset map but same reconstruction code.
+        cout << "\n         --------------------------------------------" << endl;
+        cout << "         Starting reconstruction for cycle " << *i << "... " << endl;
+        cout << "         --------------------------------------------" << endl;
+        cout << "Input file : " + inputfile << endl;
+        cout << "Output file : " + outputfile << endl;
+        auto t_start = high_resolution_clock::now();
         if (params.reconstruction_number == 1)
         {
             reconstruction1(X1, X2, Y1, Y2, atoms, params);
             cout << atoms.front().TX1 << "\n";
         }
+        auto t_end_reconstruction = high_resolution_clock::now();
+        auto duration_reconstruction = duration_cast<milliseconds>(t_end_reconstruction - t_start);
+        reconstruction_statistics["Reconstruction duration"] = float(duration_reconstruction.count()) / 1000; // en secondes
+        float atoms_size = atoms.size();
+        reconstruction_statistics["Number of atoms"] = atoms.size();
+        reconstruction_statistics["Reconstruction rate of X1"] = round(100 * atoms_size / reconstruction_statistics["Number of X1"]);
+        reconstruction_statistics["Reconstruction rate of X2"] = round(100 * atoms_size / reconstruction_statistics["Number of X2"]);
+        reconstruction_statistics["Reconstruction rate of Y1"] = round(100 * atoms_size / reconstruction_statistics["Number of Y1"]);
+        reconstruction_statistics["Reconstruction rate of Y2"] = round(100 * atoms_size / reconstruction_statistics["Number of Y2"]);
+        WriteAtoms(outputfile + ".atoms", atoms);
+        WriteStatistics(outputfile + ".stats", reconstruction_statistics);
+
+        // Clean up
+        X1.clear();
+        X2.clear();
+        Y1.clear();
+        Y2.clear();
+        atoms.clear();
     }
 }
 
 /*
-==============================================================================================================
+==================================================
 FONCTIONS DE RECONSTRUCTION APPELÉES DANS LE CODE
-==============================================================================================================
+==================================================
 */
+timedata AbsDiff(timedata T1, timedata T2)
+{
+    if (T1 > T2)
+        return T1 - T2;
+    else
+        return T2 - T1;
+}
+
 void reconstruction1(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
@@ -156,12 +198,88 @@ void reconstruction1(list<timedata> &X1_p,
     timedata MCPdiameter = timedata(params.evgate / params.res);
     // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
     timedata deltaT = timedata(params.deltaTgate / params.res);
-    atoms_p.push_back(atomdata{0, 0, 0, 0});
+    while (X1_p.begin() != X1_p.end())
+    {
+        // We first definitively get rid of all events occurring before the bulb start on X2, Y1, Y2
+        // By construction, they will never match with a later event on X1
+        if (*X1_p.begin() > gateX)
+            while (X2_p.begin() != X2_p.end() && *X2_p.begin() < (*X1_p.begin() - gateX))
+                X2_p.erase(X2_p.begin());
+        if (*X1_p.begin() > gateY)
+        {
+            while (Y1_p.begin() != Y1_p.end() && *Y1_p.begin() < (*X1_p.begin() - gateY))
+                Y1_p.erase(Y1_p.begin());
+            while (Y2_p.begin() != Y2_p.end() && *Y2_p.begin() < min((*X1_p.begin() - gateY), *X1_p.begin()))
+                Y2_p.erase(Y2_p.begin());
+        }
+        // We then look for events that can correspond to an atom
+        // As soon as we have found such events, we erase them from the list and keep going along X1
+        bool atomfound = false;
+        auto searchX2 = X2_p.begin(), searchY1 = Y1_p.begin(), searchY2 = Y2_p.begin();
+        while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + gateX) && !atomfound)
+        {
+            while (searchY1 != Y1_p.end() && *searchY1 < (*X1_p.begin() + gateY) && !atomfound)
+            {
+                while (searchY2 != Y2_p.end() && *searchY2 < (*X1_p.begin() + gateY) && !atomfound)
+                {
+                    timedata TX1 = *X1_p.begin();
+                    timedata TX2 = *searchX2;
+                    timedata TY1 = *searchY1;
+                    timedata TY2 = *searchY2;
+
+                    timedata dTX = AbsDiff(TX1, TX2);
+                    timedata dTY = AbsDiff(TY1, TY2);
+                    timedata TX = (TX1 + TX2) / 2;
+                    timedata TY = (TY1 + TY2) / 2;
+
+                    // distance to the MCP centre
+                    timedata dist = timedata(sqrt(pow(dTX, 2) + pow(dTY, 2)));
+
+                    // time difference between events on X and Y
+                    // its a curious way of calculating an absolute value
+                    // but we want to make sure that we don't loose precision (time coded on 64bits)
+                    timedata dT = AbsDiff(TX, TY);
+
+                    // an atom would be inside the MCP radius and fall atoms the same time on X and Y
+                    if (dist < MCPdiameter && dT < deltaT)
+
+                    { // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
+                        // compare it to the MCP offset reference map.
+
+                        // time difference between events on X and Y
+                        // its a curious way of calculating an absolute value
+                        // but we want to make sure that we don't loose precision (time coded on 64bits)
+                        timedata S = AbsDiff(TX, TY);
+
+                        int X = 708 + TX1 - TX2;
+                        int Y = 708 + TY1 - TY2;
+                        if (AbsDiff(S, offset[X][Y]) < 5)// 5 ??? --> this need to be set using resolution map.
+                        //if (AbsDiff(S, 0) < 1000)
+                        {
+                            atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
+                            atomfound = true;
+                        }
+                    }
+                    ++searchY2;
+                }
+                ++searchY1;
+            }
+            ++searchX2;
+        }
+        if (atomfound)
+        {
+            X2_p.erase(prev(searchX2));
+            Y1_p.erase(prev(searchY1));
+            Y2_p.erase(prev(searchY2));
+        }
+
+        X1_p.erase(X1_p.begin());
+    }
 }
 /*
-==============================================================================================================
+======================================
 AUTRES FONCTIONS APPELÉES DANS LE CODE
-==============================================================================================================
+======================================
 */
 
 list<timedata> load_timedata(std::string path_to_time)
@@ -318,4 +436,57 @@ void load_offset_map(string offset_map_path, std::vector<std::vector<int>> &offs
         }
     }
     std::cout << "Done. \n \n";
+}
+
+void WriteStatistics(string filename, map<string, float> &reconstruction_statistics)
+// This functions save on the disk the statistics of the reconstruction programm.
+//
+// Arguments
+// ---------
+// filename : string,
+//		name of the file one wants to save. It should be "path/to/directory/name". The extension of the file will be .stats
+// reconstruction_statistics : map (kind of dictionnary) of string and float
+//		the statistics of the code, for exemple ["reconstruction time":1.23 , "X2 lenght": 1023, etc... ]
+// 		first must be string, second float.
+
+{
+    ofstream statfile;
+    statfile.open(filename);
+    map<string, float>::iterator iter;
+    for (iter = reconstruction_statistics.begin(); iter != reconstruction_statistics.end(); iter++)
+    {
+        statfile << (*iter).first << " : " << (*iter).second << "\n";
+        cout << (*iter).first << " ---> " << (*iter).second << "\n";
+    }
+
+    statfile.close();
+}
+
+void WriteAtoms(string filename, vector<atomdata> &atoms_p)
+/*
+filename : of the form /path/where/the/code/save/the/file WITHOUT the extension
+atoms : vecteur de atomdata aka 4 temps x1, x2, y1, y2
+*/
+{
+
+    ofstream file;
+    file.open(filename, ofstream::out | ofstream::binary);
+
+    ostringstream message;
+
+    // Serialize the atom data
+    std::vector<timedata> buffer;
+    buffer.reserve(4 * atoms_p.size());
+    for (auto i = atoms_p.begin(); i != atoms_p.end(); ++i)
+    {
+        buffer.push_back((*i).TX1);
+        buffer.push_back((*i).TX2);
+        buffer.push_back((*i).TY1);
+        buffer.push_back((*i).TY2);
+    }
+
+    file.write(reinterpret_cast<const char *>(buffer.data()), buffer.size() * sizeof(timedata));
+
+    file.close();
+    // WriteLog(message.str());
 }
