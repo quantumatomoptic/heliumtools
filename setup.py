@@ -24,6 +24,7 @@ requirements = [
     "datetime",
     "cython",
     "pytest",
+    "odeintw",
 ]
 
 test_requirements = []
