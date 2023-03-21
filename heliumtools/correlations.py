@@ -87,6 +87,7 @@ class Correlation:
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
         """
         self.atoms = copy.deepcopy(atoms)
+        self.cycles_array = atoms["Cycle"].unique()
         self.n_cycles = len(atoms["Cycle"].unique())
         self.bec_arrival_time = 307.763  # temps d'arrivée du BEC, en ms
         self.theoretical_arrival_time = 307.763  # 24/06/2022 & 17/05/2022
@@ -144,7 +145,7 @@ class Correlation:
             or isinstance(self.bec_arrival_time, np.int32)
             or isinstance(self.bec_arrival_time, np.int64)
         ):
-            l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
+            l_fall = 0.5 * self.gravity * self.bec_arrival_time ** 2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
@@ -153,7 +154,7 @@ class Correlation:
             self.atoms = self.merge_dataframe_on_cycles(
                 self.atoms, self.bec_arrival_time
             )
-            l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
+            l_fall = 0.5 * self.gravity * self.theoretical_arrival_time ** 2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
@@ -274,9 +275,7 @@ class Correlation:
         atoms_in_box.reset_index(inplace=True)
         # atoms_in_box is now a dataframe with two columns "Cycle" and "N_1" (or column_name). However, if there were no atom at cycle 34 in the box, this cycle does not appear inside atoms_in_box. In order to have the number of atoms in the box at each cycle, we must add 0 to those cycles which does not appear.
         # cycle_dataframe is just a dataframe with n_cycles : we use it to merge and add zeros to atoms_in_box
-        cycle_dataframe = pd.DataFrame(
-            np.arange(1, self.n_cycles + 1, 1), columns=["Cycle"]
-        )
+        cycle_dataframe = pd.DataFrame(self.cycles_array, columns=["Cycle"])
         atoms_in_box = self.merge_dataframe_on_cycles(cycle_dataframe, atoms_in_box)
         return atoms_in_box
 
@@ -641,7 +640,7 @@ class Correlation:
         # Calcul de g2
         numerator = np.sum(dataframe["N_1"] * dataframe["N_2"]) / self.n_cycles
         denominator = (
-            np.sum(dataframe["N_1"]) * np.sum(dataframe["N_2"]) / (self.n_cycles**2)
+            np.sum(dataframe["N_1"]) * np.sum(dataframe["N_2"]) / (self.n_cycles ** 2)
         )
         if denominator > 0:
             g2 = numerator / denominator
@@ -899,8 +898,8 @@ class Correlation:
         yerr = [np.sqrt(px) / n_cycles / nbPt for px in pro]
         yerr = yerr[0 : (nb + 1)]
         # calcul des distributions théoriques
-        therm = moy**tbin / (1 + moy) ** (tbin + 1)
-        pois = np.exp(-moy) * moy**tbin / factorial(tbin)
+        therm = moy ** tbin / (1 + moy) ** (tbin + 1)
+        pois = np.exp(-moy) * moy ** tbin / factorial(tbin)
 
         # tracé du graphe
         plt.figure()
