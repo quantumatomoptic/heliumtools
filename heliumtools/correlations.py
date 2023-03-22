@@ -730,6 +730,7 @@ class Correlation:
         self.result["g^2"] = self.result["N_1*N_2"] / (
             self.result["N_1"] * self.result["N_2"]
         )
+        self.result["N_1*N_2 with shotnoise"] = self.result["N_1*N_2"]
 
         # on enlève le shot noise si cela est demandé par l'utilisateur.
         if self.remove_shot_noise:
@@ -737,6 +738,9 @@ class Correlation:
             self.result.loc[local_condition, "g^2"] = (
                 self.result["N_1*N_2"] - self.result["N_1"]
             ) / (self.result["N_1"] * self.result["N_2"])
+            self.result.loc[local_condition, "N_1*N_2 with shotnoise"] = (
+                self.result["N_1*N_2"] - self.result["N_1"]
+            )
 
         # ---------------
         # Déviations standards
