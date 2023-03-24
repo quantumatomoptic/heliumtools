@@ -120,7 +120,7 @@ class Correlation:
         self.build_the_atoms_dataframe()
         self.apply_ROI()  # Keep only atoms in ROI
         self.apply_ROD()  # Take off atoms in Region Of Desinterest.
-        print("Data are loaded")
+        # print("Data are loaded")
         # Initialisation de self.result datframe avec toutes les corrélations
         # self.result = pd.DataFrame(
         #     np.zeros(1, len(self.quantity_of_interest())),
@@ -145,7 +145,7 @@ class Correlation:
             or isinstance(self.bec_arrival_time, np.int32)
             or isinstance(self.bec_arrival_time, np.int64)
         ):
-            l_fall = 0.5 * self.gravity * self.bec_arrival_time ** 2
+            l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
@@ -154,7 +154,7 @@ class Correlation:
             self.atoms = self.merge_dataframe_on_cycles(
                 self.atoms, self.bec_arrival_time
             )
-            l_fall = 0.5 * self.gravity * self.theoretical_arrival_time ** 2
+            l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
@@ -640,7 +640,7 @@ class Correlation:
         # Calcul de g2
         numerator = np.sum(dataframe["N_1"] * dataframe["N_2"]) / self.n_cycles
         denominator = (
-            np.sum(dataframe["N_1"]) * np.sum(dataframe["N_2"]) / (self.n_cycles ** 2)
+            np.sum(dataframe["N_1"]) * np.sum(dataframe["N_2"]) / (self.n_cycles**2)
         )
         if denominator > 0:
             g2 = numerator / denominator
@@ -711,7 +711,7 @@ class Correlation:
 
         error = total.groupby([self.var1.name, self.var2.name], as_index=False).std()
 
-        print("Total dataframe is summed already")
+        # print("Total dataframe is summed already")
 
         # ---------------
         # Variance
@@ -859,7 +859,7 @@ class Correlation:
             self.round_decimal,
         )
 
-        print("Computation is done.")
+        # print("Computation is done.")
 
     def get_atoms_distribution(
         self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
@@ -902,8 +902,8 @@ class Correlation:
         yerr = [np.sqrt(px) / n_cycles / nbPt for px in pro]
         yerr = yerr[0 : (nb + 1)]
         # calcul des distributions théoriques
-        therm = moy ** tbin / (1 + moy) ** (tbin + 1)
-        pois = np.exp(-moy) * moy ** tbin / factorial(tbin)
+        therm = moy**tbin / (1 + moy) ** (tbin + 1)
+        pois = np.exp(-moy) * moy**tbin / factorial(tbin)
 
         # tracé du graphe
         plt.figure()
