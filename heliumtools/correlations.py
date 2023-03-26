@@ -115,7 +115,6 @@ class Correlation:
         }
         self.__dict__.update(kwargs)
         self.boxes = self.boxes.copy()
-        self.initial_boxes = copy.deepcopy(self.boxes)  # perform a deep copy
         # atoms : (mm,mm, ms) --> (mm/s, mm/s, mm/s)
         self.build_the_atoms_dataframe()
         self.apply_ROI()  # Keep only atoms in ROI
@@ -126,6 +125,9 @@ class Correlation:
         #     np.zeros(1, len(self.quantity_of_interest())),
         #     columns=self.quantity_of_interest,
         # )
+
+    def set_boxes(self, boxes):
+        self.boxes = boxes.copy()
 
     def build_the_atoms_dataframe(self):
         """
@@ -475,8 +477,6 @@ class Correlation:
         else:
             self.result = 0
             print("This is not implemented yet.")
-
-        self.boxes = self.initial_boxes
 
     def compute_correlations_different_box_scanned(self):
         """
@@ -1065,7 +1065,7 @@ class Correlation:
         from flatten_dict import flatten, reducers
 
         dictionary = {}
-        for key, value in corr.__dict__.items():
+        for key, value in self.__dict__.items():
             if type(value) in [int, float, dict, bool]:
                 dictionary[key] = value
             elif type(value) == Variable:
@@ -1122,3 +1122,90 @@ class Variable:
         Renvoie la i-ième value de self.values
         """
         return self.values[i]
+
+
+class CorrelationXYIntegrated(Correlation):
+    def __init__(self, atoms, NsliceX, NsliceY, **kwargs):
+        self.NsliceX = NsliceX
+        self.NsliceY = NsliceY
+        super().__init__(atoms, **kwargs)
+        self.global_boxes = copy.deepcopy(self.boxes)
+        self.built_boxes_list()
+
+    def compute_correlations_XYintegrated(self):
+        all_result = []
+        for idx, box in enumerate(self.boxes_list):
+            self.set_boxes(box)
+            self.compute_correlations()
+            all_result.append(self.result)
+        self.all_result = pd.concat(all_result)
+        self.all_result["<N1><N2>"] = self.all_result["N_1"] * self.all_result["N_2"]
+        self.integrated_result = self.all_result.groupby(
+            [self.var1.name, self.var2.name], as_index=False
+        ).sum()
+        self.integrated_result["g^2"] = (
+            self.integrated_result["N_1*N_2 with shotnoise"]
+            / self.integrated_result["<N1><N2>"]
+        )
+        self.integrated_result["normalized variance"] = self.integrated_result[
+            "variance"
+        ] / (self.integrated_result["N_1"] + self.integrated_result["N_2"])
+        # je remets la boite initial.
+        self.set_boxes(self.global_boxes)
+        self.result = self.integrated_result
+
+    def built_boxes_list(self):
+        self.boxes_list = []
+        import itertools as itt
+
+        for i, XY in enumerate(
+            list(itt.product(np.arange(self.NsliceX), np.arange(self.NsliceY)))
+        ):
+            self.boxes_list.append(
+                {
+                    "1": {
+                        "Vx": {
+                            "size": self.global_boxes["1"]["Vx"]["size"] / self.NsliceX,
+                            "position": self.global_boxes["1"]["Vx"]["position"]
+                            - self.global_boxes["1"]["Vx"]["size"] / 2.0
+                            + self.global_boxes["1"]["Vx"]["size"]
+                            * (0.5 + XY[0])
+                            / self.NsliceX,
+                        },
+                        "Vy": {
+                            "size": self.global_boxes["1"]["Vy"]["size"] / self.NsliceY,
+                            "position": self.global_boxes["1"]["Vy"]["position"]
+                            - self.global_boxes["1"]["Vy"]["size"] / 2.0
+                            + self.global_boxes["1"]["Vy"]["size"]
+                            * (0.5 + XY[1])
+                            / self.NsliceY,
+                        },
+                        "Vz": {
+                            "size": self.global_boxes["1"]["Vz"]["size"],
+                            "position": self.global_boxes["1"]["Vz"]["position"],
+                        },
+                    },
+                    "2": {
+                        "Vx": {
+                            "size": self.global_boxes["2"]["Vx"]["size"] / self.NsliceX,
+                            "position": self.global_boxes["2"]["Vx"]["position"]
+                            - self.global_boxes["2"]["Vx"]["size"] / 2.0
+                            + self.global_boxes["2"]["Vx"]["size"]
+                            * (0.5 + XY[0])
+                            / self.NsliceX,
+                        },
+                        "Vy": {
+                            "size": self.global_boxes["2"]["Vy"]["size"] / self.NsliceY,
+                            "position": self.global_boxes["2"]["Vy"]["position"]
+                            - self.global_boxes["2"]["Vy"]["size"] / 2.0
+                            + self.global_boxes["2"]["Vy"]["size"]
+                            * (0.5 + XY[1])
+                            / self.NsliceY,
+                        },
+                        "Vz": {
+                            "size": self.global_boxes["2"]["Vz"]["size"],
+                            "position": self.global_boxes["2"]["Vz"]["position"],
+                        },
+                    },
+                }
+            )
