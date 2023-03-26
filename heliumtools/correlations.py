@@ -1054,6 +1054,28 @@ class Correlation:
             plt.show()
         return (moy1, moy2, pro2D)
 
+    def return_dictionary_correlation_property(self) -> dict:
+        """Return a dictionay with all the parameter of the simulation.
+
+        Returns
+        -------
+        dict
+            dictionary with all parameters of the correlation.
+        """
+        from flatten_dict import flatten, reducers
+
+        dictionary = {}
+        for key, value in corr.__dict__.items():
+            if type(value) in [int, float, dict, bool]:
+                dictionary[key] = value
+            elif type(value) == Variable:
+                dictionary[key] = {}
+                val_dic = copy.deepcopy(value.__dict__)
+                del val_dic["values"]
+                dictionary[key] = val_dic
+        dictionary = flatten(dictionary, reducer=reducers.make_reducer(delimiter=" | "))
+        return dictionary
+
 
 class Variable:
     """
