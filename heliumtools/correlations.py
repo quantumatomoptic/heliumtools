@@ -1126,11 +1126,21 @@ class Variable:
 
 class CorrelationXYIntegrated(Correlation):
     def __init__(self, atoms, NsliceX, NsliceY, **kwargs):
-        self.NsliceX = NsliceX
-        self.NsliceY = NsliceY
+        self.NsliceX = self.check_Nslices_value(NsliceX)
+        self.NsliceY = self.check_Nslices_value(NsliceY)
         super().__init__(atoms, **kwargs)
         self.global_boxes = copy.deepcopy(self.boxes)
         self.built_boxes_list()
+
+    def check_Nslices_value(self, N):
+        if N < 1:
+            print(
+                "WARNING : Nx or Ny value seems strange in CorrelationXYIntegrated Initialisation. Setting to 1."
+            )
+            return 1
+        if int(N) != N:
+            print("WARNING : Nx or Ny value does not seem an integer. Setting to 1.")
+            return round(N)
 
     def compute_correlations_XYintegrated(self):
         all_result = []
