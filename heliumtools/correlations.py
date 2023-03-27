@@ -1159,6 +1159,7 @@ class CorrelationXYIntegrated(Correlation):
         if int(N) != N:
             print("WARNING : Nx or Ny value does not seem an integer. Setting to 1.")
             return round(N)
+        return N
 
     def compute_correlations_XYintegrated(self):
         all_result = []
