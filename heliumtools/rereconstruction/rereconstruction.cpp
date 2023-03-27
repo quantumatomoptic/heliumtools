@@ -98,15 +98,15 @@ int main()
     // ####
     // Creation du fichier de séquence params.new_seq_folder
     // ####
-    // const char *dirnameChars = params.new_seq_folder.c_str(); // conversion en char pour créer le dossier de séquence
-    // if (mkdir(dirnameChars, 0777) == -1)
-    // {
-    //     cerr
-    //         << "Error while creating the new folder :  " << strerror(errno) << endl;
-    //     exit(0);
-    // }
-    // else
-    //     cout << "\n Directory created";
+    const char *dirnameChars = params.new_seq_folder.c_str(); // conversion en char pour créer le dossier de séquence
+    if (mkdir(dirnameChars, 0777) == -1)
+    {
+        cerr
+            << "Error while creating the new folder :  " << strerror(errno) << endl;
+        exit(0);
+    }
+    else
+        cout << "\n Directory created";
 
     // ####
     // On récupère la liste de tous les cycles qu'il faut rereconstruire.
@@ -253,8 +253,8 @@ void reconstruction1(list<timedata> &X1_p,
 
                         int X = 708 + TX1 - TX2;
                         int Y = 708 + TY1 - TY2;
-                        if (AbsDiff(S, offset[X][Y]) < 5)// 5 ??? --> this need to be set using resolution map.
-                        //if (AbsDiff(S, 0) < 1000)
+                        // if (AbsDiff(S, offset[X][Y]) < 5) // 5 ??? --> this need to be set using resolution map.
+                        // if (AbsDiff(S, 0) < 1000)
                         {
                             atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
                             atomfound = true;
