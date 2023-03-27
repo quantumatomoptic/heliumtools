@@ -25,6 +25,7 @@ import copy
 from scipy.special import factorial
 import matplotlib.cm as cm
 import matplotlib.colors as colors
+import time
 
 
 class Correlation:
@@ -101,6 +102,7 @@ class Correlation:
         self.ROI = {}  # Region Of Interest
         self.ROD = {}  # Region Of Desinterest.
         self.round_decimal = 7
+        self.id = int(time.time())
         self.boxes = {
             "1": {
                 "Vx": {"size": 10, "position": 0},
@@ -696,23 +698,24 @@ class Correlation:
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
         ).mean()
-        # On fait ensuite une petite manipulation pour calculer l'erreur sur la variance.
-        # L'idée est de définir la variable (N_1-N_2)^2-moy(N_1-N_2)^2 puis de dire à l'ordinateur de calculer sa variance tout seul pour éviter de mettre la formule très longue et compliquée (wiki du 2 juin 2022). On reconstruit un dataframe avec les numéros de cycles
-        df1 = self.result[[self.var1.name, self.var2.name, "N_1-N_2"]]
-        df2 = pd.DataFrame({"Cycle": np.linspace(1, self.n_cycles, self.n_cycles)})
-        new_df = pd.merge(df1, df2, how="cross")
-        new_df = new_df[["Cycle", self.var1.name, self.var2.name, "N_1-N_2"]]
-        new_df.columns = new_df.columns.str.replace("N_1-N_2", "mean(N_1-N_2)")
-        # new_df est donc un dataframe avec 4 colonnes : une kz1, une kz2, une avec le cycle et une avec la moyenne (N1-N2). Bien entendu, à chaque cycle la moyenne N1-N2 est la même. NB : kz1 est de façon générale var1.name mais souvent kz1.
-        # On veut ajouter au dataframe total la colonne moy(N1-N2).
-        total = pd.merge(total, new_df)
-        total["(N_1-N_2)^2-mean(N_1-N_2)^2"] = (
-            total["(N_1-N_2)^2"] - total["mean(N_1-N_2)"] ** 2
-        )
-        if self.compute_errors:
-            error = total.groupby(
-                [self.var1.name, self.var2.name], as_index=False
-            ).std()
+
+        # # On fait ensuite une petite manipulation pour calculer l'erreur sur la variance.
+        # # L'idée est de définir la variable (N_1-N_2)^2-moy(N_1-N_2)^2 puis de dire à l'ordinateur de calculer sa variance tout seul pour éviter de mettre la formule très longue et compliquée (wiki du 2 juin 2022). On reconstruit un dataframe avec les numéros de cycles
+        # df1 = self.result[[self.var1.name, self.var2.name, "N_1-N_2"]]
+        # df2 = pd.DataFrame({"Cycle": np.linspace(1, self.n_cycles, self.n_cycles)})
+        # new_df = pd.merge(df1, df2, how="cross")
+        # new_df = new_df[["Cycle", self.var1.name, self.var2.name, "N_1-N_2"]]
+        # new_df.columns = new_df.columns.str.replace("N_1-N_2", "mean(N_1-N_2)")
+        # # new_df est donc un dataframe avec 4 colonnes : une kz1, une kz2, une avec le cycle et une avec la moyenne (N1-N2). Bien entendu, à chaque cycle la moyenne N1-N2 est la même. NB : kz1 est de façon générale var1.name mais souvent kz1.
+        # # On veut ajouter au dataframe total la colonne moy(N1-N2).
+        # total = pd.merge(total, new_df)
+        # total["(N_1-N_2)^2-mean(N_1-N_2)^2"] = (
+        #     total["(N_1-N_2)^2"] - total["mean(N_1-N_2)"] ** 2
+        # )
+        # if self.compute_errors:
+        #     error = total.groupby(
+        #         [self.var1.name, self.var2.name], as_index=False
+        #     ).std()
 
         # print("Total dataframe is summed already")
 
@@ -733,7 +736,6 @@ class Correlation:
         self.result["g^2"] = self.result["N_1*N_2"] / (
             self.result["N_1"] * self.result["N_2"]
         )
-        self.result["N_1*N_2 with shotnoise"] = self.result["N_1*N_2"]
 
         # on enlève le shot noise si cela est demandé par l'utilisateur.
         if self.remove_shot_noise:
@@ -741,41 +743,33 @@ class Correlation:
             self.result.loc[local_condition, "g^2"] = (
                 self.result["N_1*N_2"] - self.result["N_1"]
             ) / (self.result["N_1"] * self.result["N_2"])
-            self.result.loc[local_condition, "N_1*N_2 with shotnoise"] = (
+            self.result.loc[local_condition, "N_1*N_2"] = (
                 self.result["N_1*N_2"] - self.result["N_1"]
             )
 
         # ---------------
         # Déviations standards
         # ---------------
-        if self.compute_errors:
-            self.result["N_1 std"] = error["N_1"]
-            self.result["N_2 std"] = error["N_2"]
-            self.result["N_1*N_2 std"] = error["N_1*N_2"]
-            self.result["N_1-N_2 std"] = error["N_1-N_2"]
-            self.result["(N_1-N_2)^2 std"] = error["(N_1-N_2)^2"]
-            self.result["N_1+N_2 std"] = error["N_1+N_2"]
-            self.result["variance std"] = error["(N_1-N_2)^2-mean(N_1-N_2)^2"]
-        else:
-            self.result["N_1 std"] = np.sqrt(self.result["N_1"])
-            self.result["N_2 std"] = np.sqrt(self.result["N_2"])
-            self.result["N_1 rel"] = self.result["N_1 std"] / self.result["N_1"]
-            self.result["N_2 rel"] = self.result["N_2 std"] / self.result["N_2"]
-            self.result["N_1*N_2 std"] = self.result["N_1*N_2"] * np.sqrt(
-                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
-            )
-            self.result["N_1-N_2 std"] = self.result["N_1-N_2"] * np.sqrt(
-                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
-            )
-            self.result["(N_1-N_2)^2 std"] = self.result["(N_1-N_2)^2"] * np.sqrt(
-                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
-            )
-            self.result["N_1+N_2 std"] = self.result["(N_1-N_2)^2"] * np.sqrt(
-                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
-            )
-            self.result["variance std"] = self.result["variance"] * np.sqrt(
-                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
-            )
+
+        self.result["N_1 std"] = np.sqrt(self.result["N_1"])
+        self.result["N_2 std"] = np.sqrt(self.result["N_2"])
+        self.result["N_1 rel"] = self.result["N_1 std"] / self.result["N_1"]
+        self.result["N_2 rel"] = self.result["N_2 std"] / self.result["N_2"]
+        self.result["N_1*N_2 std"] = self.result["N_1*N_2"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
+        self.result["N_1-N_2 std"] = self.result["N_1-N_2"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
+        self.result["(N_1-N_2)^2 std"] = self.result["(N_1-N_2)^2"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
+        self.result["N_1+N_2 std"] = self.result["(N_1-N_2)^2"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
+        self.result["variance std"] = self.result["variance"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
 
         self.result["N_1 error"] = self.result["N_1 std"] / np.sqrt(self.n_cycles)
         self.result["N_2 error"] = self.result["N_2 std"] / np.sqrt(self.n_cycles)
