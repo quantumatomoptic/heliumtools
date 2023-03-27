@@ -113,6 +113,7 @@ class Correlation:
                 "Vz": {"size": 0.9, "position": 130},
             },
         }
+        self.compute_errors = False
         self.__dict__.update(kwargs)
         self.boxes = self.boxes.copy()
         self.initial_boxes = copy.deepcopy(self.boxes)  # perform a deep copy
@@ -708,8 +709,10 @@ class Correlation:
         total["(N_1-N_2)^2-mean(N_1-N_2)^2"] = (
             total["(N_1-N_2)^2"] - total["mean(N_1-N_2)"] ** 2
         )
-
-        error = total.groupby([self.var1.name, self.var2.name], as_index=False).std()
+        if self.compute_errors:
+            error = total.groupby(
+                [self.var1.name, self.var2.name], as_index=False
+            ).std()
 
         # print("Total dataframe is summed already")
 
@@ -745,13 +748,34 @@ class Correlation:
         # ---------------
         # Déviations standards
         # ---------------
-        self.result["N_1 std"] = error["N_1"]
-        self.result["N_2 std"] = error["N_2"]
-        self.result["N_1*N_2 std"] = error["N_1*N_2"]
-        self.result["N_1-N_2 std"] = error["N_1-N_2"]
-        self.result["(N_1-N_2)^2 std"] = error["(N_1-N_2)^2"]
-        self.result["N_1+N_2 std"] = error["N_1+N_2"]
-        self.result["variance std"] = error["(N_1-N_2)^2-mean(N_1-N_2)^2"]
+        if self.compute_errors:
+            self.result["N_1 std"] = error["N_1"]
+            self.result["N_2 std"] = error["N_2"]
+            self.result["N_1*N_2 std"] = error["N_1*N_2"]
+            self.result["N_1-N_2 std"] = error["N_1-N_2"]
+            self.result["(N_1-N_2)^2 std"] = error["(N_1-N_2)^2"]
+            self.result["N_1+N_2 std"] = error["N_1+N_2"]
+            self.result["variance std"] = error["(N_1-N_2)^2-mean(N_1-N_2)^2"]
+        else:
+            self.result["N_1 std"] = np.sqrt(self.result["N_1"])
+            self.result["N_2 std"] = np.sqrt(self.result["N_2"])
+            self.result["N_1 rel"] = self.result["N_1 std"] / self.result["N_1"]
+            self.result["N_2 rel"] = self.result["N_2 std"] / self.result["N_2"]
+            self.result["N_1*N_2 std"] = self.result["N_1*N_2"] * np.sqrt(
+                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+            )
+            self.result["N_1-N_2 std"] = self.result["N_1-N_2"] * np.sqrt(
+                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+            )
+            self.result["(N_1-N_2)^2 std"] = self.result["(N_1-N_2)^2"] * np.sqrt(
+                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+            )
+            self.result["N_1+N_2 std"] = self.result["(N_1-N_2)^2"] * np.sqrt(
+                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+            )
+            self.result["variance std"] = self.result["variance"] * np.sqrt(
+                self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+            )
 
         self.result["N_1 error"] = self.result["N_1 std"] / np.sqrt(self.n_cycles)
         self.result["N_2 error"] = self.result["N_2 std"] / np.sqrt(self.n_cycles)
