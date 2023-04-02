@@ -176,7 +176,6 @@ def obtain_arrival_times(
     list_of_cycles = atoms["Cycle"].unique()
     list_of_arrival_time = [0 for i in list_of_cycles]
     number_of_atoms = [0 for i in list_of_cycles]
-    print(histogramm_width)
     print("Starting to gather arrival time of BECs")
     for i, cycle in enumerate(tqdm(list_of_cycles)):
         df = atoms[atoms["Cycle"] == cycle]
@@ -208,7 +207,7 @@ def obtain_arrival_times(
 def function_find_arrival_times(
     atoms,
     directory,
-    ROI_for_fit={"T": {"min": 307.3, "max": 308.7}},
+    ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
     histogramm_width=0.01,
 ):
     """_summary_
@@ -225,7 +224,6 @@ def function_find_arrival_times(
         largeur des pics de l'histogramme, en ms, by default 0.01
     """
     # STEP 2 : find arrival times and save them
-
     atoms_for_arrival_time = apply_ROI(atoms, ROI_for_fit)
     df_arrival_time = obtain_arrival_times(
         atoms_for_arrival_time,
@@ -236,11 +234,7 @@ def function_find_arrival_times(
 
 
 def export_data_set_to_pickle(
-    folder,
-    ROI,
-    find_arrival_times=False,
-    n_max_cycles=1e8,
-    **kwargs,
+    folder, ROI, find_arrival_times=False, n_max_cycles=1e8, histogramm_width=0.01
 ):
     """Exporte le dataset folder comme pickle.
 
@@ -257,8 +251,13 @@ def export_data_set_to_pickle(
     atoms_in_ROI = apply_ROI(atoms, ROI)
     filename_dataset = os.path.join(folder, "dataset.pkl")
     atoms_in_ROI.to_pickle(filename_dataset)
+
     if find_arrival_times:
-        function_find_arrival_times(atoms_in_ROI, directory=folder, **kwargs)
+        df_arrival_times = obtain_arrival_times(atoms, histogramm_width)
+        df_parameters = gather_saved_sequence_parameters(folder)
+    # df_arrival_time = pd.merge(df_arrival_times, df_parameters, on="Cycle")
+    filename = os.path.join(directory, "arrival_times.pkl")
+    df_arrival_time.to_pickle(filename)
     return filename_dataset
 
 
