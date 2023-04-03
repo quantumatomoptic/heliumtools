@@ -1094,6 +1094,11 @@ class Correlation:
         dictionary = flatten(dictionary, reducer=reducers.make_reducer(delimiter=" | "))
         return dictionary
 
+    def return_pandas_dataframe_correlation_properties(self) -> pd.DataFrame:
+        dictionary = self.return_dictionary_correlation_property()
+        df = pd.DataFrame(data=[dictionary.values()], columns=dictionary.keys())
+        return df
+
 
 class Variable:
     """
