@@ -54,6 +54,7 @@ class CorrelationHe2Style:
         self.ROI = {}
         self.ROD = {}
         self.round_decimal = 7
+        self.only_one_beam = False
         self.computer_performance = 1
         self.id = int(time.time())
         self.axis = ["Vx", "Vy", "Vz"]
@@ -221,6 +222,11 @@ class CorrelationHe2Style:
         self.atomsB_randomized["Cycle"] = self.atomsB_randomized["Cycle"].map(
             self.random_cycle_mapping
         )
+        self.beamA_volume = 1
+        self.beamB_volume = 1
+        for ax in self.axis:
+            self.beamA_volume *= self.beams["A"]["size"]
+            self.beamB_volume *= self.beams["B"]["size"]
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -356,16 +362,23 @@ class CorrelationHe2Style:
             ]
         )
         self.result = pd.DataFrame(data=data, columns=self.axis)
-        for column in [
-            "G2AA",
-            "G2BB",
-            "G2AB",
-            "G2AA random",
-            "G2BB random",
-            "G2AB random1",
-            "G2AB random2",
-        ]:
-            self.result[column] = np.zeros(len(self.result))
+        if self.only_one_beam is True:
+            for column in [
+                "G2AA",
+                "G2AA random",
+            ]:
+                self.result[column] = np.zeros(len(self.result))
+        else:
+            for column in [
+                "G2AA",
+                "G2BB",
+                "G2AB",
+                "G2AA random",
+                "G2BB random",
+                "G2AB random1",
+                "G2AB random2",
+            ]:
+                self.result[column] = np.zeros(len(self.result))
 
     def get_G2(self, atX: pd.DataFrame, atY: pd.DataFrame, local=True) -> pd.DataFrame:
         """Function that compute the 3D velocity difference between all atoms in the crossed atX x atY dataframe (atoms in beam X, X being A or B). If local is True, it computes the difference while if local is False, it computes the sum.
@@ -430,36 +443,43 @@ class CorrelationHe2Style:
             self.cycles_array, int(self.n_cycles / self.computer_capacity)
         )
         for cycles in tqdm(cycles_array_splitted):
+            ### Beam A
             atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
-            atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
-            G2AA = self.get_G2(atA, atA, local=True)
-            self.result["G2AA"] += G2AA.flatten()
-            G2BB = self.get_G2(atB, atB, local=True)
-            self.result["G2BB"] += G2BB.flatten()
-            G2AB = self.get_G2(atA, atB, local=False)
-            self.result["G2AB"] += G2AB.flatten()
-            # normalisation
             atA_rand = self.atomsA_randomized[
                 self.atomsA_randomized["Cycle"].isin(cycles)
             ]
-            atB_rand = self.atomsB_randomized[
-                self.atomsB_randomized["Cycle"].isin(cycles)
-            ]
+            G2AA = self.get_G2(atA, atA, local=True)
+            self.result["G2AA"] += G2AA.flatten()
             G2AA_rand = self.get_G2(atA, atA_rand, local=True)
             self.result["G2AA random"] += G2AA_rand.flatten()
-            G2BB_rand = self.get_G2(atB, atB_rand, local=True)
-            self.result["G2BB random"] += G2BB_rand.flatten()
-            G2AB_rand1 = self.get_G2(atA, atB_rand, local=False)
-            G2AB_rand2 = self.get_G2(atA_rand, atB, local=False)
-            self.result["G2AB random1"] += G2AB_rand1.flatten()
-            self.result["G2AB random2"] += G2AB_rand2.flatten()
+            if self.only_one_beam is False:
+                ### Beam B
+                atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
+                atB_rand = self.atomsB_randomized[
+                    self.atomsB_randomized["Cycle"].isin(cycles)
+                ]
+                G2BB = self.get_G2(atB, atB, local=True)
+                self.result["G2BB"] += G2BB.flatten()
+                G2BB_rand = self.get_G2(atB, atB_rand, local=True)
+                self.result["G2BB random"] += G2BB_rand.flatten()
+                ### Crossed A & B
+                G2AB = self.get_G2(atA, atB, local=False)
+                self.result["G2AB"] += G2AB.flatten()
+                G2AB_rand1 = self.get_G2(atA, atB_rand, local=False)
+                G2AB_rand2 = self.get_G2(atA_rand, atB, local=False)
+                self.result["G2AB random1"] += G2AB_rand1.flatten()
+                self.result["G2AB random2"] += G2AB_rand2.flatten()
+
         self.result["g2 aa"] = self.result["G2AA"] / self.result["G2AA random"]
-        self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
-        self.result["g2 ab"] = (
-            2
-            * self.result["G2AB"]
-            / (self.result["G2AB random1"] + self.result["G2AB random2"])
-        )
+        # self.result["G2AA"] = self.beamA_volume * self.result["G2AA"] --> normalisation ? not needed yet but keep in mind
+        # self.result["G2AA random"] = self.beamA_volume * self.result["G2AA"]
+        if self.only_one_beam is False:
+            self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
+            self.result["g2 ab"] = (
+                2
+                * self.result["G2AB"]
+                / (self.result["G2AB random1"] + self.result["G2AB random2"])
+            )
 
 
 if __name__ == "__main__":
