@@ -25,11 +25,10 @@ A fast histogram was implemented better than numpy in [1]. However, the problem 
 [3] https://towardsdatascience.com/beyond-pandas-spark-dask-vaex-and-other-big-data-technologies-battling-head-to-head-a453a1f8cc13
 """
 
-
 import numpy as np
 import pandas as pd
 import snoop
-
+from random import choice, shuffle, randint
 from tqdm import tqdm, trange
 import copy
 import time
@@ -37,7 +36,7 @@ import time
 
 class CorrelationHe2Style:
     """
-    Classe CorrelationHe2Style. Prend en entrée un dataframe avec X, Y et T et calcule de corrélations etc...
+    Classe selfelationHe2Style. Prend en entrée un dataframe avec X, Y et T et calcule de corrélations etc...
     """
 
     def __init__(self, atoms, **kwargs):
@@ -52,37 +51,41 @@ class CorrelationHe2Style:
         self.bad_shot_limit = 100
         self.remove_shot_noise = True
         self.additionnal_bec_speed_ms = 0
+        self.ROI = {}
+        self.ROD = {}
         self.round_decimal = 7
+        self.computer_performance = 1
         self.id = int(time.time())
         self.axis = ["Vx", "Vy", "Vz"]
         self.ref_frame_speed = {"Vx": 0, "Vy": 0, "Vz": 0}
+        self.ROI = {}
         self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
         self.voxel_numbers = {"Vx": 11, "Vy": 11, "Vz": 11}
         self.beams = {
             "A": {
-                "Vx": {"size": 10, "position": 0},
-                "Vy": {"size": 3, "position": 0},
+                "Vx": {"size": 20, "position": 0},
+                "Vy": {"size": 20, "position": 0},
                 "Vz": {"size": 5, "position": 25},
             },
             "B": {
-                "Vx": {"size": 10, "position": 0},
-                "Vy": {"size": 3, "position": 0},
+                "Vx": {"size": 20, "position": 0},
+                "Vy": {"size": 20, "position": 0},
                 "Vz": {"size": 5, "position": -25},
             },
         }
         self.__dict__.update(kwargs)
         # atoms : (mm,mm, ms) --> (mm/s, mm/s, mm/s)
         self.build_the_atoms_dataframe()
+        self.apply_ROI()  # Keep only atoms in ROI
+        self.apply_ROD()  # Take off atoms in Region Of Desinterest.
         self.cycles_array = atoms["Cycle"].unique()
         self.n_cycles = len(atoms["Cycle"].unique())
+        self.random_cycle_mapping = self.get_randomize_cycle_mapping()
         # Initialisation de self.result datframe avec toutes les corrélations
         # self.result = pd.DataFrame(
         #     np.zeros(1, len(self.quantity_of_interest())),
         #     columns=self.quantity_of_interest,
         # )
-
-    def set_boxes(self, boxes):
-        self.boxes = boxes.copy()
 
     def build_the_atoms_dataframe(self):
         """
@@ -140,8 +143,36 @@ class CorrelationHe2Style:
         else:
             print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
-        for axis in self.ref_frame_speed.columns:
+        for axis in self.axis:
+            print(axis)
             self.atoms[axis] -= self.ref_frame_speed[axis]
+
+    def apply_ROD(self):
+        """
+        Modifie le dataframe "atoms" en appliquant la region of desinterest i.e. en sélectionnant les atomes autre que ceux dans la ROD. Si la ROF est vide, la méthode ne fait rien.
+        """
+        if self.ROD:
+            for key, entry in self.ROD.items():
+                self.atoms = self.atoms[
+                    (
+                        (self.atoms[key] > entry["max"])
+                        | (self.atoms[key] < entry["min"])
+                    )
+                ]
+
+    def apply_ROI(self):
+        """
+        Modifie le dataframe "atoms" en appliquant la ROI. Cela permet d'alléger les données à traiter.
+        Si la ROI est vide, la méthode ne fait rien. Le format de la ROI doit être {"Vx": {"max":120, "min":-120}}
+        """
+        if self.ROI:
+            for key, entry in self.ROI.items():
+                self.atoms = self.atoms[
+                    (
+                        (self.atoms[key] <= entry["max"])
+                        & (self.atoms[key] > entry["min"])
+                    )
+                ]
 
     def get_atoms_in_beams(self, beam):
         """
@@ -158,11 +189,38 @@ class CorrelationHe2Style:
                 ]
         return atoms_in_beam
 
+    def get_randomize_cycle_mapping(self) -> dict:
+        """This function shuffles the self.cycles_array to create a random_cycles array. It ensure that all cycles have been mooved and then defined a mapping between the two arrays.
+
+        Returns
+        -------
+        dictionary
+            mapping function to map initial cycle to randomized cycle
+        """
+        random_cycles = self.cycles_array.copy()
+        shuffle(random_cycles)
+        while np.min((random_cycles - self.cycles_array) ** 2) == 0:
+            a = randint(0, self.n_cycles)
+            arg = np.argmin((random_cycles - self.cycles_array) ** 2)
+            random_cycles[arg], random_cycles[(arg + a) % self.n_cycles] = (
+                random_cycles[(arg + a) % self.n_cycles],
+                random_cycles[arg],
+            )
+        return dict(zip(self.cycles_array, random_cycles))
+
     def update_atoms_in_beams(self):
         self.atomsA = self.get_atoms_in_beams(beam=self.beams["A"]).reset_index()
         self.atomsA["index"] = np.arange(0, len(self.atomsA))
         self.atomsB = self.get_atoms_in_beams(beam=self.beams["B"]).reset_index()
         self.atomsB["index"] = np.arange(0, len(self.atomsB))
+        self.atomsA_randomized = self.atomsA.copy()
+        self.atomsA_randomized["Cycle"] = self.atomsA_randomized["Cycle"].map(
+            self.random_cycle_mapping
+        )
+        self.atomsB_randomized = self.atomsB.copy()
+        self.atomsB_randomized["Cycle"] = self.atomsB_randomized["Cycle"].map(
+            self.random_cycle_mapping
+        )
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -174,6 +232,91 @@ class CorrelationHe2Style:
         # il n'y a pas d'atomes. Pandas ajoute donc un NaN à la place.
         df_merged = df_merged.fillna(0)
         return df_merged
+
+    def show_density_plots(self):
+        # First Plot : 2D density
+        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
+        for i in range(3):
+            x = self.axis[i]
+            y = self.axis[(i + 1) % 3]
+            ax = axes[i]
+            sns.histplot(
+                self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.coolwarm
+            )  # , palette = "twilight")
+
+            def draw_box(cX, σX, cY, σY, **kwargs):
+                ax.plot(
+                    [cX - σX, cX + σX, cX + σX, cX - σX, cX - σX],
+                    [cY - σY, cY - σY, cY + σY, cY + σY, cY - σY],
+                    **kwargs,
+                )
+
+            # on affiche la boite 1
+            posX = self.beams["A"][x]["position"]
+            sizeX = self.beams["A"][x]["size"]
+            posY = self.beams["A"][y]["position"]
+            sizeY = self.beams["A"][y]["size"]
+            draw_box(
+                posX, sizeX / 2, posY, sizeY / 2, color="darkgreen", label="beam A"
+            )
+            # draw_box(posX, 3*sizeX / 2, posY, 3*sizeY / 2, color="darkgreen",ls = "--")
+            # on affiche la boite 1
+            posX = self.beams["B"][x]["position"]
+            sizeX = self.beams["B"][x]["size"]
+            posY = self.beams["B"][y]["position"]
+            sizeY = self.beams["B"][y]["size"]
+            draw_box(posX, sizeX / 2, posY, sizeY / 2, color="dimgray", label="beam B")
+            # draw_box(posX, 3*sizeX / 2, posY, 3*sizeY / 2, color="dimgray",ls = "--")
+        plt.legend(loc=1)
+        plt.tight_layout()
+        plt.show()
+
+        # Second Plot : every thing in ROI
+        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
+        for i in range(3):
+            x = self.axis[i]
+            ax = axes[i]
+            sns.histplot(data=self.atoms, x=x, ax=ax, color="C" + str(i))
+        plt.tight_layout()
+        plt.show()
+        # third plot : each beam
+        self.update_atoms_in_beams()
+
+        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
+        statsA = []
+        statsB = []
+        for i in range(3):
+            # sns.histplot(data=self.atoms, x =self.axis[i] , ax = axes[i],
+            #               color = "C2", alpha = 0.2, label = "ROI")
+            sns.histplot(
+                data=self.atomsA,
+                x=self.axis[i],
+                ax=axes[i],
+                color="C0",
+                alpha=0.5,
+                label="beam A",
+            )
+            sns.histplot(
+                data=self.atomsB,
+                x=self.axis[i],
+                ax=axes[i],
+                color="C1",
+                alpha=0.5,
+                label="beam B",
+                kde=True,
+            )
+            statsA.append(str(self.atomsA[self.axis[i]].describe()))
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+        print("\n " + "=" * 30 + " BEAM A " + "=" * 30 + "\n")
+        for elem, val in self.beams["A"].items():
+            print(elem, val)
+        print(self.atomsA.describe())
+        print("\n " + "=" * 30 + " BEAM B " + "=" * 30 + "\n")
+        for elem, val in self.beams["B"].items():
+            print(elem, val)
+        print(self.atomsB.describe())
 
     def initialize_voxel_map_properties(self):
         """_summary_"""
@@ -213,7 +356,15 @@ class CorrelationHe2Style:
             ]
         )
         self.result = pd.DataFrame(data=data, columns=self.axis)
-        for column in ["G2AA", "G2BB", "G2AB"]:
+        for column in [
+            "G2AA",
+            "G2BB",
+            "G2AB",
+            "G2AA random",
+            "G2BB random",
+            "G2AB random1",
+            "G2AB random2",
+        ]:
             self.result[column] = np.zeros(len(self.result))
 
     def get_G2(self, atX: pd.DataFrame, atY: pd.DataFrame, local=True) -> pd.DataFrame:
@@ -246,8 +397,11 @@ class CorrelationHe2Style:
         pd.DataFrame
             Pandas DataFrame with all velocities differences.
         """
-        # atXY = atX.merge(atX, how="outer", on="Cycle")  # , on="index_A"), atABprime --> merge on cycles might be an issue when computing local correlation with uncorrelated atoms (normalization).
-        atXY = atX.merge(atY, how="cross")
+
+        atXY = atX.merge(
+            atY, how="outer", on="Cycle"
+        )  # , on="index_A"), atABprime --> merge on cycles might be an issue when computing local correlation with uncorrelated atoms (normalization).
+        # atXY = atX.merge(atY, how="cross")
         atXY.drop(
             atXY[atXY["index_x"] == atXY["index_y"]].index,
             axis=0,
@@ -272,30 +426,41 @@ class CorrelationHe2Style:
         * on fait ensuite l'histogramme 3D de cet ensemble. On l'ajoute à l'histogramme total."""
         self.initialize_voxel_map_properties()
         self.update_atoms_in_beams()
-        for cycle in tqdm(self.cycles_array):
-            atA = self.atomsA[self.atomsA["Cycle"] == cycle]
-            atB = self.atomsB[self.atomsB["Cycle"] == cycle]
+        cycles_array_splitted = np.array_split(
+            self.cycles_array, int(self.n_cycles / self.computer_capacity)
+        )
+        for cycles in tqdm(cycles_array_splitted):
+            atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
+            atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
             G2AA = self.get_G2(atA, atA, local=True)
             self.result["G2AA"] += G2AA.flatten()
             G2BB = self.get_G2(atB, atB, local=True)
             self.result["G2BB"] += G2BB.flatten()
             G2AB = self.get_G2(atA, atB, local=False)
             self.result["G2AB"] += G2AB.flatten()
+            # normalisation
+            atA_rand = self.atomsA_randomized[
+                self.atomsA_randomized["Cycle"].isin(cycles)
+            ]
+            atB_rand = self.atomsB_randomized[
+                self.atomsB_randomized["Cycle"].isin(cycles)
+            ]
+            G2AA_rand = self.get_G2(atA, atA_rand, local=True)
+            self.result["G2AA random"] += G2AA_rand.flatten()
+            G2BB_rand = self.get_G2(atB, atB_rand, local=True)
+            self.result["G2BB random"] += G2BB_rand.flatten()
+            G2AB_rand1 = self.get_G2(atA, atB_rand, local=False)
+            G2AB_rand2 = self.get_G2(atA_rand, atB, local=False)
+            self.result["G2AB random1"] += G2AB_rand1.flatten()
+            self.result["G2AB random2"] += G2AB_rand2.flatten()
+        self.result["g2 aa"] = self.result["G2AA"] / self.result["G2AA random"]
+        self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
+        self.result["g2 ab"] = (
+            2
+            * self.result["G2AB"]
+            / (self.result["G2AB random1"] + self.result["G2AB random2"])
+        )
 
 
 if __name__ == "__main__":
-    nat = 4
-    ncycle = 3
-    atoms = []
-    cycle = []
-    for ncy in range(ncycle):
-        beamA = list(
-            np.random.normal(loc=[0, 0, -25], scale=[10, 10, 1], size=(nat, 3))
-        )
-        beamB = list(np.random.normal(loc=[0, 0, 25], scale=[10, 10, 1], size=(nat, 3)))
-        atoms += beamA + beamB
-        cycle += list(ncy * np.ones(len(beamA) + len(beamB)))
-    atoms = pd.DataFrame(atoms, columns=["Vx", "Vy", "Vz"])
-    atoms["Cycle"] = cycle
-    corr = CorrelationHe2Style(atoms)
-    corr.compute_correlations()
+    print("Salut")
