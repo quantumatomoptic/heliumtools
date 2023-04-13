@@ -255,9 +255,9 @@ def export_data_set_to_pickle(
     if find_arrival_times:
         df_arrival_times = obtain_arrival_times(atoms, histogramm_width)
         df_parameters = gather_saved_sequence_parameters(folder)
-    # df_arrival_time = pd.merge(df_arrival_times, df_parameters, on="Cycle")
-    filename = os.path.join(directory, "arrival_times.pkl")
-    df_arrival_time.to_pickle(filename)
+        df_arrival_time = pd.merge(df_arrival_times, df_parameters, on="Cycle")
+        filename = os.path.join(folder, "arrival_times.pkl")
+        df_arrival_time.to_pickle(filename)
     return filename_dataset
 
 
