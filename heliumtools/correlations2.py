@@ -24,7 +24,8 @@ A fast histogram was implemented better than numpy in [1]. However, the problem 
 [2] https://github.com/vaexio/vaex
 [3] https://towardsdatascience.com/beyond-pandas-spark-dask-vaex-and-other-big-data-technologies-battling-head-to-head-a453a1f8cc13
 """
-
+import seaborn as sns
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import snoop
@@ -225,8 +226,8 @@ class CorrelationHe2Style:
         self.beamA_volume = 1
         self.beamB_volume = 1
         for ax in self.axis:
-            self.beamA_volume *= self.beams["A"]["size"]
-            self.beamB_volume *= self.beams["B"]["size"]
+            self.beamA_volume *= self.beams["A"][ax]["size"]
+            self.beamB_volume *= self.beams["B"][ax]["size"]
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -482,5 +483,3 @@ class CorrelationHe2Style:
             )
 
 
-if __name__ == "__main__":
-    print("Salut")
