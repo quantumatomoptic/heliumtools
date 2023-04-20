@@ -156,9 +156,11 @@ class Correlation:
             )
         elif isinstance(self.bec_arrival_time, pd.DataFrame):
             print("I change the bec arrival time for each cycle.")
+            print(self.atoms.columns)
             self.atoms = self.merge_dataframe_on_cycles(
                 self.atoms, self.bec_arrival_time
             )
+            print(self.atoms.columns)
             l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
@@ -1178,7 +1180,7 @@ class CorrelationXYIntegrated(Correlation):
             [self.var1.name, self.var2.name], as_index=False
         ).sum()
         self.integrated_result["g^2"] = (
-            self.integrated_result["N_1*N_2 with shotnoise"]
+            self.integrated_result["N_1*N_2"]
             / self.integrated_result["<N1><N2>"]
         )
         self.integrated_result["normalized variance"] = self.integrated_result[

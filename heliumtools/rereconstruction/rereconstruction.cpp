@@ -59,32 +59,33 @@ bool read_configuration_file(string filepath, paramstruct &parameters_p);
 void get_cycles(const std::string directory, stringvec &cycles_p);
 void load_offset_map(string offset_map_path, std::vector<std::vector<int>> &offset_p);
 list<timedata> load_timedata(std::string path_to_time);
-void reconstruction1(list<timedata> &X1_p,
+bool reconstruction1(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
                      vector<atomdata> &atoms_p,
                      paramstruct params);
-void reconstruction2(list<timedata> &X1_p,
+bool reconstruction2(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
                      vector<atomdata> &atoms_p,
                      paramstruct params,
                      std::vector<std::vector<int>> &offset_p);
-void reconstruction3(list<timedata> &X1_p,
+bool reconstruction3(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
                      vector<atomdata> &atoms_p,
                      paramstruct params,
                      std::vector<std::vector<int>> &offset_p);
-void reconstruction4(list<timedata> &X1_p,
+bool reconstruction4(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
                      vector<atomdata> &atoms_p,
                      paramstruct params);
+
 void WriteStatistics(string filename, map<string, float> &reconstruction_statistics);
 void WriteAtoms(string filename, vector<atomdata> &atoms);
 void copy_paste_file(string input_file, string output_file);
@@ -189,6 +190,7 @@ int main()
         }
         auto t_end_reconstruction = high_resolution_clock::now();
         auto duration_reconstruction = duration_cast<milliseconds>(t_end_reconstruction - t_start);
+        reconstruction_statistics["Reconstruction program number"] = float(params.reconstruction_number);
         reconstruction_statistics["Reconstruction duration"] = float(duration_reconstruction.count()) / 1000; // en secondes
         float atoms_size = atoms.size();
         reconstruction_statistics["Number of atoms"] = atoms.size();
@@ -221,7 +223,7 @@ timedata AbsDiff(timedata T1, timedata T2)
         return T2 - T1;
 }
 
-void reconstruction1(list<timedata> &X1_p,
+bool reconstruction1(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
@@ -298,9 +300,15 @@ void reconstruction1(list<timedata> &X1_p,
 
         X1_p.erase(X1_p.begin());
     }
+    if (atoms_p.empty())
+    {
+        return false;
+    }
+    else
+        return true;
 }
 
-void reconstruction2(list<timedata> &X1_p,
+bool reconstruction2(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
@@ -391,9 +399,15 @@ void reconstruction2(list<timedata> &X1_p,
 
         X1_p.erase(X1_p.begin());
     }
+    if (atoms_p.empty())
+    {
+        return false;
+    }
+    else
+        return true;
 }
 
-void reconstruction3(list<timedata> &X1_p,
+bool reconstruction3(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
@@ -483,9 +497,15 @@ void reconstruction3(list<timedata> &X1_p,
         }
         X1_p.erase(X1_p.begin());
     }
+    if (atoms_p.empty())
+    {
+        return false;
+    }
+    else
+        return true;
 }
 
-void reconstruction4(list<timedata> &X1_p,
+bool reconstruction4(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
@@ -564,6 +584,12 @@ void reconstruction4(list<timedata> &X1_p,
         }
         X1_p.erase(X1_p.begin());
     }
+    if (atoms_p.empty())
+    {
+        return false;
+    }
+    else
+        return true;
 }
 /*
 ======================================
@@ -813,100 +839,4 @@ void copy_paste_file(string input_file, string output_file)
     {
         std::cout << "[WARNING] Impossible to read " << input_file << std::endl;
     }
-}
-/*
-=============================================================================================================
-LES FONCTIONS DÉFINIES CI-DESSOUS SONT CELLES DU FICHIER RECONSTRUCTION.CPP DU "VRAI" CODE DE RECONSTRUCTION
-=============================================================================================================
-*/
-
-bool FindAtoms(list<timedata> &X1,
-               list<timedata> &X2,
-               list<timedata> &Y1,
-               list<timedata> &Y2,
-               vector<atomdata> &atoms)
-{ // Cette fonction est celle qui a été utilisée depuis la refonte du code par Z.A. et Q.M.
-    paramstruct params;
-    // gate X, gatY -> bulb width
-    timedata gateY = timedata((params.evgate + params.atgate) / params.res);
-    timedata gateX = timedata((params.evgate + params.atgate) / params.res);
-
-    // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
-    timedata MCPdiameter = timedata(params.evgate / params.res);
-
-    // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
-    timedata deltaT = timedata(params.deltaTgate / params.res);
-
-    while (X1.begin() != X1.end())
-    {
-        // We first definitively get rid of all events occurring before the bulb start on X2, Y1, Y2
-        // By construction, they will never match with a later event on X1
-        if (*X1.begin() > gateX)
-            while (X2.begin() != X2.end() && *X2.begin() < (*X1.begin() - gateX))
-                X2.erase(X2.begin());
-        if (*X1.begin() > gateY)
-        {
-            while (Y1.begin() != Y1.end() && *Y1.begin() < (*X1.begin() - gateY))
-                Y1.erase(Y1.begin());
-            while (Y2.begin() != Y2.end() && *Y2.begin() < min((*X1.begin() - gateY), *X1.begin()))
-                Y2.erase(Y2.begin());
-        }
-
-        // We then look for events that can correspond to an atom
-        // As soon as we have found such events, we erase them from the list and keep going along X1
-        bool atomfound = false;
-        auto searchX2 = X2.begin(), searchY1 = Y1.begin(), searchY2 = Y2.begin();
-        while (searchX2 != X2.end() && *searchX2 < (*X1.begin() + gateX) && !atomfound)
-        {
-            while (searchY1 != Y1.end() && *searchY1 < (*X1.begin() + gateY) && !atomfound)
-            {
-                while (searchY2 != Y2.end() && *searchY2 < (*X1.begin() + gateY) && !atomfound)
-                {
-                    timedata TX1 = *X1.begin();
-                    timedata TX2 = *searchX2;
-                    timedata TY1 = *searchY1;
-                    timedata TY2 = *searchY2;
-
-                    timedata dTX = AbsDiff(TX1, TX2);
-                    timedata dTY = AbsDiff(TY1, TY2);
-                    timedata TX = (TX1 + TX2) / 2;
-                    timedata TY = (TY1 + TY2) / 2;
-
-                    // distance to the MCP centre
-                    timedata dist = timedata(sqrt(pow(dTX, 2) + pow(dTY, 2)));
-
-                    // time difference between events on X and Y
-                    // its a curious way of calculating an absolute value
-                    // but we want to make sure that we don't loose precision (time coded on 64bits)
-                    timedata dT = AbsDiff(TX, TY);
-
-                    // an atom would be inside the MCP radius and fall atoms the same time on X and Y
-                    if (dist < MCPdiameter && dT < deltaT)
-                    {
-                        atoms.push_back(atomdata{TX1, TX2, TY1, TY2});
-                        atomfound = true;
-                    }
-                    ++searchY2;
-                }
-                ++searchY1;
-            }
-            ++searchX2;
-        }
-
-        if (atomfound)
-        {
-            X2.erase(prev(searchX2));
-            Y1.erase(prev(searchY1));
-            Y2.erase(prev(searchY2));
-        }
-
-        X1.erase(X1.begin());
-    }
-
-    if (atoms.empty())
-    {
-        return false;
-    }
-    else
-        return true;
 }
