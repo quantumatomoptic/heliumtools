@@ -22,6 +22,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm, trange
 import copy
+from scipy.special import factorial
+import matplotlib.cm as cm
+import matplotlib.colors as colors
+import time
 
 
 class Correlation:
@@ -79,21 +83,26 @@ class Correlation:
 
     """
 
-    def __init__(self, atoms, n_cycles, **kwargs):
+    def __init__(self, atoms, **kwargs):
         """
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
         """
         self.atoms = copy.deepcopy(atoms)
-        self.n_cycles = n_cycles
-        self.bec_arrival_time = 308  # temps d'arrivée du BEC, en ms
-        self.raman_kick = 42  # mm/s, kick Raman
+        self.cycles_array = atoms["Cycle"].unique()
+        self.n_cycles = len(atoms["Cycle"].unique())
+        self.bec_arrival_time = 307.763  # temps d'arrivée du BEC, en ms
+        self.theoretical_arrival_time = 307.763  # 24/06/2022 & 17/05/2022
+        self.raman_kick = 42.5  # mm/s, kick Raman
         self.gravity = 9.81
+        self.bad_shot_limit = 100
         self.var1 = None
         self.var2 = None
         self.remove_shot_noise = True
+        self.additionnal_bec_speed = 0
         self.ROI = {}  # Region Of Interest
         self.ROD = {}  # Region Of Desinterest.
         self.round_decimal = 7
+        self.id = int(time.time())
         self.boxes = {
             "1": {
                 "Vx": {"size": 10, "position": 0},
@@ -106,19 +115,22 @@ class Correlation:
                 "Vz": {"size": 0.9, "position": 130},
             },
         }
+        self.compute_errors = False
         self.__dict__.update(kwargs)
         self.boxes = self.boxes.copy()
-        self.initial_boxes = copy.deepcopy(self.boxes)  # perform a deep copy
         # atoms : (mm,mm, ms) --> (mm/s, mm/s, mm/s)
         self.build_the_atoms_dataframe()
         self.apply_ROI()  # Keep only atoms in ROI
         self.apply_ROD()  # Take off atoms in Region Of Desinterest.
-        print("Data are loaded")
+        # print("Data are loaded")
         # Initialisation de self.result datframe avec toutes les corrélations
         # self.result = pd.DataFrame(
         #     np.zeros(1, len(self.quantity_of_interest())),
         #     columns=self.quantity_of_interest,
         # )
+
+    def set_boxes(self, boxes):
+        self.boxes = boxes.copy()
 
     def build_the_atoms_dataframe(self):
         """
@@ -129,7 +141,7 @@ class Correlation:
         self.atoms = self.atoms.rename(columns={"X": "Vx"})
         self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
         self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-        print(type(self.bec_arrival_time))
+
         if (
             type(self.bec_arrival_time) == int
             or type(self.bec_arrival_time) == float
@@ -144,11 +156,37 @@ class Correlation:
             )
         elif isinstance(self.bec_arrival_time, pd.DataFrame):
             print("I change the bec arrival time for each cycle.")
-            df = self.merge_dataframe_on_cycles(self.atoms, self.bec_arrival_time)
-            l_fall = 0.5 * self.gravity * df["BEC Arrival Time"] ** 2
-            self.atoms["T"] = (
-                0.5 * self.gravity * (df["T"] - df["BEC Arrival Time"] ** 2 / df["T"])
+            print(self.atoms.columns)
+            self.atoms = self.merge_dataframe_on_cycles(
+                self.atoms, self.bec_arrival_time
             )
+            print(self.atoms.columns)
+            l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
+            self.atoms["T"] = (
+                0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
+            )
+            # compute the speed of BECs
+            self.atoms["BEC Arrival Time"] = (
+                0.5 * self.gravity * self.atoms["BEC Arrival Time"]
+                - l_fall / self.atoms["BEC Arrival Time"]
+            )
+            # take off the speed of each BEC
+            self.atoms["T"] = (
+                self.atoms["T"]
+                - self.atoms["BEC Arrival Time"]
+                + self.additionnal_bec_speed
+            )
+            # drop the column with no more interest.
+            self.atoms.drop("BEC Arrival Time", inplace=True, axis=1)
+
+            ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
+            df = self.bec_arrival_time[
+                self.bec_arrival_time["Number of Atoms"] < self.bad_shot_limit
+            ]
+            for cycle, nb_atoms in zip(df["Cycle"], df["Number of Atoms"]):
+                print(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
+                self.n_cycles -= 1
+
         else:
             print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
@@ -244,9 +282,7 @@ class Correlation:
         atoms_in_box.reset_index(inplace=True)
         # atoms_in_box is now a dataframe with two columns "Cycle" and "N_1" (or column_name). However, if there were no atom at cycle 34 in the box, this cycle does not appear inside atoms_in_box. In order to have the number of atoms in the box at each cycle, we must add 0 to those cycles which does not appear.
         # cycle_dataframe is just a dataframe with n_cycles : we use it to merge and add zeros to atoms_in_box
-        cycle_dataframe = pd.DataFrame(
-            np.arange(1, self.n_cycles + 1, 1), columns=["Cycle"]
-        )
+        cycle_dataframe = pd.DataFrame(self.cycles_array, columns=["Cycle"])
         atoms_in_box = self.merge_dataframe_on_cycles(cycle_dataframe, atoms_in_box)
         return atoms_in_box
 
@@ -447,8 +483,6 @@ class Correlation:
             self.result = 0
             print("This is not implemented yet.")
 
-        self.boxes = self.initial_boxes
-
     def compute_correlations_different_box_scanned(self):
         """
         Méthode pour calcul des corrélations lorsque var1 et var2 (les paramètres scannés) correspondent à deux boites différentes.
@@ -553,8 +587,8 @@ class Correlation:
         liste.remove(var.box)
         box_number = liste[0]
         # --> son axe et son type, qui sont le même que la boîte déjà définie.
-        axe = "Vx"  # l'axe du paramètre scanné (Vx, Vy ou Vz)
-        type = "size"  # le type : size ou position
+        axe = var.axe  # l'axe du paramètre scanné (Vx, Vy ou Vz)
+        type = var.type  # le type : size ou position
         # On récupère son nom en prenant les paramètres par défaut.
         name = var.built_name(add_box_number=False) + box_number
         # si jamais le nom de la variable correspond à l'autre, cela va poser problème donc on rajoute un _default.
@@ -666,23 +700,26 @@ class Correlation:
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
         ).mean()
-        # On fait ensuite une petite manipulation pour calculer l'erreur sur la variance.
-        # L'idée est de définir la variable (N_1-N_2)^2-moy(N_1-N_2)^2 puis de dire à l'ordinateur de calculer sa variance tout seul pour éviter de mettre la formule très longue et compliquée (wiki du 2 juin 2022). On reconstruit un dataframe avec les numéros de cycles
-        df1 = self.result[[self.var1.name, self.var2.name, "N_1-N_2"]]
-        df2 = pd.DataFrame({"Cycle": np.linspace(1, self.n_cycles, self.n_cycles)})
-        new_df = pd.merge(df1, df2, how="cross")
-        new_df = new_df[["Cycle", self.var1.name, self.var2.name, "N_1-N_2"]]
-        new_df.columns = new_df.columns.str.replace("N_1-N_2", "mean(N_1-N_2)")
-        # new_df est donc un dataframe avec 4 colonnes : une kz1, une kz2, une avec le cycle et une avec la moyenne (N1-N2). Bien entendu, à chaque cycle la moyenne N1-N2 est la même. NB : kz1 est de façon générale var1.name mais souvent kz1.
-        # On veut ajouter au dataframe total la colonne moy(N1-N2).
-        total = pd.merge(total, new_df)
-        total["(N_1-N_2)^2-mean(N_1-N_2)^2"] = (
-            total["(N_1-N_2)^2"] - total["mean(N_1-N_2)"] ** 2
-        )
 
-        error = total.groupby([self.var1.name, self.var2.name], as_index=False).std()
+        # # On fait ensuite une petite manipulation pour calculer l'erreur sur la variance.
+        # # L'idée est de définir la variable (N_1-N_2)^2-moy(N_1-N_2)^2 puis de dire à l'ordinateur de calculer sa variance tout seul pour éviter de mettre la formule très longue et compliquée (wiki du 2 juin 2022). On reconstruit un dataframe avec les numéros de cycles
+        # df1 = self.result[[self.var1.name, self.var2.name, "N_1-N_2"]]
+        # df2 = pd.DataFrame({"Cycle": np.linspace(1, self.n_cycles, self.n_cycles)})
+        # new_df = pd.merge(df1, df2, how="cross")
+        # new_df = new_df[["Cycle", self.var1.name, self.var2.name, "N_1-N_2"]]
+        # new_df.columns = new_df.columns.str.replace("N_1-N_2", "mean(N_1-N_2)")
+        # # new_df est donc un dataframe avec 4 colonnes : une kz1, une kz2, une avec le cycle et une avec la moyenne (N1-N2). Bien entendu, à chaque cycle la moyenne N1-N2 est la même. NB : kz1 est de façon générale var1.name mais souvent kz1.
+        # # On veut ajouter au dataframe total la colonne moy(N1-N2).
+        # total = pd.merge(total, new_df)
+        # total["(N_1-N_2)^2-mean(N_1-N_2)^2"] = (
+        #     total["(N_1-N_2)^2"] - total["mean(N_1-N_2)"] ** 2
+        # )
+        # if self.compute_errors:
+        #     error = total.groupby(
+        #         [self.var1.name, self.var2.name], as_index=False
+        #     ).std()
 
-        print("Total dataframe is summed already")
+        # print("Total dataframe is summed already")
 
         # ---------------
         # Variance
@@ -708,17 +745,33 @@ class Correlation:
             self.result.loc[local_condition, "g^2"] = (
                 self.result["N_1*N_2"] - self.result["N_1"]
             ) / (self.result["N_1"] * self.result["N_2"])
+            self.result.loc[local_condition, "N_1*N_2"] = (
+                self.result["N_1*N_2"] - self.result["N_1"]
+            )
 
         # ---------------
         # Déviations standards
         # ---------------
-        self.result["N_1 std"] = error["N_1"]
-        self.result["N_2 std"] = error["N_2"]
-        self.result["N_1*N_2 std"] = error["N_1*N_2"]
-        self.result["N_1-N_2 std"] = error["N_1-N_2"]
-        self.result["(N_1-N_2)^2 std"] = error["(N_1-N_2)^2"]
-        self.result["N_1+N_2 std"] = error["N_1+N_2"]
-        self.result["variance std"] = error["(N_1-N_2)^2-mean(N_1-N_2)^2"]
+
+        self.result["N_1 std"] = np.sqrt(self.result["N_1"])
+        self.result["N_2 std"] = np.sqrt(self.result["N_2"])
+        self.result["N_1 rel"] = self.result["N_1 std"] / self.result["N_1"]
+        self.result["N_2 rel"] = self.result["N_2 std"] / self.result["N_2"]
+        self.result["N_1*N_2 std"] = self.result["N_1*N_2"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
+        self.result["N_1-N_2 std"] = self.result["N_1-N_2"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
+        self.result["(N_1-N_2)^2 std"] = self.result["(N_1-N_2)^2"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
+        self.result["N_1+N_2 std"] = self.result["(N_1-N_2)^2"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
+        self.result["variance std"] = self.result["variance"] * np.sqrt(
+            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
+        )
 
         self.result["N_1 error"] = self.result["N_1 std"] / np.sqrt(self.n_cycles)
         self.result["N_2 error"] = self.result["N_2 std"] / np.sqrt(self.n_cycles)
@@ -826,11 +879,11 @@ class Correlation:
             self.round_decimal,
         )
 
-        print("Computation is done.")
+        # print("Computation is done.")
 
-
-
-    def get_atoms_distribution(self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY):
+    def get_atoms_distribution(
+        self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
+    ):
         """
         Permet de tracer la distribution du nombre d'atomes moyenne sur tous les cycles, soit dans une boîte soit dans une moyenne de boîtes
         Parameters
@@ -841,42 +894,44 @@ class Correlation:
 
         """
         n_cycles = self.n_cycles
-        tbin = np.arange(0,nbMax+1,1)
-        pro = np.zeros(nbMax+1)
+        tbin = np.arange(0, nbMax + 1, 1)
+        pro = np.zeros(nbMax + 1)
         nb = 0
 
         for i in range(nbPt):
             box_proba = {
-            "Vz": {"position": posZ + sizeZ*i, "size": sizeZ},
-            "Vy": {"position": posY, "size": sizeY},
-            "Vx": {"position": posX, "size": sizeX},
+                "Vz": {"position": posZ + sizeZ * i, "size": sizeZ},
+                "Vy": {"position": posY, "size": sizeY},
+                "Vx": {"position": posX, "size": sizeX},
             }
-            atoms_in_box = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms,box_proba, "toto")
+            atoms_in_box = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, box_proba, "toto"
+            )
             nb_bin = int(np.max(atoms_in_box["toto"]))
-            a,b = np.histogram(atoms_in_box["toto"],bins = nbMax+1,range=(0,nbMax))
+            a, b = np.histogram(atoms_in_box["toto"], bins=nbMax + 1, range=(0, nbMax))
             pro = a + pro
             if nb_bin > nb:
                 nb = nb_bin
-        #pro contient la somme des histogrammes sur tous les cycles et toutes les boîtes -> on normalise
-        proF = [px/n_cycles/nbPt for px in pro]
-        proF = proF[0:(nb+1)]
-        tbin = tbin[0:(nb+1)]
-        moy = np.sum(tbin*proF)
-        print("population moyenne = ","{:.3f}".format(moy))
-        print("Vérification normalisation : ","{:.3f}".format(np.sum(proF)))
-        yerr = [np.sqrt(px)/n_cycles/nbPt for px in pro]
-        yerr = yerr[0:(nb+1)]
-        #calcul des distributions théoriques
-        therm = moy**tbin/(1+moy)**(tbin+1)
-        pois = np.exp(-moy)*moy**tbin/factorial(tbin)
+        # pro contient la somme des histogrammes sur tous les cycles et toutes les boîtes -> on normalise
+        proF = [px / n_cycles / nbPt for px in pro]
+        proF = proF[0 : (nb + 1)]
+        tbin = tbin[0 : (nb + 1)]
+        moy = np.sum(tbin * proF)
+        print("population moyenne = ", "{:.3f}".format(moy))
+        print("Vérification normalisation : ", "{:.3f}".format(np.sum(proF)))
+        yerr = [np.sqrt(px) / n_cycles / nbPt for px in pro]
+        yerr = yerr[0 : (nb + 1)]
+        # calcul des distributions théoriques
+        therm = moy**tbin / (1 + moy) ** (tbin + 1)
+        pois = np.exp(-moy) * moy**tbin / factorial(tbin)
 
-        #tracé du graphe
+        # tracé du graphe
         plt.figure()
-        plt.errorbar(tbin,proF, yerr=yerr,label='exp')
-        plt.plot(tbin, therm, label='therm')
-        plt.plot(tbin, pois, label='pois')
+        plt.errorbar(tbin, proF, yerr=yerr, label="exp")
+        plt.plot(tbin, therm, label="therm")
+        plt.plot(tbin, pois, label="pois")
         plt.yscale("log")
-        plt.ylim([1e-6,1])
+        plt.ylim([1e-6, 1])
         plt.xlabel("Number of atoms")
         plt.ylabel("Probability")
         plt.grid(True)
@@ -891,26 +946,30 @@ class Correlation:
         vz_list_1 : liste (ou numpy array) des centres à considérer
         sizeZ, posX, sizeX, posY, sizeY : paramètres de la boîte
         """
-        nb_atoms_in_box_1=[]
+        nb_atoms_in_box_1 = []
 
         for k in range(len(vz_list_1)):
             box_proba = {
-            "Vz": {"position": vz_list_1[k], "size": sizeZ},
-            "Vy": {"position": posY, "size": sizeX},
-            "Vx": {"position": posX, "size": sizeY},
+                "Vz": {"position": vz_list_1[k], "size": sizeZ},
+                "Vy": {"position": posY, "size": sizeX},
+                "Vx": {"position": posX, "size": sizeY},
             }
-            atoms_in_box = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms, box_proba, "toto")
+            atoms_in_box = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, box_proba, "toto"
+            )
             nb_atoms_in_box_1.append(np.mean(atoms_in_box["toto"]))
 
         plt.figure()
-        plt.plot(vz_list_1,nb_atoms_in_box_1)
+        plt.plot(vz_list_1, nb_atoms_in_box_1)
         plt.grid(True)
-        #plt.legend()
-        plt.xlabel('center Vz of the box (mm/s)')
-        plt.ylabel('mean number of atoms in box')
+        # plt.legend()
+        plt.xlabel("center Vz of the box (mm/s)")
+        plt.ylabel("mean number of atoms in box")
         plt.show()
 
-    def get_joint_atoms_distribution_in_two_boxes(self, nbMax, nbPt, posZ1, posZ2, sizeZ, posX, sizeX, posY, sizeY):
+    def get_joint_atoms_distribution_in_two_boxes(
+        self, nbMax, nbPt, posZ1, posZ2, sizeZ, posX, sizeX, posY, sizeY, show=True
+    ):
         """
         Permet de tracer la distribution jointe moyenne du nombre d'atomes sur tous les cycles, dans deux boîtes données.
         Le nombre de boîtes considérées est impair de façon à toujours prendre autant de boîtes de part et d'autre de la boîte centrale
@@ -922,70 +981,125 @@ class Correlation:
         nbMax : nombre d'atomes simultanés détectés à considérer
         nbPt : nombre de boîtes sur lesquelles on moyenne (la 1e boîte est celle centrée sur PosZ et de taille sizeZ, puis les autres boîtes sont les voisines selon Vz dans le sens des Vz croissants et de taille sizeZ
         /!\ nbPt doit être impair
+        show = est ce que on montre la 2D map
         """
         n_cycles = self.n_cycles
-        #fonction auxiliaire pour construire les boîtes
-        def return_boxes(i,posZ1,posZ2,posX,posY,sizeZ,sizeX,sizeY):
-            assert(nbPt%2==1)
-            if i==0:
+        # fonction auxiliaire pour construire les boîtes
+        def return_boxes(i, posZ1, posZ2, posX, posY, sizeZ, sizeX, sizeY):
+            assert nbPt % 2 == 1
+            if i == 0:
                 box1_proba = {
-                "Vz": {"position": posZ1, "size": sizeZ},
-                "Vy": {"position": posY, "size": sizeY},
-                "Vx": {"position": posX, "size": sizeX},
+                    "Vz": {"position": posZ1, "size": sizeZ},
+                    "Vy": {"position": posY, "size": sizeY},
+                    "Vx": {"position": posX, "size": sizeX},
                 }
                 box2_proba = {
-                "Vz": {"position": posZ2, "size": sizeZ},
-                "Vy": {"position": posY, "size": sizeY},
-                "Vx": {"position": posX, "size": sizeX},
+                    "Vz": {"position": posZ2, "size": sizeZ},
+                    "Vy": {"position": posY, "size": sizeY},
+                    "Vx": {"position": posX, "size": sizeX},
                 }
             else:
-                if i%2 ==1:
+                if i % 2 == 1:
                     box1_proba = {
-                    "Vz": {"position": posZ1+sizeZ*i, "size": sizeZ},
-                    "Vy": {"position": posY, "size": sizeY},
-                    "Vx": {"position": posX, "size": sizeX},
+                        "Vz": {"position": posZ1 + sizeZ * i, "size": sizeZ},
+                        "Vy": {"position": posY, "size": sizeY},
+                        "Vx": {"position": posX, "size": sizeX},
                     }
                     box2_proba = {
-                    "Vz": {"position": posZ2-sizeZ*i, "size": sizeZ},
-                    "Vy": {"position": posY, "size": sizeY},
-                    "Vx": {"position": posX, "size": sizeX},
+                        "Vz": {"position": posZ2 - sizeZ * i, "size": sizeZ},
+                        "Vy": {"position": posY, "size": sizeY},
+                        "Vx": {"position": posX, "size": sizeX},
                     }
                 else:
                     box1_proba = {
-                    "Vz": {"position": posZ1-sizeZ*i, "size": sizeZ},
-                    "Vy": {"position": posY, "size": sizeY},
-                    "Vx": {"position": posX, "size": sizeX},
+                        "Vz": {"position": posZ1 - sizeZ * i, "size": sizeZ},
+                        "Vy": {"position": posY, "size": sizeY},
+                        "Vx": {"position": posX, "size": sizeX},
                     }
                     box2_proba = {
-                    "Vz": {"position": posZ2+sizeZ*i, "size": sizeZ},
-                    "Vy": {"position": posY, "size": sizeY},
-                    "Vx": {"position": posX, "size": sizeX},
+                        "Vz": {"position": posZ2 + sizeZ * i, "size": sizeZ},
+                        "Vy": {"position": posY, "size": sizeY},
+                        "Vx": {"position": posX, "size": sizeX},
                     }
-            return (box1_proba,box2_proba)
+            return (box1_proba, box2_proba)
 
-        tbin = np.arange(0,nbMax+1,1)
-        pro2D = np.zeros([nbMax+1,nbMax+1], dtype = int)
-        pro1 = np.zeros(nbMax+1, dtype = int)
-        pro2 = np.zeros(nbMax+1, dtype = int)
+        tbin = np.arange(0, nbMax + 1, 1)
+        pro2D = np.zeros([nbMax + 1, nbMax + 1], dtype=int)
+        pro1 = np.zeros(nbMax + 1, dtype=int)
+        pro2 = np.zeros(nbMax + 1, dtype=int)
         nb = 0
         for i in range(nbPt):
-            box1_proba,box2_proba = return_boxes(i,posZ1,posZ2,posX,posY,sizeZ,sizeX,sizeY)
-            atoms1_in_box = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms, box1_proba, "toto")
-            atoms2_in_box = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms, box2_proba, "toto")
-            a2D,b,c = np.histogram2d(atoms1_in_box["toto"],atoms2_in_box["toto"],bins = nbMax+1,range=([[0,nbMax], [0,nbMax]]))
-            a1,b = np.histogram(atoms1_in_box["toto"],bins = nbMax+1,range=(0,nbMax))
-            a2,b = np.histogram(atoms2_in_box["toto"],bins = nbMax+1,range=(0,nbMax))
+            box1_proba, box2_proba = return_boxes(
+                i, posZ1, posZ2, posX, posY, sizeZ, sizeX, sizeY
+            )
+            atoms1_in_box = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, box1_proba, "toto"
+            )
+            atoms2_in_box = self.obtain_number_of_atoms_per_cycle_in_box(
+                self.atoms, box2_proba, "toto"
+            )
+            a2D, b, c = np.histogram2d(
+                atoms1_in_box["toto"],
+                atoms2_in_box["toto"],
+                bins=nbMax + 1,
+                range=([[0, nbMax], [0, nbMax]]),
+            )
+            a1, b = np.histogram(
+                atoms1_in_box["toto"], bins=nbMax + 1, range=(0, nbMax)
+            )
+            a2, b = np.histogram(
+                atoms2_in_box["toto"], bins=nbMax + 1, range=(0, nbMax)
+            )
             pro2D = a2D + pro2D
             pro1 = a1 + pro1
             pro2 = a2 + pro2
-        moy1 = np.sum(tbin*pro1)/n_cycles/nbPt
-        moy2 = np.sum(tbin*pro2)/n_cycles/nbPt
-        print("Population moyenne zone 1 : ","{:.3f}".format(moy1),"  ---   Population moyenne zone 2 : ","{:.3f}".format(moy2))
-        pro2D = pro2D/nbPt/n_cycles
-        im=plt.imshow(pro2D, interpolation='nearest', origin='lower', cmap=cm.rainbow, norm=colors.LogNorm())
-        plt.colorbar(im)
-        plt.show()
+        moy1 = np.sum(tbin * pro1) / n_cycles / nbPt
+        moy2 = np.sum(tbin * pro2) / n_cycles / nbPt
+        print(
+            "Population moyenne zone 1 : ",
+            "{:.3f}".format(moy1),
+            "  ---   Population moyenne zone 2 : ",
+            "{:.3f}".format(moy2),
+        )
+        pro2D = pro2D / nbPt / n_cycles
+        if show:
+            im = plt.imshow(
+                pro2D,
+                interpolation="nearest",
+                origin="lower",
+                cmap=cm.rainbow,
+                norm=colors.LogNorm(),
+            )
+            plt.colorbar(im)
+            plt.show()
+        return (moy1, moy2, pro2D)
 
+    def return_dictionary_correlation_property(self) -> dict:
+        """Return a dictionay with all the parameter of the simulation.
+
+        Returns
+        -------
+        dict
+            dictionary with all parameters of the correlation.
+        """
+        from flatten_dict import flatten, reducers
+
+        dictionary = {}
+        for key, value in self.__dict__.items():
+            if type(value) in [int, float, dict, bool]:
+                dictionary[key] = value
+            elif type(value) == Variable:
+                dictionary[key] = {}
+                val_dic = copy.deepcopy(value.__dict__)
+                del val_dic["values"]
+                dictionary[key] = val_dic
+        dictionary = flatten(dictionary, reducer=reducers.make_reducer(delimiter=" | "))
+        return dictionary
+
+    def return_pandas_dataframe_correlation_properties(self) -> pd.DataFrame:
+        dictionary = self.return_dictionary_correlation_property()
+        df = pd.DataFrame(data=[dictionary.values()], columns=dictionary.keys())
+        return df
 
 
 class Variable:
@@ -1025,7 +1139,7 @@ class Variable:
     def get_values_caracteristics(self):
         self.values = np.array(self.values)
         self.min = np.min(self.values)
-        self.max = np.min(self.values)
+        self.max = np.max(self.values)
         self.n_step = len(self.values)
 
     def get_value_i(self, i):
@@ -1033,3 +1147,101 @@ class Variable:
         Renvoie la i-ième value de self.values
         """
         return self.values[i]
+
+
+class CorrelationXYIntegrated(Correlation):
+    def __init__(self, atoms, NsliceX, NsliceY, **kwargs):
+        self.NsliceX = self.check_Nslices_value(NsliceX)
+        self.NsliceY = self.check_Nslices_value(NsliceY)
+        super().__init__(atoms, **kwargs)
+        self.global_boxes = copy.deepcopy(self.boxes)
+        self.built_boxes_list()
+
+    def check_Nslices_value(self, N):
+        if N < 1:
+            print(
+                "WARNING : Nx or Ny value seems strange in CorrelationXYIntegrated Initialisation. Setting to 1."
+            )
+            return 1
+        if int(N) != N:
+            print("WARNING : Nx or Ny value does not seem an integer. Setting to 1.")
+            return round(N)
+        return N
+
+    def compute_correlations_XYintegrated(self):
+        all_result = []
+        for idx, box in enumerate(self.boxes_list):
+            self.set_boxes(box)
+            self.compute_correlations()
+            all_result.append(self.result)
+        self.all_result = pd.concat(all_result)
+        self.all_result["<N1><N2>"] = self.all_result["N_1"] * self.all_result["N_2"]
+        self.integrated_result = self.all_result.groupby(
+            [self.var1.name, self.var2.name], as_index=False
+        ).sum()
+        self.integrated_result["g^2"] = (
+            self.integrated_result["N_1*N_2"]
+            / self.integrated_result["<N1><N2>"]
+        )
+        self.integrated_result["normalized variance"] = self.integrated_result[
+            "variance"
+        ] / (self.integrated_result["N_1"] + self.integrated_result["N_2"])
+        # je remets la boite initial.
+        self.set_boxes(self.global_boxes)
+        self.result = self.integrated_result
+
+    def built_boxes_list(self):
+        self.boxes_list = []
+        import itertools as itt
+
+        for i, XY in enumerate(
+            list(itt.product(np.arange(self.NsliceX), np.arange(self.NsliceY)))
+        ):
+            self.boxes_list.append(
+                {
+                    "1": {
+                        "Vx": {
+                            "size": self.global_boxes["1"]["Vx"]["size"] / self.NsliceX,
+                            "position": self.global_boxes["1"]["Vx"]["position"]
+                            - self.global_boxes["1"]["Vx"]["size"] / 2.0
+                            + self.global_boxes["1"]["Vx"]["size"]
+                            * (0.5 + XY[0])
+                            / self.NsliceX,
+                        },
+                        "Vy": {
+                            "size": self.global_boxes["1"]["Vy"]["size"] / self.NsliceY,
+                            "position": self.global_boxes["1"]["Vy"]["position"]
+                            - self.global_boxes["1"]["Vy"]["size"] / 2.0
+                            + self.global_boxes["1"]["Vy"]["size"]
+                            * (0.5 + XY[1])
+                            / self.NsliceY,
+                        },
+                        "Vz": {
+                            "size": self.global_boxes["1"]["Vz"]["size"],
+                            "position": self.global_boxes["1"]["Vz"]["position"],
+                        },
+                    },
+                    "2": {
+                        "Vx": {
+                            "size": self.global_boxes["2"]["Vx"]["size"] / self.NsliceX,
+                            "position": self.global_boxes["2"]["Vx"]["position"]
+                            - self.global_boxes["2"]["Vx"]["size"] / 2.0
+                            + self.global_boxes["2"]["Vx"]["size"]
+                            * (0.5 + XY[0])
+                            / self.NsliceX,
+                        },
+                        "Vy": {
+                            "size": self.global_boxes["2"]["Vy"]["size"] / self.NsliceY,
+                            "position": self.global_boxes["2"]["Vy"]["position"]
+                            - self.global_boxes["2"]["Vy"]["size"] / 2.0
+                            + self.global_boxes["2"]["Vy"]["size"]
+                            * (0.5 + XY[1])
+                            / self.NsliceY,
+                        },
+                        "Vz": {
+                            "size": self.global_boxes["2"]["Vz"]["size"],
+                            "position": self.global_boxes["2"]["Vz"]["position"],
+                        },
+                    },
+                }
+            )
