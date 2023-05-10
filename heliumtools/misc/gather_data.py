@@ -25,6 +25,7 @@ Content of gather_data.py
 
 In this file are defined some functions to gather data.
 """
+from scipy.optimize import curve_fit
 import glob, os, re, json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -184,6 +185,7 @@ def obtain_arrival_times(
     atom_files,
     ROI_for_fit={"T": {"min": 305.5, "max": 309.7}},
     histogramm_width=0.01,
+    width_saturation = 0
 ):
     """Pour chaque cycle du dataframe atoms, on fait un histogramme des temps d'arrivée des atomes puis on considère que le max de cet histogramme correspond au temps d'arrivé du BEC. Le paramètre histogramm_width permet d'ajuster la largeur des pics de l'histogramme (ms)
     WARNING : cette fonction est longue et non optimisée.
@@ -196,6 +198,8 @@ def obtain_arrival_times(
         Region d'interet pour récupérer le temps d'arrivée du BEC
     histogramm_width : float (ms)
         largeur de chaque pic de l'histogramme.
+    width_saturation : float (ms)
+         largeur de la saturation qu'on excule du fit. 
 
     Return
     ------
@@ -227,9 +231,19 @@ def obtain_arrival_times(
             )
             bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
             # find the position of the max
-
-            list_of_arrival_time_max[i] = bin_centers[np.argmax(bin_heights)]
-            p0 = [bin_centers[np.argmax(bin_heights)], np.max(bin_heights), np.std(T)]
+            max_index = np.argmax(bin_heights)
+            list_of_arrival_time_max[i] = bin_centers[max_index]
+            max_index = np.argmax(bin_heights)
+            mean = bin_centers[max_index]
+            sigma = np.mean(bin_heights*(bin_centers-mean)**2)
+            p0 = [mean,  np.max(bin_heights),sigma]
+            bin_heights = list(bin_heights)
+            bin_centers = list(bin_centers)
+            #ci -dessous, on supprime un certain nombre de points pour ne pas prendre en compte la saturation du mcp.
+            n_hole = int(width_saturation / histogramm_width)
+            for i in range(n_hole):
+                bin_centers.pop(max_index+1)
+                bin_heights.pop(max_index+1)
             try:
                 popt, pcov = curve_fit(gaussian_function, bin_centers, bin_heights, p0=p0)
                 #perr = np.sqrt(np.diag(pcov))
@@ -256,6 +270,7 @@ def function_find_arrival_times(
     directory,
     ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
     histogramm_width=0.01,
+    width_saturation = 0
 ):
     """_summary_
 
@@ -276,6 +291,7 @@ def function_find_arrival_times(
         atoms_for_arrival_time,
         ROI_for_fit=ROI_for_fit,
         histogramm_width=histogramm_width,
+        width_saturation = width_saturation 
     )
     filename = os.path.join(directory, "arrival_times.pkl")
     df_arrival_time.to_pickle(filename)
@@ -288,6 +304,7 @@ def export_data_set_to_pickle(
     n_max_cycles=1e8,
     histogramm_width=0.01,
     ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
+    width_saturation = 0
 ):
     """Exporte le dataset folder comme pickle.
 
@@ -307,7 +324,7 @@ def export_data_set_to_pickle(
     df_parameters = gather_saved_sequence_parameters(folder)
     if find_arrival_times:
         df_arrival_times = obtain_arrival_times(
-            atom_files, histogramm_width=histogramm_width, ROI_for_fit=ROI_for_fit
+            atom_files, histogramm_width=histogramm_width, ROI_for_fit=ROI_for_fit,  width_saturation = width_saturation 
         )
         df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
         filename = os.path.join(folder, "arrival_times.pkl")
