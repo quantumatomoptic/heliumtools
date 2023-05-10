@@ -5,7 +5,7 @@
 @Author: victor
 @Date:   20 April 2023 @ 19:01
 @Last modified by:   victor
-@Last modified time: 20 April 2023 @ 19:11
+@Last modified time: 09 May 2023 @ 16:43
 
 Comment :
 """
@@ -58,15 +58,27 @@ def select_atoms_in_folder(folder):
 
 
 def return_cycle_from_path(path):
-    """return the cycle from a path. If no cycle is found, return -1
+    """return the cycle from a path. If no cycle is found, return -1. Since April 2023, we save at each run of the experiment a unique id that give time in seconds since Helium1 Epoch time (aka first MOT with qcontrol3). 
 
     Parameters
     ----------
-    path : _type_
-        _description_
+    path : str or path-like object vers un fichier .atoms
+        chemin du .atoms
     """
-    pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][.]"
     path = str(path)  # on s'assure que path soit bien un string (pas un Path object)
+    try:
+        json_path = path.replace(".atoms", ".json")
+        with open(json_path) as f:
+            list_of_metadatas = json.load(f)
+        for element in list_of_metadatas:
+            if element['name'] in ['seq', 'sequence', 'Sequence']:
+                seq = element['value']
+            elif element['name'] == 'cycle_id':
+                cycle = element['value']
+        return seq, cycle
+    except:
+        pass
+    pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][.]"
     result = re.findall(pattern, path)
     if len(result) == 0:
         pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][0-9][.]"
@@ -194,9 +206,6 @@ def obtain_arrival_times(
     number_of_atoms = [0 for i in atom_files]
     list_of_cycles = [0 for i in atom_files]
     print("Starting to gather arrival time of BECs")
-    print(ROI_for_fit)
-    print(ROI_for_fit["T"]["min"])
-    print(atom_files)
     for i, path in enumerate(tqdm(atom_files)):
         X, Y, T = load_XYTTraw(path)
         number_of_atoms[i] = len(T)
@@ -281,13 +290,12 @@ def export_data_set_to_pickle(
     atoms_in_ROI = apply_ROI(atoms, ROI)
     filename_dataset = os.path.join(folder, "dataset.pkl")
     atoms_in_ROI.to_pickle(filename_dataset)
-
+    df_parameters = gather_saved_sequence_parameters(folder)
     if find_arrival_times:
         df_arrival_times = obtain_arrival_times(
             atom_files, histogramm_width=histogramm_width, ROI_for_fit=ROI_for_fit
         )
-        # df_parameters = gather_saved_sequence_parameters(folder)
-        # df_arrival_time = pd.merge(df_arrival_times, df_parameters, on="Cycle")
+        df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
         filename = os.path.join(folder, "arrival_times.pkl")
         df_arrival_times.to_pickle(filename)
 
@@ -313,8 +321,9 @@ def gather_saved_sequence_parameters(folder):
         seq, cycle = return_cycle_from_path(atom_name)
         column_values = [seq, cycle]
         for element in data:
-            column_names.append("{} ({})".format(element["name"], element["unit"]))
-            column_values.append(element["value"])
+            if element["name"] not in ["sequence", "cycle", "cycle_id", "Sequence", "Cycle"]:
+                column_names.append("{} ({})".format(element["name"], element["unit"]))
+                column_values.append(element["value"])
         new_df = pd.DataFrame([column_values], columns=column_names)
         dataframe = pd.concat([dataframe, new_df])
     dataframe.reset_index(drop=True, inplace=True)
