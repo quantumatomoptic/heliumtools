@@ -182,7 +182,7 @@ def apply_ROI(atoms, ROI):
 
 def obtain_arrival_times(
     atom_files,
-    ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
+    ROI_for_fit={"T": {"min": 305.5, "max": 309.7}},
     histogramm_width=0.01,
 ):
     """Pour chaque cycle du dataframe atoms, on fait un histogramme des temps d'arrivée des atomes puis on considère que le max de cet histogramme correspond au temps d'arrivé du BEC. Le paramètre histogramm_width permet d'ajuster la largeur des pics de l'histogramme (ms)
@@ -201,8 +201,10 @@ def obtain_arrival_times(
     ------
     dataframe containing BEC arrival time & # of atoms
     """
-
-    list_of_arrival_time = [0 for i in atom_files]
+    def gaussian_function(x, mean, amplitude, standard_deviation):
+        return amplitude * np.exp(-((x - mean) ** 2) / (2 * standard_deviation ** 2))
+    list_of_arrival_time_max = [0 for i in atom_files]
+    list_of_arrival_time= [0 for i in atom_files]
     number_of_atoms = [0 for i in atom_files]
     list_of_cycles = [0 for i in atom_files]
     print("Starting to gather arrival time of BECs")
@@ -213,7 +215,8 @@ def obtain_arrival_times(
         list_of_cycles[i] = cycle
         if len(T) < 100:
             print(f"WARNING : shot {cycle} seems empty. I take it off the sequence.")
-            list_of_arrival_time[i] = 308.07  # 24/06/2022 & 17/05/2022
+            list_of_arrival_time[i] = np.nan # 24/06/2022 & 17/05/2022
+            list_of_arrival_time_max[i] = np.nan
 
         else:
             bin_heights, bin_borders = np.histogram(
@@ -224,14 +227,25 @@ def obtain_arrival_times(
             )
             bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
             # find the position of the max
-            bec_arrival_time = bin_centers[np.argmax(bin_heights)]
-            list_of_arrival_time[i] = bec_arrival_time
+
+            list_of_arrival_time_max[i] = bin_centers[np.argmax(bin_heights)]
+            p0 = [bin_centers[np.argmax(bin_heights)], np.max(bin_heights), np.std(T)]
+            try:
+                popt, pcov = curve_fit(gaussian_function, bin_centers, bin_heights, p0=p0)
+                #perr = np.sqrt(np.diag(pcov))
+            except:
+                print(f"[WARN] : BEC not fitted (cycle {cycle} ; folder : {path}). Take the max as arrival time.")
+                popt = p0
+                #perr = [np.nan, np.nan, np.nan]
+            list_of_arrival_time[i] = popt[0]
 
     df_arrival_time = pd.DataFrame(
         {
             "Cycle": list_of_cycles,
             "BEC Arrival Time": list_of_arrival_time,
             "Number of Atoms": number_of_atoms,
+            "BEC Arrival Time with max":list_of_arrival_time_max,
+            "BEC Arrival Time with fit":list_of_arrival_time
         }
     )
     return df_arrival_time
