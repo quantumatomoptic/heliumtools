@@ -156,11 +156,9 @@ class Correlation:
             )
         elif isinstance(self.bec_arrival_time, pd.DataFrame):
             print("I change the bec arrival time for each cycle.")
-            print(self.atoms.columns)
             self.atoms = self.merge_dataframe_on_cycles(
                 self.atoms, self.bec_arrival_time
             )
-            print(self.atoms.columns)
             l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
@@ -190,6 +188,7 @@ class Correlation:
         else:
             print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
+
 
     def define_variable1(self, **kwargs):
         self.var1 = Variable(**kwargs)
@@ -270,16 +269,13 @@ class Correlation:
             atoms_in_box : dataframe de deux colonnes avec le numéro du cycle et le nombre d'atomes dans la boîte.
             Le nom de la deuxième colonne (nombre d'atome dans la boîte) est l'argument column_name (N1 par défaut).
         """
+        
         df = self.get_atoms_in_box(df, box)
         # We now have only atoms inside the box.
         # We count for each cycle, the number of atoms per cycle using the method
         # "value_counts". This method returns a serie and not a dataframe and I prefer retranform it
         # into a dataframe.
-        my_serie = df.value_counts(subset="Cycle")
-
-        atoms_in_box = my_serie.to_frame()
-        atoms_in_box = atoms_in_box.rename(columns={0: column_name})
-        atoms_in_box.reset_index(inplace=True)
+        atoms_in_box = df.value_counts(subset="Cycle").rename(column_name).to_frame().reset_index(inplace=False)
         # atoms_in_box is now a dataframe with two columns "Cycle" and "N_1" (or column_name). However, if there were no atom at cycle 34 in the box, this cycle does not appear inside atoms_in_box. In order to have the number of atoms in the box at each cycle, we must add 0 to those cycles which does not appear.
         # cycle_dataframe is just a dataframe with n_cycles : we use it to merge and add zeros to atoms_in_box
         cycle_dataframe = pd.DataFrame(self.cycles_array, columns=["Cycle"])
