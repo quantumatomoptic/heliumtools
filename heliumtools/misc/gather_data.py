@@ -3,7 +3,7 @@
 
 # ----------------------------------
 # Created on the Tue Jun 28 2022
-# Author : Victor
+# Authors : Charlie, Victor
 # Copyright (c) 2022 - Helium1@LCF
 # ----------------------------------
 #
