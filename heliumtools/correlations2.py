@@ -6,7 +6,7 @@
 #
 # Developped by Victor, ...
 #
-# Last (big) change on the ... by ...
+# Last (big) change on the 14 of April by Victor : replacing numpy istogramdd by torch, wich is 10 times faster than [5]
 #
 # Copyright (c) 2023 - Helium1@LCF
 # ----------------------------------
@@ -20,11 +20,18 @@ Please document your code ;-).
 Bibliography for the futur
 A fast histogram was implemented better than numpy in [1]. However, the problem is that it does not take into account 3D datas. 
 
+---- Améliorations
+
+Je suis tombé sur [4] où une personne (du CERN) n'est pas non plus satisfaite des histogram à N dimensions de numpy. Je le teste sur ma machine et le programme marche 10 fois plus vite. Cependant, cela ne suffit pas pour que je puisse faire tourner des corrélations sur mon ordinateur. 
+
 [1] https://pypi.org/project/fast-histogram/
 [2] https://github.com/vaexio/vaex
 [3] https://towardsdatascience.com/beyond-pandas-spark-dask-vaex-and-other-big-data-technologies-battling-head-to-head-a453a1f8cc13
+[4] https://github.com/pytorch/pytorch/issues/29209
+[5] https://pytorch.org/docs/1.11/generated/torch.histogramdd.html
 """
-
+import seaborn as sns
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import snoop
@@ -32,7 +39,7 @@ from random import choice, shuffle, randint
 from tqdm import tqdm, trange
 import copy
 import time
-
+import torch
 
 class CorrelationHe2Style:
     """
@@ -225,8 +232,8 @@ class CorrelationHe2Style:
         self.beamA_volume = 1
         self.beamB_volume = 1
         for ax in self.axis:
-            self.beamA_volume *= self.beams["A"]["size"]
-            self.beamB_volume *= self.beams["B"]["size"]
+            self.beamA_volume *= self.beams["A"][ax]["size"]
+            self.beamB_volume *= self.beams["B"][ax]["size"]
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -326,7 +333,7 @@ class CorrelationHe2Style:
 
     def initialize_voxel_map_properties(self):
         """_summary_"""
-        self.voxel_map_size = tuple([self.voxel_numbers[axis] for axis in self.axis])
+        self.voxel_map_size = tuple([int(self.voxel_numbers[axis]) for axis in self.axis])
         # self.voxel_map = np.zeros(self.voxel_map_size)
         # self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
         self.voxel_map_range = tuple(
@@ -410,7 +417,6 @@ class CorrelationHe2Style:
         pd.DataFrame
             Pandas DataFrame with all velocities differences.
         """
-
         atXY = atX.merge(
             atY, how="outer", on="Cycle"
         )  # , on="index_A"), atABprime --> merge on cycles might be an issue when computing local correlation with uncorrelated atoms (normalization).
@@ -426,11 +432,25 @@ class CorrelationHe2Style:
             else:
                 atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
         cols_to_remove = [col for col in atXY.columns if col not in self.axis]
+        print("Datasize : {}".format(len(atXY)))
+        r = [self.voxel_map_range[0][0], self.voxel_map_range[0][1], self.voxel_map_range[1][0], self.voxel_map_range[1][1], self.voxel_map_range[2][0], self.voxel_map_range[2][1]]
         atXY.drop(cols_to_remove, axis=1, inplace=True)
+        t0 = time.time()
         G2XY, edges = np.histogramdd(
-            atXY.to_numpy(), bins=self.voxel_map_size, range=self.voxel_map_range
+           atXY.to_numpy(), bins=self.voxel_map_size, range=self.voxel_map_range
         )
-        return G2XY
+        t1 = time.time()
+        G2XY, edges = torch.histogramdd(torch.from_numpy(atXY.to_numpy()),bins=list(self.voxel_map_size), range = r)
+        t2 = time.time()
+        dt_torch = t2 - t1
+        dt_numpy = t1 - t0
+        if dt_torch < dt_numpy:
+            print("Torch is {:.0f} times better".format((dt_numpy/dt_torch - 1)))
+        else:
+            print("Numpy is {:.0f} times better".format((dt_torch/dt_numpy - 1)))
+        del atXY
+        return G2XY.detach().cpu().numpy()
+
 
     def compute_correlations(self):
         """Principal function of the code. L'idée du code est le suivant :
@@ -482,5 +502,3 @@ class CorrelationHe2Style:
             )
 
 
-if __name__ == "__main__":
-    print("Salut")
