@@ -21,7 +21,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from tqdm import tqdm, trange
-import copy
+import copy, random
 from scipy.special import factorial
 import matplotlib.cm as cm
 import matplotlib.colors as colors
@@ -103,6 +103,7 @@ class Correlation:
         self.ROD = {}  # Region Of Desinterest.
         self.round_decimal = 7
         self.id = int(time.time())
+        self.is_there_a_copy_of_atoms = False
         self.boxes = {
             "1": {
                 "Vx": {"size": 10, "position": 0},
@@ -122,6 +123,7 @@ class Correlation:
         self.build_the_atoms_dataframe()
         self.apply_ROI()  # Keep only atoms in ROI
         self.apply_ROD()  # Take off atoms in Region Of Desinterest.
+
         # print("Data are loaded")
         # Initialisation de self.result datframe avec toutes les corrélations
         # self.result = pd.DataFrame(
@@ -189,6 +191,37 @@ class Correlation:
         else:
             print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
         self.atoms = self.atoms.rename(columns={"T": "Vz"})
+        self.cycles_array = self.atoms["Cycle"].unique()
+        self.n_cycles = len(self.atoms["Cycle"].unique())
+
+    def save_copy_of_atoms(self):
+        """Save a copy of the atom dataframe. Important to do if one does bottstraping."""
+        self.atoms_dataframe_copy = copy.deepcopy(self.atoms)
+        self.cycles_array_copy = copy.deepcopy(self.cycles_array)
+        self.is_there_a_copy_of_atoms = True
+
+    def recover_true_atoms(self):
+        self.atoms = copy.deepcopy(self.atoms_dataframe_copy)
+        self.cycles_array = copy.deepcopy(self.cycles_array_copy)
+
+    def bootstrap_atoms(self):
+        if self.is_there_a_copy_of_atoms is False:
+            self.save_copy_of_atoms()
+            print(
+                "[Warning] : I just saved a copy of the atom dataframe because you will destruct your original dataframe."
+            )
+        new_atoms = []
+        for n in range(self.n_cycles):
+            cycle = random.choice(self.cycles_array_copy)
+            df = copy.deepcopy(
+                self.atoms_dataframe_copy[self.atoms_dataframe_copy["Cycle"] == cycle]
+            )
+            df["Cycle"] = n * np.ones(len(df))
+            new_atoms.append(df)
+        self.atoms = pd.concat(new_atoms)
+        self.cycles_array = self.atoms["Cycle"].unique()
+        if len(self.cycles_array) != self.n_cycles:
+            print("WWWWWWWAAAAAAAAAAAAA something went wrong it is weird.")
 
     def define_variable1(self, **kwargs):
         self.var1 = Variable(**kwargs)
