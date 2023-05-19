@@ -42,7 +42,6 @@ class AbstractFit(object):
     """Abstract fit object, to use as a model"""
 
     def __init__(self, **kwargs):
-
         # -- inputs
         self.x = kwargs.get("x", [])  # coordinates (x in 1D, (x,y) in 2D)
         self.z = kwargs.get("z", [])  # data
@@ -92,6 +91,11 @@ class AbstractFit(object):
 
     def _fitfunc(self, x, *p):
         pass
+
+    def do_guess_and_fit_and_return(self):
+        self.do_guess()
+        self.do_fit()
+        return self.popt, self.perr
 
     # == ANALYZE OF FIT PARAMETERS ==
 

@@ -34,6 +34,10 @@ from pathlib import Path
 from tqdm import tqdm
 
 
+def gaussian_function(x, mean, amplitude, standard_deviation):
+    return amplitude * np.exp(-((x - mean) ** 2) / (2 * standard_deviation**2))
+
+
 def select_atoms_in_folder(folder):
     """Renvoie l'ensemble des fichiers .atoms de folder.
 
@@ -59,7 +63,7 @@ def select_atoms_in_folder(folder):
 
 
 def return_cycle_from_path(path):
-    """return the cycle from a path. If no cycle is found, return -1. Since April 2023, we save at each run of the experiment a unique id that give time in seconds since Helium1 Epoch time (aka first MOT with qcontrol3). 
+    """return the cycle from a path. If no cycle is found, return -1. Since April 2023, we save at each run of the experiment a unique id that give time in seconds since Helium1 Epoch time (aka first MOT with qcontrol3).
 
     Parameters
     ----------
@@ -72,10 +76,10 @@ def return_cycle_from_path(path):
         with open(json_path) as f:
             list_of_metadatas = json.load(f)
         for element in list_of_metadatas:
-            if element['name'] in ['seq', 'sequence', 'Sequence']:
-                seq = element['value']
-            elif element['name'] == 'cycle_id':
-                cycle = element['value']
+            if element["name"] in ["seq", "sequence", "Sequence"]:
+                seq = element["value"]
+            elif element["name"] == "cycle_id":
+                cycle = element["value"]
         return seq, cycle
     except:
         pass
@@ -181,12 +185,49 @@ def apply_ROI(atoms, ROI):
     return atoms
 
 
-def obtain_arrival_times(
-    atom_files,
+def fit_BEC_arrival_time(
+    T,
     ROI_for_fit={"T": {"min": 305.5, "max": 309.7}},
     histogramm_width=0.01,
-    width_saturation = 0
+    width_saturation=0,
+    show_fit=False,
 ):
+    bin_heights, bin_borders = np.histogram(
+        T,
+        bins=np.arange(
+            ROI_for_fit["T"]["min"], ROI_for_fit["T"]["max"], histogramm_width
+        ),
+    )
+    bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
+    # find the position of the max
+    max_index = np.argmax(bin_heights)
+    arr_time_maximum = bin_centers[max_index]
+    mean = bin_centers[max_index]
+    sigma = np.mean(bin_heights * (bin_centers - mean) ** 2)
+    p0 = [mean, np.max(bin_heights), sigma]
+    bin_heights = list(bin_heights)
+    bin_centers = list(bin_centers)
+    # ci -dessous, on supprime un certain nombre de points pour ne pas prendre en compte la saturation du mcp.
+    n_hole = int(width_saturation / histogramm_width)
+    for i in range(n_hole):
+        bin_centers.pop(max_index + 1)
+        bin_heights.pop(max_index + 1)
+    try:
+        popt, pcov = curve_fit(gaussian_function, bin_centers, bin_heights, p0=p0)
+        failed_status = False
+        # perr = np.sqrt(np.diag(pcov))
+    except:
+        failed_status = True
+        popt = p0
+        # perr = [np.nan, np.nan, np.nan]
+    if show_fit:
+        plt.plot(bin_centers, bin_heights, "*")
+        plt.plot(bin_centers, gaussian_function(bin_centers, *popt), "-")
+        plt.show()
+    return popt[0], arr_time_maximum, failed_status
+
+
+def obtain_arrival_times(atom_files, **kwargs):
     """Pour chaque cycle du dataframe atoms, on fait un histogramme des temps d'arrivée des atomes puis on considère que le max de cet histogramme correspond au temps d'arrivé du BEC. Le paramètre histogramm_width permet d'ajuster la largeur des pics de l'histogramme (ms)
     WARNING : cette fonction est longue et non optimisée.
 
@@ -194,21 +235,15 @@ def obtain_arrival_times(
     ----------
     atoms : list of string path
         liste des cycles avec les chemins allant au .atoms.
-    ROI : dic
-        Region d'interet pour récupérer le temps d'arrivée du BEC
-    histogramm_width : float (ms)
-        largeur de chaque pic de l'histogramme.
-    width_saturation : float (ms)
-         largeur de la saturation qu'on excule du fit. 
+    **kwargs : any supplementary keyword argument is given to the fit_BEC_arrival_time function.
 
     Return
     ------
     dataframe containing BEC arrival time & # of atoms
     """
-    def gaussian_function(x, mean, amplitude, standard_deviation):
-        return amplitude * np.exp(-((x - mean) ** 2) / (2 * standard_deviation ** 2))
+
     list_of_arrival_time_max = [0 for i in atom_files]
-    list_of_arrival_time= [0 for i in atom_files]
+    list_of_arrival_time = [0 for i in atom_files]
     number_of_atoms = [0 for i in atom_files]
     list_of_cycles = [0 for i in atom_files]
     print("Starting to gather arrival time of BECs")
@@ -219,82 +254,28 @@ def obtain_arrival_times(
         list_of_cycles[i] = cycle
         if len(T) < 100:
             print(f"WARNING : shot {cycle} seems empty. I take it off the sequence.")
-            list_of_arrival_time[i] = np.nan # 24/06/2022 & 17/05/2022
+            list_of_arrival_time[i] = np.nan  # 24/06/2022 & 17/05/2022
             list_of_arrival_time_max[i] = np.nan
 
         else:
-            bin_heights, bin_borders = np.histogram(
-                T,
-                bins=np.arange(
-                    ROI_for_fit["T"]["min"], ROI_for_fit["T"]["max"], histogramm_width
-                ),
-            )
-            bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
-            # find the position of the max
-            max_index = np.argmax(bin_heights)
-            list_of_arrival_time_max[i] = bin_centers[max_index]
-            max_index = np.argmax(bin_heights)
-            mean = bin_centers[max_index]
-            sigma = np.mean(bin_heights*(bin_centers-mean)**2)
-            p0 = [mean,  np.max(bin_heights),sigma]
-            bin_heights = list(bin_heights)
-            bin_centers = list(bin_centers)
-            #ci -dessous, on supprime un certain nombre de points pour ne pas prendre en compte la saturation du mcp.
-            n_hole = int(width_saturation / histogramm_width)
-            for i in range(n_hole):
-                bin_centers.pop(max_index+1)
-                bin_heights.pop(max_index+1)
-            try:
-                popt, pcov = curve_fit(gaussian_function, bin_centers, bin_heights, p0=p0)
-                #perr = np.sqrt(np.diag(pcov))
-            except:
-                print(f"[WARN] : BEC not fitted (cycle {cycle} ; folder : {path}). Take the max as arrival time.")
-                popt = p0
-                #perr = [np.nan, np.nan, np.nan]
-            list_of_arrival_time[i] = popt[0]
+            (
+                list_of_arrival_time[i],
+                list_of_arrival_time_max[i],
+                failed_status,
+            ) = fit_BEC_arrival_time(T, show_fit=False, **kwargs)
+            if failed_status:
+                print(f"[WARN] : BEC not fitted (cycle {cycle} ; file : {path}).")
 
     df_arrival_time = pd.DataFrame(
         {
             "Cycle": list_of_cycles,
             "BEC Arrival Time": list_of_arrival_time,
             "Number of Atoms": number_of_atoms,
-            "BEC Arrival Time with max":list_of_arrival_time_max,
-            "BEC Arrival Time with fit":list_of_arrival_time
+            "BEC Arrival Time with max": list_of_arrival_time_max,
+            "BEC Arrival Time with fit": list_of_arrival_time,
         }
     )
     return df_arrival_time
-
-
-def function_find_arrival_times(
-    atoms,
-    directory,
-    ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
-    histogramm_width=0.01,
-    width_saturation = 0
-):
-    """_summary_
-
-    Parameters
-    ----------
-    atoms : pandas dataframe.
-        dataframe of atoms, column T, X, Y et Cycle.
-    directory : string or pathlike object
-        directory in which one wants to save the pickle file
-    ROI_for_fit : dict, optional
-        ROI pour fitter les temps d'arrivée, by default {"T": {"min": 307, "max": 309}}
-    histogramm_width : float (ms), optional
-        largeur des pics de l'histogramme, en ms, by default 0.01
-    """
-    # STEP 2 : find arrival times and save them
-    atoms_for_arrival_time = apply_ROI(atoms, ROI_for_fit)
-    df_arrival_time = obtain_arrival_times(
-        atoms_for_arrival_time,
-        ROI_for_fit=ROI_for_fit,
-        histogramm_width=histogramm_width,
-        width_saturation = width_saturation 
-    )
-    filename = os.path.join(directory, "arrival_times.pkl")
-    df_arrival_time.to_pickle(filename)
 
 
 def export_data_set_to_pickle(
@@ -304,7 +285,7 @@ def export_data_set_to_pickle(
     n_max_cycles=1e8,
     histogramm_width=0.01,
     ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
-    width_saturation = 0
+    width_saturation=0,
 ):
     """Exporte le dataset folder comme pickle.
 
@@ -324,7 +305,10 @@ def export_data_set_to_pickle(
     df_parameters = gather_saved_sequence_parameters(folder)
     if find_arrival_times:
         df_arrival_times = obtain_arrival_times(
-            atom_files, histogramm_width=histogramm_width, ROI_for_fit=ROI_for_fit,  width_saturation = width_saturation 
+            atom_files,
+            histogramm_width=histogramm_width,
+            ROI_for_fit=ROI_for_fit,
+            width_saturation=width_saturation,
         )
         df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
         filename = os.path.join(folder, "arrival_times.pkl")
@@ -352,7 +336,13 @@ def gather_saved_sequence_parameters(folder):
         seq, cycle = return_cycle_from_path(atom_name)
         column_values = [seq, cycle]
         for element in data:
-            if element["name"] not in ["sequence", "cycle", "cycle_id", "Sequence", "Cycle"]:
+            if element["name"] not in [
+                "sequence",
+                "cycle",
+                "cycle_id",
+                "Sequence",
+                "Cycle",
+            ]:
                 column_names.append("{} ({})".format(element["name"], element["unit"]))
                 column_values.append(element["value"])
         new_df = pd.DataFrame([column_values], columns=column_names)
@@ -364,10 +354,53 @@ def gather_saved_sequence_parameters(folder):
 
 
 if __name__ == "__main__":
-    folder = Path("/mnt/manip_E/2022/11/18/083")
-    export_data_set_to_pickle(
-        folder,
-        ROI={"T": {"min": 306.2, "max": 309.7}},
-        find_arrival_times=True,
-        n_max_cycles=3,
+    # folder = Path("/mnt/manip_E/2022/11/18/083")
+    # export_data_set_to_pickle(
+    #     folder,
+    #     ROI={"T": {"min": 306.2, "max": 309.7}},
+    #     find_arrival_times=True,
+    #     n_max_cycles=3,
+    # )
+
+    folder = "/media/victor/8482-1010/gus_data/2023/05/15/053"
+    # X, Y, T = load_XYTTraw(folder + "/041_225.atoms")
+    # print(
+    #     fit_BEC_arrival_time(
+    #         T,
+    #         show_fit=True,
+    #         width_saturation=0.5,
+    #         ROI_for_fit={"T": {"min": 307, "max": 309.7}},
+    #     )
+    # )
+
+    atom_files = select_atoms_in_folder(folder)
+    df_parameters = gather_saved_sequence_parameters(folder)
+    df_arrival_times = obtain_arrival_times(
+        atom_files,
+        histogramm_width=0.01,
+        width_saturation=0.2,
     )
+    df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
+    filename = os.path.join(folder, "arrival_times.pkl")
+    df_arrival_times.to_pickle(filename)
+    folder = "/media/victor/8482-1010/gus_data/2023/05/15/041"
+    # X, Y, T = load_XYTTraw(folder + "/041_225.atoms")
+    # print(
+    #     fit_BEC_arrival_time(
+    #         T,
+    #         show_fit=True,
+    #         width_saturation=0.5,
+    #         ROI_for_fit={"T": {"min": 307, "max": 309.7}},
+    #     )
+    # )
+
+    atom_files = select_atoms_in_folder(folder)
+    df_parameters = gather_saved_sequence_parameters(folder)
+    df_arrival_times = obtain_arrival_times(
+        atom_files,
+        histogramm_width=0.01,
+        width_saturation=0.2,
+    )
+    df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
+    filename = os.path.join(folder, "arrival_times.pkl")
+    df_arrival_times.to_pickle(filename)

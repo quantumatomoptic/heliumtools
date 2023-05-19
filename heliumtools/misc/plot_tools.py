@@ -91,7 +91,6 @@ cmap_iogs_cmjn = create_linear_colormap(
     name="IOGS_CMJN",
 )
 
-
 cmap_iogs_rgb = create_linear_colormap(
     RGB1=blue_iogs_rgb,
     RGB2=white,
