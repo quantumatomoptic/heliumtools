@@ -98,7 +98,7 @@ class Correlation:
         self.var1 = None
         self.var2 = None
         self.remove_shot_noise = True
-        self.additionnal_bec_speed = 0
+        self.ref_frame_speed = {"Vx": 0, "Vy": 0, "Vz": 0}
         self.ROI = {}  # Region Of Interest
         self.ROD = {}  # Region Of Desinterest.
         self.round_decimal = 7
@@ -118,7 +118,8 @@ class Correlation:
         }
         self.compute_errors = False
         self.__dict__.update(kwargs)
-        self.boxes = self.boxes.copy()
+        self.bec_arrival_time = copy.deepcopy(self.bec_arrival_time)
+        self.boxes = copy.deepcopy(self.boxes)
         # atoms : (mm,mm, ms) --> (mm/s, mm/s, mm/s)
         self.build_the_atoms_dataframe()
         self.apply_ROI()  # Keep only atoms in ROI
@@ -138,12 +139,10 @@ class Correlation:
         """
         Cette méthode construit le dataframe contenant l'ensemble des positions des atomes : elle construit le dataframe self.atoms, dont les vitesses sont exprimées en mm/s à partir du dataframe initial.
         """
-
-        self.atoms["X"] = 1000 * self.atoms["X"] / self.atoms["T"] + self.raman_kick
-        self.atoms = self.atoms.rename(columns={"X": "Vx"})
-        self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
-        self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-
+        # Cleaning the self.atoms dataframe : must contains only 4 columns (to avoid mixing when merging.)
+        for column in self.atoms.columns:
+            if column not in ["X", "Y", "T", "Cycle"]:
+                self.atoms.drop(column, inplace=True, axis=1)
         if (
             type(self.bec_arrival_time) == int
             or type(self.bec_arrival_time) == float
@@ -153,32 +152,56 @@ class Correlation:
             or isinstance(self.bec_arrival_time, np.int64)
         ):
             l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
+            self.atoms["X"] = 1000 * self.atoms["X"] / self.atoms["T"] + self.raman_kick
+            self.atoms = self.atoms.rename(columns={"X": "Vx"})
+            self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
+            self.atoms = self.atoms.rename(columns={"Y": "Vy"})
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
+            self.atoms = self.atoms.rename(columns={"T": "Vz"})
         elif isinstance(self.bec_arrival_time, pd.DataFrame):
-            print("I change the bec arrival time for each cycle.")
-            if not "BEC Arrival Time" in self.atoms.columns:
-                self.atoms = self.merge_dataframe_on_cycles(
-                    self.atoms, self.bec_arrival_time
-                )
+            self.atoms["X"] = (
+                1000 * self.atoms["X"] / self.atoms["T"]
+            )  # + self.raman_kick
+            self.atoms = self.atoms.rename(columns={"X": "Vx"})
+            self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
+            self.atoms = self.atoms.rename(columns={"Y": "Vy"})
+
             l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
-            # compute the speed of BECs
-            self.atoms["BEC Arrival Time"] = (
-                0.5 * self.gravity * self.atoms["BEC Arrival Time"]
-                - l_fall / self.atoms["BEC Arrival Time"]
+            self.atoms = self.atoms.rename(columns={"T": "Vz"})
+            ## Start to recenter data
+            # compute the speed of BECs in mm/s, starting with Vx, Vy and finally Vz.
+            if "BEC Center X" in self.bec_arrival_time.columns:
+                self.bec_arrival_time["BEC Center X"] = (
+                    1000
+                    * self.bec_arrival_time["BEC Center X"]
+                    / self.bec_arrival_time["BEC Arrival Time"]
+                )
+            else:
+                self.bec_arrival_time["BEC Center X"] = self.raman_kick
+            if "BEC Center Y" in self.bec_arrival_time.columns:
+                self.bec_arrival_time["BEC Center Y"] = (
+                    1000
+                    * self.bec_arrival_time["BEC Center Y"]
+                    / self.bec_arrival_time["BEC Arrival Time"]
+                )
+            else:
+                self.bec_arrival_time["BEC Center Y"] = 0
+            self.bec_arrival_time["BEC Arrival Time"] = (
+                0.5 * self.gravity * self.bec_arrival_time["BEC Arrival Time"]
+                - l_fall / self.bec_arrival_time["BEC Arrival Time"]
+            )
+            self.atoms = self.merge_dataframe_on_cycles(
+                self.atoms, self.bec_arrival_time
             )
             # take off the speed of each BEC
-            self.atoms["T"] = (
-                self.atoms["T"]
-                - self.atoms["BEC Arrival Time"]
-                + self.additionnal_bec_speed
-            )
-            # drop the column with no more interest.
-            self.atoms.drop("BEC Arrival Time", inplace=True, axis=1)
+            self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Arrival Time"]
+            self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC Center X"]
+            self.atoms["Vy"] = self.atoms["Vy"] - self.atoms["BEC Center Y"]
 
             ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
             df = self.bec_arrival_time[
@@ -187,10 +210,23 @@ class Correlation:
             for cycle, nb_atoms in zip(df["Cycle"], df["Number of Atoms"]):
                 print(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
                 self.n_cycles -= 1
+            # drop columns with no more interest (for later calculations)
+            for column in self.atoms.columns:
+                if column not in ["Vz", "Vx", "Vy", "Cycle"]:
+                    self.atoms.drop(column, inplace=True, axis=1)
 
         else:
-            print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
-        self.atoms = self.atoms.rename(columns={"T": "Vz"})
+            print(
+                "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
+            )
+
+        for axis in self.ref_frame_speed:
+            if axis in ["Vx", "Vy", "Vz"] and self.ref_frame_speed[axis] != 0:
+                print(
+                    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
+                )
+                self.atoms[axis] -= self.ref_frame_speed[axis]
+
         self.cycles_array = self.atoms["Cycle"].unique()
         self.n_cycles = len(self.atoms["Cycle"].unique())
 
@@ -340,7 +376,8 @@ class Correlation:
                 var.name (ex : "ΔVx"): avec la valeur de la position/taille de la boîte.
         """
         # On parcourt les différentes valeurs de la Variable var (tqdm --> waiting bar)
-        for i in tqdm(range(var.n_step), desc="Gathering {}".format(var.name)):
+        # for i in tqdm(range(var.n_step), desc="Gathering {}".format(var.name)):
+        for i in range(var.n_step):
             # On change la boîte selon la i-ème valeur de var
             box[var.axe][var.type] = var.get_value_i(i)
             # On récupère le dataframe avec le nombre d'atome dans la boîte à chaque cycle
@@ -535,6 +572,11 @@ class Correlation:
         result_var1 = self.counts_atoms_in_boxes_one_variable(
             df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
         )
+        ## check 21 of may:
+        column_name = "N_" + self.var1.box
+        df = result_var1[result_var1[column_name] < 0]
+        if len(df) > 1:
+            print(df)
         # --> Do the same with var2
         box = self.boxes[self.var2.box].copy()
         posi_and_size = box.pop(self.var2.axe)
@@ -543,6 +585,10 @@ class Correlation:
         result_var2 = self.counts_atoms_in_boxes_one_variable(
             df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
         )
+        column_name = "N_" + self.var2.box
+        df = result_var2[result_var2[column_name] < 0]
+        if len(df) > 1:
+            print(df)
         # %#% STEP2
         # On construit le dataframe total, qui initialement contient 5 colonnes : Cycle le cycle, N_1 et N_2 nombre d'atomes dans la boîte 1 et 2, self.var1 et self.var2 la position/taille des boîtes lors du scan. Le nombre de lignes de total est dont Nombre_de_cycles x Nombre_de_différentes_var1 x Nombre_de_différentes_var2.
         total = pd.merge(result_var1, result_var2, on="Cycle")
@@ -725,6 +771,8 @@ class Correlation:
             "<N_1>*<N_2>" : produit de la moyenne du nombre d'atomes
         """
         total["N_1*N_2"] = total["N_1"] * total["N_2"]
+        column_name = "N_1*N_2"
+
         total["N_1-N_2"] = total["N_1"] - total["N_2"]
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
@@ -734,6 +782,10 @@ class Correlation:
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
         ).mean()
+        df = self.result[self.result[column_name] < 0]
+        if len(df) > 1:
+            print("there is an issue !!!!!")
+            print(df)
 
         # # On fait ensuite une petite manipulation pour calculer l'erreur sur la variance.
         # # L'idée est de définir la variable (N_1-N_2)^2-moy(N_1-N_2)^2 puis de dire à l'ordinateur de calculer sa variance tout seul pour éviter de mettre la formule très longue et compliquée (wiki du 2 juin 2022). On reconstruit un dataframe avec les numéros de cycles
@@ -775,13 +827,69 @@ class Correlation:
 
         # on enlève le shot noise si cela est demandé par l'utilisateur.
         if self.remove_shot_noise:
-            local_condition = self.result[self.var1.name] == self.result[self.var2.name]
-            self.result.loc[local_condition, "g^2"] = (
-                self.result["N_1*N_2"] - self.result["N_1"]
-            ) / (self.result["N_1"] * self.result["N_2"])
-            self.result.loc[local_condition, "N_1*N_2"] = (
-                self.result["N_1*N_2"] - self.result["N_1"]
-            )
+            if self.var1.type == "position":
+                VJ = self.var1.axe  # I assume that we scanned the same axe
+                local_condition = (
+                    self.result[self.var1.name] == self.result[self.var2.name]
+                )
+                not_scanned_axes = ["Vx", "Vy", "Vz"]
+                not_scanned_axes.remove(self.var1.axe)
+                if self.var1.axe != self.var2.axe:
+                    print(
+                        "[WARNING] THIS IS NOT YET TAKE INTO ACCOUNT IN THE CODE. PLEASE CHANGE ME."
+                    )
+                elif (
+                    self.boxes["1"][not_scanned_axes[0]]["position"]
+                    != self.boxes["2"][not_scanned_axes[0]]["position"]
+                ) or (
+                    self.boxes["1"][not_scanned_axes[1]]["position"]
+                    != self.boxes["2"][not_scanned_axes[1]]["position"]
+                ):
+                    if len(local_condition) > 0:
+                        print(
+                            "[WARNING] Shot Noise has not been taken off weird because boxes are do not have the same center. "
+                        )
+                elif (
+                    (self.boxes["1"]["Vz"]["size"] != self.boxes["2"]["Vz"]["size"])
+                    or (self.boxes["1"]["Vy"]["size"] != self.boxes["2"]["Vy"]["size"])
+                    or (self.boxes["1"]["Vx"]["size"] != self.boxes["2"]["Vx"]["size"])
+                ):
+                    if len(local_condition) > 0:
+                        print(
+                            "[WARNING] Shot Noise has not been taken off weird because boxes do not have the same size. Please be carefull when delaing with local correlations !"
+                        )
+                else:
+                    self.result.loc[local_condition, "g^2"] = (
+                        self.result["N_1*N_2"] - self.result["N_1"]
+                    ) / (self.result["N_1"] * self.result["N_2"])
+                    self.result.loc[local_condition, "N_1*N_2"] = (
+                        self.result["N_1*N_2"] - self.result["N_1"]
+                    )
+            if self.var1.type == "size":
+                if (
+                    (
+                        self.boxes["1"]["Vz"]["position"]
+                        == self.boxes["2"]["Vz"]["position"]
+                    )
+                    and (
+                        self.boxes["1"]["Vy"]["position"]
+                        == self.boxes["2"]["Vy"]["position"]
+                    )
+                    and (
+                        self.boxes["1"]["Vx"]["position"]
+                        == self.boxes["2"]["Vx"]["position"]
+                    )
+                ):
+                    # le shot noise correspond à la plus petite valeur entre le nombre d'atome dans la boite 1 et le nombre d'atomes dans la boite 2.
+                    mini_N1_N2 = 0.5 * (
+                        self.result["N_1"]
+                        + self.result["N_2"]
+                        - np.abs(self.result["N_1"] - self.result["N_2"])
+                    )
+                    self.result["N_1*N_2"] = self.result["N_1*N_2"] - mini_N1_N2
+                    self.result["g^2"] = self.result["N_1*N_2"] / (
+                        self.result["N_1"] * self.result["N_2"]
+                    )
 
         # ---------------
         # Déviations standards

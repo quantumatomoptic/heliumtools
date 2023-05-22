@@ -41,6 +41,7 @@ import copy
 import time
 import torch
 
+
 class CorrelationHe2Style:
     """
     Classe selfelationHe2Style. Prend en entrée un dataframe avec X, Y et T et calcule de corrélations etc...
@@ -333,7 +334,9 @@ class CorrelationHe2Style:
 
     def initialize_voxel_map_properties(self):
         """_summary_"""
-        self.voxel_map_size = tuple([int(self.voxel_numbers[axis]) for axis in self.axis])
+        self.voxel_map_size = tuple(
+            [int(self.voxel_numbers[axis]) for axis in self.axis]
+        )
         # self.voxel_map = np.zeros(self.voxel_map_size)
         # self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
         self.voxel_map_range = tuple(
@@ -432,31 +435,40 @@ class CorrelationHe2Style:
             else:
                 atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
         cols_to_remove = [col for col in atXY.columns if col not in self.axis]
-        print("Datasize : {}".format(len(atXY)))
-        r = [self.voxel_map_range[0][0], self.voxel_map_range[0][1], self.voxel_map_range[1][0], self.voxel_map_range[1][1], self.voxel_map_range[2][0], self.voxel_map_range[2][1]]
+        # print("Datasize : {}".format(len(atXY)))
+        r = [
+            self.voxel_map_range[0][0],
+            self.voxel_map_range[0][1],
+            self.voxel_map_range[1][0],
+            self.voxel_map_range[1][1],
+            self.voxel_map_range[2][0],
+            self.voxel_map_range[2][1],
+        ]
         atXY.drop(cols_to_remove, axis=1, inplace=True)
-        t0 = time.time()
-        G2XY, edges = np.histogramdd(
-           atXY.to_numpy(), bins=self.voxel_map_size, range=self.voxel_map_range
+        # t0 = time.time()
+        # G2XY, edges = np.histogramdd(
+        #    atXY.to_numpy(), bins=self.voxel_map_size, range=self.voxel_map_range
+        # )
+        # t1 = time.time()
+        G2XY, edges = torch.histogramdd(
+            torch.from_numpy(atXY.to_numpy()), bins=list(self.voxel_map_size), range=r
         )
-        t1 = time.time()
-        G2XY, edges = torch.histogramdd(torch.from_numpy(atXY.to_numpy()),bins=list(self.voxel_map_size), range = r)
-        t2 = time.time()
-        dt_torch = t2 - t1
-        dt_numpy = t1 - t0
-        if dt_torch < dt_numpy:
-            print("Torch is {:.0f} times better".format((dt_numpy/dt_torch - 1)))
-        else:
-            print("Numpy is {:.0f} times better".format((dt_torch/dt_numpy - 1)))
-        del atXY
+        # t2 = time.time()
+        # dt_torch = t2 - t1
+        # dt_numpy = t1 - t0
+        # if dt_torch < dt_numpy:
+        #     print("Torch is {:.0f} times better".format((dt_numpy/dt_torch - 1)))
+        # else:
+        #     print("Numpy is {:.0f} times better".format((dt_torch/dt_numpy - 1)))
+        # del atXY
         return G2XY.detach().cpu().numpy()
-
 
     def compute_correlations(self):
         """Principal function of the code. L'idée du code est le suivant :
         * on parcourt les cycles de la séquence et pour chaque cycle, on récupère les atomes dans la ROI1 et la ROI2.
         * pour chaque cycle, on calcule la différence (corrélations locales) ou la somme (corrélation croisées) de l'ensemble des couple d'atomes.
-        * on fait ensuite l'histogramme 3D de cet ensemble. On l'ajoute à l'histogramme total."""
+        * on fait ensuite l'histogramme 3D de cet ensemble. On l'ajoute à l'histogramme total.
+        """
         self.initialize_voxel_map_properties()
         self.update_atoms_in_beams()
         cycles_array_splitted = np.array_split(
@@ -500,5 +512,3 @@ class CorrelationHe2Style:
                 * self.result["G2AB"]
                 / (self.result["G2AB random1"] + self.result["G2AB random2"])
             )
-
-
