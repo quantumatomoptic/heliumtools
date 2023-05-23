@@ -500,7 +500,11 @@ if __name__ == "__main__":
 
     folder = "/media/victor/8482-1010/gus_data/2023/05/15/053"
     folder = "/home/victor/gus_data/2023/05/15/053"
-    check_BEC_fit(folder)
+    check_BEC_fit(
+        folder,
+        width_saturation=0.3,
+        # ROI_for_fit={"T": {"min": 307, "max": 309.7}},
+    )
 
     # X, Y, T = load_XYTTraw(folder + "/041_225.atoms")
     # print(

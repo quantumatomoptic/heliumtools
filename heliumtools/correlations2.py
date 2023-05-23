@@ -189,11 +189,12 @@ class CorrelationHe2Style:
         Si le beam est vide, la méthode ne fait rien. Le format du beam doit être {"Vx": {"position":120, "size":-120}}
         """
         if beam:
+            atoms_in_beam = self.atoms
             for key, entry in beam.items():
-                atoms_in_beam = self.atoms[
+                atoms_in_beam = atoms_in_beam[
                     (
-                        (self.atoms[key] <= entry["position"] + entry["size"] / 2.0)
-                        & (self.atoms[key] > entry["position"] - entry["size"] / 2.0)
+                        (atoms_in_beam[key] <= entry["position"] + entry["size"] / 2.0)
+                        & (atoms_in_beam[key] > entry["position"] - entry["size"] / 2.0)
                     )
                 ]
         return atoms_in_beam
@@ -246,91 +247,6 @@ class CorrelationHe2Style:
         # il n'y a pas d'atomes. Pandas ajoute donc un NaN à la place.
         df_merged = df_merged.fillna(0)
         return df_merged
-
-    def show_density_plots(self):
-        # First Plot : 2D density
-        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
-        for i in range(3):
-            x = self.axis[i]
-            y = self.axis[(i + 1) % 3]
-            ax = axes[i]
-            sns.histplot(
-                self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.coolwarm
-            )  # , palette = "twilight")
-
-            def draw_box(cX, σX, cY, σY, **kwargs):
-                ax.plot(
-                    [cX - σX, cX + σX, cX + σX, cX - σX, cX - σX],
-                    [cY - σY, cY - σY, cY + σY, cY + σY, cY - σY],
-                    **kwargs,
-                )
-
-            # on affiche la boite 1
-            posX = self.beams["A"][x]["position"]
-            sizeX = self.beams["A"][x]["size"]
-            posY = self.beams["A"][y]["position"]
-            sizeY = self.beams["A"][y]["size"]
-            draw_box(
-                posX, sizeX / 2, posY, sizeY / 2, color="darkgreen", label="beam A"
-            )
-            # draw_box(posX, 3*sizeX / 2, posY, 3*sizeY / 2, color="darkgreen",ls = "--")
-            # on affiche la boite 1
-            posX = self.beams["B"][x]["position"]
-            sizeX = self.beams["B"][x]["size"]
-            posY = self.beams["B"][y]["position"]
-            sizeY = self.beams["B"][y]["size"]
-            draw_box(posX, sizeX / 2, posY, sizeY / 2, color="dimgray", label="beam B")
-            # draw_box(posX, 3*sizeX / 2, posY, 3*sizeY / 2, color="dimgray",ls = "--")
-        plt.legend(loc=1)
-        plt.tight_layout()
-        plt.show()
-
-        # Second Plot : every thing in ROI
-        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
-        for i in range(3):
-            x = self.axis[i]
-            ax = axes[i]
-            sns.histplot(data=self.atoms, x=x, ax=ax, color="C" + str(i))
-        plt.tight_layout()
-        plt.show()
-        # third plot : each beam
-        self.update_atoms_in_beams()
-
-        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
-        statsA = []
-        statsB = []
-        for i in range(3):
-            # sns.histplot(data=self.atoms, x =self.axis[i] , ax = axes[i],
-            #               color = "C2", alpha = 0.2, label = "ROI")
-            sns.histplot(
-                data=self.atomsA,
-                x=self.axis[i],
-                ax=axes[i],
-                color="C0",
-                alpha=0.5,
-                label="beam A",
-            )
-            sns.histplot(
-                data=self.atomsB,
-                x=self.axis[i],
-                ax=axes[i],
-                color="C1",
-                alpha=0.5,
-                label="beam B",
-                kde=True,
-            )
-            statsA.append(str(self.atomsA[self.axis[i]].describe()))
-        plt.legend()
-        plt.tight_layout()
-        plt.show()
-        print("\n " + "=" * 30 + " BEAM A " + "=" * 30 + "\n")
-        for elem, val in self.beams["A"].items():
-            print(elem, val)
-        print(self.atomsA.describe())
-        print("\n " + "=" * 30 + " BEAM B " + "=" * 30 + "\n")
-        for elem, val in self.beams["B"].items():
-            print(elem, val)
-        print(self.atomsB.describe())
 
     def initialize_voxel_map_properties(self):
         """_summary_"""
@@ -512,3 +428,88 @@ class CorrelationHe2Style:
                 * self.result["G2AB"]
                 / (self.result["G2AB random1"] + self.result["G2AB random2"])
             )
+
+    def show_density_plots(self):
+        # First Plot : 2D density
+        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
+        for i in range(3):
+            x = self.axis[i]
+            y = self.axis[(i + 1) % 3]
+            ax = axes[i]
+            sns.histplot(
+                self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.coolwarm
+            )  # , palette = "twilight")
+
+            def draw_box(cX, σX, cY, σY, **kwargs):
+                ax.plot(
+                    [cX - σX, cX + σX, cX + σX, cX - σX, cX - σX],
+                    [cY - σY, cY - σY, cY + σY, cY + σY, cY - σY],
+                    **kwargs,
+                )
+
+            # on affiche la boite 1
+            posX = self.beams["A"][x]["position"]
+            sizeX = self.beams["A"][x]["size"]
+            posY = self.beams["A"][y]["position"]
+            sizeY = self.beams["A"][y]["size"]
+            draw_box(
+                posX, sizeX / 2, posY, sizeY / 2, color="darkgreen", label="beam A"
+            )
+            # draw_box(posX, 3*sizeX / 2, posY, 3*sizeY / 2, color="darkgreen",ls = "--")
+            # on affiche la boite 1
+            posX = self.beams["B"][x]["position"]
+            sizeX = self.beams["B"][x]["size"]
+            posY = self.beams["B"][y]["position"]
+            sizeY = self.beams["B"][y]["size"]
+            draw_box(posX, sizeX / 2, posY, sizeY / 2, color="dimgray", label="beam B")
+            # draw_box(posX, 3*sizeX / 2, posY, 3*sizeY / 2, color="dimgray",ls = "--")
+        plt.legend(loc=1)
+        plt.tight_layout()
+        plt.show()
+
+        # Second Plot : every thing in ROI
+        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
+        for i in range(3):
+            x = self.axis[i]
+            ax = axes[i]
+            sns.histplot(data=self.atoms, x=x, ax=ax, color="C" + str(i))
+        plt.tight_layout()
+        plt.show()
+        # third plot : each beam
+        self.update_atoms_in_beams()
+
+        fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
+        statsA = []
+        statsB = []
+        for i in range(3):
+            # sns.histplot(data=self.atoms, x =self.axis[i] , ax = axes[i],
+            #               color = "C2", alpha = 0.2, label = "ROI")
+            sns.histplot(
+                data=self.atomsA,
+                x=self.axis[i],
+                ax=axes[i],
+                color="C0",
+                alpha=0.5,
+                label="beam A",
+            )
+            sns.histplot(
+                data=self.atomsB,
+                x=self.axis[i],
+                ax=axes[i],
+                color="C1",
+                alpha=0.5,
+                label="beam B",
+                kde=True,
+            )
+            statsA.append(str(self.atomsA[self.axis[i]].describe()))
+        plt.legend()
+        plt.tight_layout()
+        plt.show()
+        print("\n " + "=" * 30 + " BEAM A " + "=" * 30 + "\n")
+        for elem, val in self.beams["A"].items():
+            print(elem, val)
+        print(self.atomsA.describe())
+        print("\n " + "=" * 30 + " BEAM B " + "=" * 30 + "\n")
+        for elem, val in self.beams["B"].items():
+            print(elem, val)
+        print(self.atomsB.describe())
