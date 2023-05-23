@@ -503,7 +503,11 @@ if __name__ == "__main__":
     check_BEC_fit(
         folder,
         width_saturation=0.3,
-        # ROI_for_fit={"T": {"min": 307, "max": 309.7}},
+        ROI_for_fit={
+            "T": {"min": 307, "max": 309.7},
+            "X": {"min": -35, "max": -7},
+            "Y": {"min": -35, "max": 35},
+        },
     )
 
     # X, Y, T = load_XYTTraw(folder + "/041_225.atoms")
