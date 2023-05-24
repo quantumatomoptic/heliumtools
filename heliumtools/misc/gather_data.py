@@ -503,6 +503,7 @@ if __name__ == "__main__":
     check_BEC_fit(
         folder,
         width_saturation=0.3,
+        histogramm_width=0.01,
         ROI_for_fit={
             "T": {"min": 307, "max": 309.7},
             "X": {"min": -35, "max": -7},

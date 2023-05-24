@@ -100,12 +100,10 @@ class CorrelationHe2Style:
         """
         Cette méthode construit le dataframe contenant l'ensemble des positions des atomes : elle construit le dataframe self.atoms, dont les vitesses sont exprimées en mm/s à partir du dataframe initial.
         """
-
-        self.atoms["X"] = 1000 * self.atoms["X"] / self.atoms["T"] + self.raman_kick
-        self.atoms = self.atoms.rename(columns={"X": "Vx"})
-        self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
-        self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-
+        # Cleaning the self.atoms dataframe : must contains only 4 columns (to avoid mixing when merging.)
+        for column in self.atoms.columns:
+            if column not in ["X", "Y", "T", "Cycle"]:
+                self.atoms.drop(column, inplace=True, axis=1)
         if (
             type(self.bec_arrival_time) == int
             or type(self.bec_arrival_time) == float
@@ -115,46 +113,90 @@ class CorrelationHe2Style:
             or isinstance(self.bec_arrival_time, np.int64)
         ):
             l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
+            self.atoms["X"] = 1000 * self.atoms["X"] / self.atoms["T"] + self.raman_kick
+            self.atoms = self.atoms.rename(columns={"X": "Vx"})
+            self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
+            self.atoms = self.atoms.rename(columns={"Y": "Vy"})
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
+            self.atoms = self.atoms.rename(columns={"T": "Vz"})
         elif isinstance(self.bec_arrival_time, pd.DataFrame):
-            print("I change the bec arrival time for each cycle.")
-            self.atoms = self.merge_dataframe_on_cycles(
-                self.atoms, self.bec_arrival_time
-            )
+            print(self.bec_arrival_time["BEC Arrival Time"].mean())
+            self.atoms["X"] = (
+                1000 * self.atoms["X"] / self.atoms["T"]
+            )  # + self.raman_kick
+            self.atoms = self.atoms.rename(columns={"X": "Vx"})
+            self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
+            self.atoms = self.atoms.rename(columns={"Y": "Vy"})
+
             l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
             )
-            # compute the speed of BECs
-            self.atoms["BEC Arrival Time"] = (
-                0.5 * self.gravity * self.atoms["BEC Arrival Time"]
-                - l_fall / self.atoms["BEC Arrival Time"]
+            self.atoms = self.atoms.rename(columns={"T": "Vz"})
+            ## Start to recenter data
+            # compute the speed of BECs in mm/s, starting with Vx, Vy and finally Vz.
+            print(self.bec_arrival_time["BEC Arrival Time"].mean())
+            if "BEC Center X" in self.bec_arrival_time.columns:
+                self.bec_arrival_time["BEC X"] = (
+                    1000
+                    * self.bec_arrival_time["BEC Center X"]
+                    / self.bec_arrival_time["BEC Arrival Time"]
+                )
+            else:
+                self.bec_arrival_time["BEC X"] = self.raman_kick
+            print(self.bec_arrival_time["BEC Arrival Time"].mean())
+            if "BEC Center Y" in self.bec_arrival_time.columns:
+                self.bec_arrival_time["BEC Y"] = (
+                    1000
+                    * self.bec_arrival_time["BEC Center Y"]
+                    / self.bec_arrival_time["BEC Arrival Time"]
+                )
+            else:
+                self.bec_arrival_time["BEC Y"] = 0
+            print(self.bec_arrival_time["BEC Arrival Time"].mean())
+            self.bec_arrival_time["BEC Z"] = (
+                0.5 * self.gravity * self.bec_arrival_time["BEC Arrival Time"]
+                - l_fall / self.bec_arrival_time["BEC Arrival Time"]
+            )
+            # check now if we have perform some Bragg diffraction to fit the BEC
+            print(self.bec_arrival_time["BEC Arrival Time"].mean())
+
+            self.atoms = self.merge_dataframe_on_cycles(
+                self.atoms, self.bec_arrival_time
             )
             # take off the speed of each BEC
-            self.atoms["T"] = (
-                self.atoms["T"]
-                - self.atoms["BEC Arrival Time"]
-                + self.additionnal_bec_speed_ms
-            )
-            # drop the column with no more interest.
-            self.atoms.drop("BEC Arrival Time", inplace=True, axis=1)
+            self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Z"]
+            self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC X"]
+            self.atoms["Vy"] = self.atoms["Vy"] - self.atoms["BEC Y"]
+            print(self.bec_arrival_time["BEC Arrival Time"].mean())
 
             ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
-            df = self.bec_arrival_time[
-                self.bec_arrival_time["Number of Atoms"] < self.bad_shot_limit
-            ]
+            df = self.atoms[self.atoms["Number of Atoms"] < self.bad_shot_limit]
             for cycle, nb_atoms in zip(df["Cycle"], df["Number of Atoms"]):
                 print(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
                 self.n_cycles -= 1
+            # drop columns with no more interest (for later calculations)
+            for column in self.atoms.columns:
+                if column not in ["Vz", "Vx", "Vy", "Cycle"]:
+                    self.atoms.drop(column, inplace=True, axis=1)
+            print(self.bec_arrival_time["BEC Arrival Time"].mean())
 
         else:
-            print("###### /!\ Please modify build_the_atom_dataframe in correlation.py")
-        self.atoms = self.atoms.rename(columns={"T": "Vz"})
-        for axis in self.axis:
-            print(axis)
-            self.atoms[axis] -= self.ref_frame_speed[axis]
+            print(
+                "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
+            )
+
+        for axis in self.ref_frame_speed:
+            if axis in ["Vx", "Vy", "Vz"] and self.ref_frame_speed[axis] != 0:
+                print(
+                    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
+                )
+                self.atoms[axis] -= self.ref_frame_speed[axis]
+
+        self.cycles_array = self.atoms["Cycle"].unique()
+        self.n_cycles = len(self.atoms["Cycle"].unique())
 
     def apply_ROD(self):
         """

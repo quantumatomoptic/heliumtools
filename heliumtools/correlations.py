@@ -168,6 +168,9 @@ class Correlation:
             self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
             self.atoms = self.atoms.rename(columns={"Y": "Vy"})
 
+            self.atoms = self.merge_dataframe_on_cycles(
+                self.atoms, self.bec_arrival_time
+            )
             l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
@@ -175,38 +178,37 @@ class Correlation:
             self.atoms = self.atoms.rename(columns={"T": "Vz"})
             ## Start to recenter data
             # compute the speed of BECs in mm/s, starting with Vx, Vy and finally Vz.
+
             if "BEC Center X" in self.bec_arrival_time.columns:
-                self.bec_arrival_time["BEC Center X"] = (
+                self.bec_arrival_time["BEC X"] = (
                     1000
                     * self.bec_arrival_time["BEC Center X"]
                     / self.bec_arrival_time["BEC Arrival Time"]
                 )
             else:
-                self.bec_arrival_time["BEC Center X"] = self.raman_kick
+                self.bec_arrival_time["BEC X"] = self.raman_kick
             if "BEC Center Y" in self.bec_arrival_time.columns:
-                self.bec_arrival_time["BEC Center Y"] = (
+                self.bec_arrival_time["BEC Y"] = (
                     1000
                     * self.bec_arrival_time["BEC Center Y"]
                     / self.bec_arrival_time["BEC Arrival Time"]
                 )
             else:
-                self.bec_arrival_time["BEC Center Y"] = 0
-            self.bec_arrival_time["BEC Arrival Time"] = (
+                self.bec_arrival_time["BEC Y"] = 0
+            self.bec_arrival_time["BEC Z"] = (
                 0.5 * self.gravity * self.bec_arrival_time["BEC Arrival Time"]
                 - l_fall / self.bec_arrival_time["BEC Arrival Time"]
             )
-            self.atoms = self.merge_dataframe_on_cycles(
-                self.atoms, self.bec_arrival_time
-            )
+            # check now if we have perform some Bragg diffraction to fit the BEC
+
             # take off the speed of each BEC
-            self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Arrival Time"]
-            self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC Center X"]
-            self.atoms["Vy"] = self.atoms["Vy"] - self.atoms["BEC Center Y"]
+            # self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Z"]
+            # self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC X"]
+            # self.atoms["Vy"] = self.atoms["Vy"] - self.atoms["BEC Y"]
+            # print(self.bec_arrival_time["BEC Arrival Time"].mean())
 
             ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
-            df = self.bec_arrival_time[
-                self.bec_arrival_time["Number of Atoms"] < self.bad_shot_limit
-            ]
+            df = self.atoms[self.atoms["Number of Atoms"] < self.bad_shot_limit]
             for cycle, nb_atoms in zip(df["Cycle"], df["Number of Atoms"]):
                 print(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
                 self.n_cycles -= 1
