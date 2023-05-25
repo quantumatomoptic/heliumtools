@@ -202,9 +202,9 @@ class Correlation:
             # check now if we have perform some Bragg diffraction to fit the BEC
 
             # take off the speed of each BEC
-            # self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Z"]
-            # self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC X"]
-            # self.atoms["Vy"] = self.atoms["Vy"] - self.atoms["BEC Y"]
+            self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Z"]
+            self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC X"]
+            self.atoms["Vy"] = self.atoms["Vy"] - self.atoms["BEC Y"]
             # print(self.bec_arrival_time["BEC Arrival Time"].mean())
 
             ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
