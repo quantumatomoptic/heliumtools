@@ -11,14 +11,14 @@ Comments : implements a 2D Gauss fit
 import numpy as np
 
 # -- local
-from tools.fit.abstract import Abstract2DBellShaped
+from heliumtools.fit.abstract import Abstract2DBellShaped
 
 
 # %% FUNCTIONS
 
 
 def Gauss(x, A, sigma, c):
-    return A * np.exp(-((x - c) ** 2) / 2 / sigma ** 2)
+    return A * np.exp(-((x - c) ** 2) / 2 / sigma**2)
 
 
 def Gauss1D(x, *p):

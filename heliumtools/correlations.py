@@ -168,9 +168,6 @@ class Correlation:
             self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
             self.atoms = self.atoms.rename(columns={"Y": "Vy"})
 
-            self.atoms = self.merge_dataframe_on_cycles(
-                self.atoms, self.bec_arrival_time
-            )
             l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
             self.atoms["T"] = (
                 0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
@@ -186,7 +183,7 @@ class Correlation:
                     / self.bec_arrival_time["BEC Arrival Time"]
                 )
             else:
-                self.bec_arrival_time["BEC X"] = self.raman_kick
+                self.bec_arrival_time["BEC X"] = -self.raman_kick
             if "BEC Center Y" in self.bec_arrival_time.columns:
                 self.bec_arrival_time["BEC Y"] = (
                     1000
@@ -200,7 +197,9 @@ class Correlation:
                 - l_fall / self.bec_arrival_time["BEC Arrival Time"]
             )
             # check now if we have perform some Bragg diffraction to fit the BEC
-
+            self.atoms = self.merge_dataframe_on_cycles(
+                self.atoms, self.bec_arrival_time
+            )
             # take off the speed of each BEC
             self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Z"]
             self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC X"]
@@ -214,7 +213,7 @@ class Correlation:
                 self.n_cycles -= 1
             # drop columns with no more interest (for later calculations)
             for column in self.atoms.columns:
-                if column not in ["Vz", "Vx", "Vy", "Cycle"]:
+                if column not in ["Vz", "Vx", "Vy", "Cycle", "Vperp", "theta"]:
                     self.atoms.drop(column, inplace=True, axis=1)
 
         else:
@@ -231,6 +230,16 @@ class Correlation:
 
         self.cycles_array = self.atoms["Cycle"].unique()
         self.n_cycles = len(self.atoms["Cycle"].unique())
+        self.compute_cylindrical_coordinates()
+
+    def compute_cylindrical_coordinates(self):
+        """Compute transverse velocity and angular angle of the atom dataframe."""
+        self.atoms["Vperp"] = np.sqrt(self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2)
+        self.atoms["theta"] = np.arccos(
+            self.atoms["Vx"] / self.atoms["Vperp"]
+        )  # [0, pi] range
+        local_condition = self.atoms["Vy"] < 0
+        self.atoms.loc[local_condition, "theta"] = 2 * np.pi - self.atoms["theta"]
 
     def save_copy_of_atoms(self):
         """Save a copy of the atom dataframe. Important to do if one does bottstraping."""
@@ -274,7 +283,7 @@ class Correlation:
         Parameters
         ----------
         df : dataframe d'atomes
-        box : dictionnaire, du type {"Vx": {"size": 10, "position": 0}}. Il faut que les entrées du dictionnaire matchent le nom des colonnes du dataframe soit Vx, Vy, Vz et Cycle.
+        box : dictionnaire, du type {"Vx": {"size": 10, "position": 0}}. Il faut que les entrées du dictionnaire matchent le nom des colonnes du dataframe soit Vx, Vy, Vz et Cycle. Update depuis mai 2023, les entrées du dictionnaire de boite peuvent être 'range' (array) ou bien minimum et maximum.
 
         Returns
         ----------
@@ -282,8 +291,15 @@ class Correlation:
         """
         for key, value in box.items():
             # Rappel : key est par ex "Vx" ; value est {"size":10, "position":0}
-            minimum = value["position"] - value["size"] / 2
-            maximum = value["position"] + value["size"] / 2
+            if "range" in value:
+                minimum = np.min(value["range"])
+                maximum = np.max(value["range"])
+            elif "position" in value and "size" in value:
+                minimum = value["position"] - np.abs(value["size"]) / 2
+                maximum = value["position"] + np.abs(value["size"]) / 2
+            elif "minimum" in value and "maximum" in value:
+                minimum = value["minimum"]
+                maximum = value["maximum"]
             df = df[((df[key] >= minimum) & (df[key] < maximum))]
         return df
 
@@ -774,7 +790,8 @@ class Correlation:
         """
         total["N_1*N_2"] = total["N_1"] * total["N_2"]
         column_name = "N_1*N_2"
-
+        total["N_1**2"] = total["N_1"] ** 2
+        total["N_2**2"] = total["N_2"] ** 2
         total["N_1-N_2"] = total["N_1"] - total["N_2"]
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
@@ -826,6 +843,20 @@ class Correlation:
         self.result["g^2"] = self.result["N_1*N_2"] / (
             self.result["N_1"] * self.result["N_2"]
         )
+
+        # Cauchy Schwarz
+        self.result["C-S"] = self.result["N_1*N_2"] / (
+            np.sqrt(
+                (self.result["N_1**2"] - self.result["N_1"])
+                * (self.result["N_2**2"] - self.result["N_2"])
+            )
+        )
+        self.result["g^2(k1,k1)"] = (
+            self.result["N_1**2"] - self.result["N_1"]
+        ) / self.result["N_1"] ** 2
+        self.result["g^2(k2,k2)"] = (
+            self.result["N_2**2"] - self.result["N_2"]
+        ) / self.result["N_2"] ** 2
 
         # on enlève le shot noise si cela est demandé par l'utilisateur.
         if self.remove_shot_noise:

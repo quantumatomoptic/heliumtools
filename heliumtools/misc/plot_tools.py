@@ -91,6 +91,14 @@ cmap_iogs_cmjn = create_linear_colormap(
     name="IOGS_CMJN",
 )
 
+cmap_iogs_cmjn_white_pivot = create_linear_colormap(
+    RGB1=blue_iogs_cmjn,
+    RGB2=red_iogs_cmjn,
+    RGB3=white,
+    n_points=300,
+    pivot=True,
+    name="IOGS_CMJN_WHITE_PIVOT",
+)
 cmap_iogs_rgb = create_linear_colormap(
     RGB1=blue_iogs_rgb,
     RGB2=white,
