@@ -154,6 +154,7 @@ int main()
         string inputfile = params.seq_folder + "/" + *i;
         string outputfile = params.new_seq_folder + "/" + *i;
         copy_paste_file(inputfile + ".json", outputfile + ".json");
+        copy_paste_file(inputfile + ".sequence_parameters", outputfile + ".sequence_parameters");
         X1 = load_timedata(inputfile + ".timesx1");
         X2 = load_timedata(inputfile + ".timesx2");
         Y1 = load_timedata(inputfile + ".timesy1");
