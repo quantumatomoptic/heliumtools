@@ -15,7 +15,6 @@ Definition of Correlation and Variable classes
 
 """
 
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -26,6 +25,7 @@ from scipy.special import factorial
 import matplotlib.cm as cm
 import matplotlib.colors as colors
 import time
+import logging
 
 
 class Correlation:
@@ -104,6 +104,9 @@ class Correlation:
         self.round_decimal = 7
         self.id = int(time.time())
         self.is_there_a_copy_of_atoms = False
+        self.log_level = logging.DEBUG
+        logging.basicConfig(level=self.log_level)
+        logger = logging.getLogger("spam")
         self.boxes = {
             "1": {
                 "Vx": {"size": 10, "position": 0},
@@ -209,7 +212,7 @@ class Correlation:
             ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
             df = self.atoms[self.atoms["Number of Atoms"] < self.bad_shot_limit]
             for cycle, nb_atoms in zip(df["Cycle"], df["Number of Atoms"]):
-                print(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
+                logging.info(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
                 self.n_cycles -= 1
             # drop columns with no more interest (for later calculations)
             for column in self.atoms.columns:
@@ -217,13 +220,13 @@ class Correlation:
                     self.atoms.drop(column, inplace=True, axis=1)
 
         else:
-            print(
+            logging.error(
                 "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
             )
 
         for axis in self.ref_frame_speed:
             if axis in ["Vx", "Vy", "Vz"] and self.ref_frame_speed[axis] != 0:
-                print(
+                logging.info(
                     f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
                 )
                 self.atoms[axis] -= self.ref_frame_speed[axis]
@@ -571,6 +574,21 @@ class Correlation:
         else:
             self.result = 0
             print("This is not implemented yet.")
+
+    def compute_correlations_same_box_scanned(self):
+        boxes = ["1", "2"]
+        boxes.remove(self.var1.box)
+        box_not_scanned = boxes[0]
+        atom_beam_not_scanned = self.obtain_number_of_atoms_per_cycle_in_box(
+            self.atoms, self.boxes[box_not_scanned], column_name="N_" + box_not_scanned
+        )
+        for i in range(self.var1.n_step):
+            result_var2 = self.counts_atoms_in_boxes_one_variable(
+                self.atoms,
+                self.var1,
+                self.var1.box,
+                column_name="N_" + self.var1.box,
+            )
 
     def compute_correlations_different_box_scanned(self):
         """
