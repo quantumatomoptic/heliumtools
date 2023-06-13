@@ -242,6 +242,7 @@ def fit_BEC_arrival_time(
         ),
     )
     bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
+    
     # find the position of the max
     max_index = np.argmax(bin_heights)
     arr_time_maximum = bin_centers[max_index]
@@ -344,7 +345,7 @@ def fit_BEC_arrival_time(
             bin_centersY, gaussian_function(bin_centersY, *p0Y), "--", label="guess"
         )
         plt.show()
-    ans = popt[0], arr_time_maximum, poptX[0], poptY[0]
+    ans = popt[0], arr_time_maximum, poptX[0], poptY[0] , popt[2] , np.std(T)
     return ans, failed_status
 
 
@@ -369,6 +370,8 @@ def obtain_arrival_times(atom_files, **kwargs):
     list_of_cycles = [0 for i in atom_files]
     list_centers_X = [0 for i in atom_files]
     list_centers_Y = [0 for i in atom_files]
+    list_of_std_arrival_time = [0 for i in atom_files]
+    list_of_fitted_std_arrival_time = [0 for i in atom_files]
     print("Starting to gather arrival time of BECs")
     for i, path in enumerate(tqdm(atom_files)):
         X, Y, T = load_XYTTraw(path)
@@ -386,6 +389,8 @@ def obtain_arrival_times(atom_files, **kwargs):
             list_of_arrival_time_max[i] = ans[1]
             list_centers_X[i] = ans[2]
             list_centers_Y[i] = ans[3]
+            list_of_fitted_std_arrival_time[i] = ans[4]
+            list_of_std_arrival_time[i] = ans[5]
             if failed_status:
                 print(f"[WARN] : BEC not fitted (cycle {cycle} ; file : {path}).")
 
@@ -393,6 +398,8 @@ def obtain_arrival_times(atom_files, **kwargs):
         {
             "Cycle": list_of_cycles,
             "BEC Arrival Time": list_of_arrival_time,
+            "BEC fitted Std Arrival Time": list_of_fitted_std_arrival_time,
+            "BEC Std Arrival Time" : list_of_std_arrival_time,
             "Number of Atoms": number_of_atoms,
             "BEC Arrival Time with max": list_of_arrival_time_max,
             "BEC Arrival Time with fit": list_of_arrival_time,
