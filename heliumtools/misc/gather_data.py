@@ -230,11 +230,23 @@ def fit_BEC_arrival_time(
     width_saturation=0,
     show_fit=False,
 ):
+    """
+    This functions fit BEC arrival times. It generates a dictionary named ans in which we store some properties of the arrival times of our BEC.
+    """
+    ans = {"Number of Atoms": len(X)}
     data = pd.DataFrame({"X": X, "Y": Y, "T": T})
     data = apply_roi(data, ROI_for_fit)
+
+
     X = data["X"].to_numpy()
     Y = data["Y"].to_numpy()
     T = data["T"].to_numpy()
+    ans["Number of Atoms in ROIfit"] = len(T)
+    ans["BEC Std Arrival Time"]= np.std(T)
+
+
+    #### FIT IN TIME
+
     bin_heights, bin_borders = np.histogram(
         T,
         bins=np.arange(
@@ -242,11 +254,10 @@ def fit_BEC_arrival_time(
         ),
     )
     bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
-    
     # find the position of the max
     max_index = np.argmax(bin_heights)
-    arr_time_maximum = bin_centers[max_index]
     mean = bin_centers[max_index]
+    ans["BEC Arrival Time with max"] = mean
     sigma = np.mean(bin_heights * (bin_centers - mean) ** 2)
     sigma = 0.1
     p0 = [mean, np.max(bin_heights), sigma, 0]
@@ -265,6 +276,10 @@ def fit_BEC_arrival_time(
         failed_status = True
         popt = p0
         # perr = [np.nan, np.nan, np.nan]
+    ans["BEC Arrival Time"] =  popt[0]
+    ans["BEC fitted Std Arrival Time"] =  popt[2]
+    ans["BEC Arrival Time with fit"] = popt[0]
+    ### FIT IN X
     bin_heightsX, bin_bordersX = np.histogram(
         X,
         bins=np.arange(ROI_for_fit["X"]["min"], ROI_for_fit["X"]["max"]),
@@ -286,6 +301,8 @@ def fit_BEC_arrival_time(
     except:
         failed_status = True
         poptX = p0X
+    ans["BEC Center X"] = poptX[0]
+    ### FIT in Y
     bin_heightsY, bin_bordersY = np.histogram(
         Y,
         bins=np.arange(ROI_for_fit["Y"]["min"], ROI_for_fit["Y"]["max"]),
@@ -307,6 +324,7 @@ def fit_BEC_arrival_time(
     except:
         failed_status = True
         poptY = p0Y
+    ans["BEC Center Y"] = poptY[0]
     if show_fit:
         fig, axes = plt.subplots(figsize=(10, 3), ncols=3)
         axes[0].plot(bin_centers, bin_heights, "*", label="data")
@@ -345,7 +363,7 @@ def fit_BEC_arrival_time(
             bin_centersY, gaussian_function(bin_centersY, *p0Y), "--", label="guess"
         )
         plt.show()
-    ans = popt[0], arr_time_maximum, poptX[0], poptY[0] , popt[2] , np.std(T)
+
     return ans, failed_status
 
 
@@ -363,50 +381,18 @@ def obtain_arrival_times(atom_files, **kwargs):
     ------
     dataframe containing BEC arrival time & # of atoms
     """
-
-    list_of_arrival_time_max = [0 for i in atom_files]
-    list_of_arrival_time = [0 for i in atom_files]
-    number_of_atoms = [0 for i in atom_files]
-    list_of_cycles = [0 for i in atom_files]
-    list_centers_X = [0 for i in atom_files]
-    list_centers_Y = [0 for i in atom_files]
-    list_of_std_arrival_time = [0 for i in atom_files]
-    list_of_fitted_std_arrival_time = [0 for i in atom_files]
     print("Starting to gather arrival time of BECs")
+    list_of_df = []
     for i, path in enumerate(tqdm(atom_files)):
         X, Y, T = load_XYTTraw(path)
-        number_of_atoms[i] = len(T)
         seq, cycle = return_cycle_from_path(path)
-        list_of_cycles[i] = cycle
-        if len(T) < 100:
-            print(f"WARNING : shot {cycle} seems empty. I take it off the sequence.")
-            list_of_arrival_time[i] = np.nan  # 24/06/2022 & 17/05/2022
-            list_of_arrival_time_max[i] = np.nan
+        ans, failed_status = fit_BEC_arrival_time(X, Y, T, show_fit=False, **kwargs)
+        ans["Cycle"] = cycle
+        list_of_df.append(pd.DataFrame(ans, index=[i]))
+        df_arrival_time = pd.concat(list_of_df)
+        list_of_df = [df_arrival_time]
 
-        else:
-            ans, failed_status = fit_BEC_arrival_time(X, Y, T, show_fit=False, **kwargs)
-            list_of_arrival_time[i] = ans[0]
-            list_of_arrival_time_max[i] = ans[1]
-            list_centers_X[i] = ans[2]
-            list_centers_Y[i] = ans[3]
-            list_of_fitted_std_arrival_time[i] = ans[4]
-            list_of_std_arrival_time[i] = ans[5]
-            if failed_status:
-                print(f"[WARN] : BEC not fitted (cycle {cycle} ; file : {path}).")
 
-    df_arrival_time = pd.DataFrame(
-        {
-            "Cycle": list_of_cycles,
-            "BEC Arrival Time": list_of_arrival_time,
-            "BEC fitted Std Arrival Time": list_of_fitted_std_arrival_time,
-            "BEC Std Arrival Time" : list_of_std_arrival_time,
-            "Number of Atoms": number_of_atoms,
-            "BEC Arrival Time with max": list_of_arrival_time_max,
-            "BEC Arrival Time with fit": list_of_arrival_time,
-            "BEC Center X": list_centers_X,
-            "BEC Center Y": list_centers_Y,
-        }
-    )
     return df_arrival_time
 
 
@@ -449,6 +435,7 @@ def export_data_set_to_pickle(
             ROI_for_fit=ROI_for_fit,
             width_saturation=width_saturation,
         )
+        df_arrival_times =  pd.merge(df_arrival_times, atoms_in_ROI.groupby("Cycle").count()["T"].rename("Number of Atoms in ROI").reset_index(), on = "Cycle")
         df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
         filename = os.path.join(folder, "arrival_times.pkl")
         df_arrival_times.to_pickle(filename)
