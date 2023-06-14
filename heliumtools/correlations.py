@@ -105,8 +105,8 @@ class Correlation:
         self.id = int(time.time())
         self.is_there_a_copy_of_atoms = False
         self.log_level = logging.DEBUG
-        logging.basicConfig(level=self.log_level)
-        logger = logging.getLogger("spam")
+        #logging.basicConfig(level=self.log_level)
+        #logger = logging.getLogger("spam")
         self.boxes = {
             "1": {
                 "Vx": {"size": 10, "position": 0},
@@ -220,15 +220,16 @@ class Correlation:
                     self.atoms.drop(column, inplace=True, axis=1)
 
         else:
-            logging.error(
-                "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
-            )
+            pass
+            #logging.error(
+            #    "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
+            #)
 
         for axis in self.ref_frame_speed:
             if axis in ["Vx", "Vy", "Vz"] and self.ref_frame_speed[axis] != 0:
-                logging.info(
-                    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
-                )
+                #logging.info(
+                #    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
+                #)
                 self.atoms[axis] -= self.ref_frame_speed[axis]
 
         self.cycles_array = self.atoms["Cycle"].unique()
@@ -387,6 +388,7 @@ class Correlation:
         var : Variable
         box : dictionnaire, position et taille de la boîte sur 1 à 4 axes.
             Exemple {"Vx": {"size": 10, "position": 0}}
+        column
 
         Returns
         ----------
@@ -415,127 +417,7 @@ class Correlation:
         result.reset_index(drop=True)
         return result
 
-    ###########################################################
-    ############### FONCTION D'AFFICHAGE  #####################
-    ###########################################################
 
-    def show_density(
-        self,
-        nameX="Vy",
-        nameY="Vz",
-        x_bins=100,
-        y_bins=100,
-        title=None,
-        show_boxes=True,
-        save=None,
-        show_plot=True,
-    ):
-        """
-            Affiche l'histogramme 2D de colonnes nameX et nameY du dataframe.
-
-        Parameters
-        ----------
-        nameX, nameY : nom des colonnes du dataframe dont on veut tracer l'histogramme (abscisse, ordonnée) (soit Vx, Vy ou Vz)
-        x_bins, y_bins : nombre de bins en abscisse et en ordonnée
-        title : titre de l'histogramme
-        show_plot : boolean, if we want to see the plot
-        save : pathe to save the picture
-
-        Returns
-        ----------
-        hist_values : The bi-dimensional histogram of samples x and y. Values in x are histogrammed along the first dimension and values in y are histogrammed along the second dimension.
-        X_values : The bin edges along the x axis.
-        Y_values : The bin edges along the y axis.
-        """
-        if title == None:
-            title = "Histogramme pour {} fichiers".format(self.n_cycles)
-        plt.clf()
-        # plt.figure(figsize=(10, 7))
-        plt.figure()
-        X_list = self.atoms[nameX].to_numpy()
-        Y_list = self.atoms[nameY].to_numpy()
-        hist_values, X_values, Y_values, _ = plt.hist2d(
-            X_list, Y_list, bins=[x_bins, y_bins], cmap=plt.cm.Blues
-        )
-        if show_boxes:
-
-            def draw_box(cX, σX, cY, σY, color="orange", label="box"):
-                plt.plot(
-                    [cX - σX, cX + σX, cX + σX, cX - σX, cX - σX],
-                    [cY - σY, cY - σY, cY + σY, cY + σY, cY - σY],
-                    color,
-                    label=label,
-                )
-
-            # on affiche la boite 1
-            posX = self.boxes["1"][nameX]["position"]
-            sizeX = self.boxes["1"][nameX]["size"]
-            posY = self.boxes["1"][nameY]["position"]
-            sizeY = self.boxes["1"][nameY]["size"]
-            draw_box(posX, sizeX / 2, posY, sizeY / 2, color="orange", label=None)
-            draw_box(
-                posX, 3 * sizeX / 2, posY, 3 * sizeY / 2, color="darkred", label=None
-            )
-
-            # et le boite 2
-            posX = self.boxes["2"][nameX]["position"]
-            sizeX = self.boxes["2"][nameX]["size"]
-            posY = self.boxes["2"][nameY]["position"]
-            sizeY = self.boxes["2"][nameY]["size"]
-            draw_box(posX, sizeX / 2, posY, sizeY / 2, color="orange", label="box")
-            draw_box(
-                posX, 3 * sizeX / 2, posY, 3 * sizeY / 2, color="darkred", label="3*box"
-            )
-
-            ### On affiche 3x les boites
-            # on affiche la boite 1
-            posX = self.boxes["1"][nameX]["position"]
-            sizeX = 3 * self.boxes["1"][nameX]["size"]
-            posY = self.boxes["1"][nameY]["position"]
-            sizeY = 3 * self.boxes["1"][nameY]["size"]
-
-            # et le boite 2
-            posX = self.boxes["2"][nameX]["position"]
-            sizeX = 3 * self.boxes["2"][nameX]["size"]
-            posY = self.boxes["2"][nameY]["position"]
-            sizeY = 3 * self.boxes["2"][nameY]["size"]
-        plt.colorbar()
-        plt.legend()
-        plt.title(title)
-        plt.xlabel(nameX)
-        plt.ylabel(nameY)
-        if save:
-            plt.savefig(save)
-        if show_plot is True:
-            plt.show()
-        else:
-            plt.close()
-        return (hist_values, X_values, Y_values)
-
-    def show_2D_plot(self, x, y, z="g^2", vmin=0.8, vmax=2):
-        """
-        Show a 2D plot of some computed values.
-
-        Parameters
-        ----------
-        x : string, colonne du dataframe result à plotter
-        y : string, idem
-        z : string, idem
-        vmin : float, valeur minimale pour la colormap
-        vmax : float, valeur maximale pour la colormap
-        """
-        df_pivoted_correlations = self.result.pivot(index=x, columns=y, values=z)
-        fig, ax = plt.subplots(figsize=(13, 10))
-        sns.heatmap(
-            df_pivoted_correlations,
-            cmap="YlGnBu",
-            ax=ax,
-            vmin=vmin,
-            vmax=vmax,
-        )
-        ax.invert_yaxis()
-        plt.title(z)
-        plt.show()
 
     ###########################################################
     ######## GESTION DES CAS DE FIGURE AVANT LE CALCUL  #######
@@ -572,23 +454,41 @@ class Correlation:
             self.compute_correlations_different_box_scanned()
         # Cas 4 : on scanne des paramètres appartenant à la même boîte
         else:
-            self.result = 0
-            print("This is not implemented yet.")
+            self.compute_correlations_same_box_scanned()
 
     def compute_correlations_same_box_scanned(self):
+        """
+        This method is called when the two variables scan the same ax. Built a total dataframe and call the method compute_result.
+        """
         boxes = ["1", "2"]
+        if self.var1.box not in boxes:
+            print(f"[ERROR] : the var1 box is neither '1' nor '2' but {self.var1.box } ")
+            return
         boxes.remove(self.var1.box)
         box_not_scanned = boxes[0]
+        # The following is a dataframe with only two column wich are the number of atom in the box that is not scanned
         atom_beam_not_scanned = self.obtain_number_of_atoms_per_cycle_in_box(
             self.atoms, self.boxes[box_not_scanned], column_name="N_" + box_not_scanned
         )
+        result_var_list = []
         for i in range(self.var1.n_step):
-            result_var2 = self.counts_atoms_in_boxes_one_variable(
+            # We must set the new value for the box which is scanned :
+            self.boxes[self.var1.box][self.var1.axe][self.var1.type] = self.var1.get_value_i(i)
+            df = self.counts_atoms_in_boxes_one_variable(
                 self.atoms,
-                self.var1,
-                self.var1.box,
+                self.var2,
+                self.boxes[self.var2.box],
                 column_name="N_" + self.var1.box,
             )
+            df[self.var1.name] = self.var1.get_value_i(i)
+            result_var_list.append(df)
+        result_var = pd.concat(result_var_list).reset_index()
+            #print(len(result_var_2))
+            #result_var2_list = [result_var_2]
+
+        total = pd.merge(atom_beam_not_scanned, result_var, on="Cycle")
+        self.compute_result(total)
+
 
     def compute_correlations_different_box_scanned(self):
         """
@@ -869,6 +769,12 @@ class Correlation:
                 * (self.result["N_2**2"] - self.result["N_2"])
             )
         )
+        self.result["C-S difference"] = self.result["N_1*N_2"] - (
+            np.sqrt(
+                (self.result["N_1**2"] - self.result["N_1"])
+                * (self.result["N_2**2"] - self.result["N_2"])
+            )
+        )
         self.result["g^2(k1,k1)"] = (
             self.result["N_1**2"] - self.result["N_1"]
         ) / self.result["N_1"] ** 2
@@ -1073,6 +979,128 @@ class Correlation:
         )
 
         # print("Computation is done.")
+    ###########################################################
+    ############### FONCTION D'AFFICHAGE  #####################
+    ###########################################################
+
+    def show_density(
+        self,
+        nameX="Vy",
+        nameY="Vz",
+        x_bins=100,
+        y_bins=100,
+        title=None,
+        show_boxes=True,
+        save=None,
+        show_plot=True,
+    ):
+        """
+            Affiche l'histogramme 2D de colonnes nameX et nameY du dataframe.
+
+        Parameters
+        ----------
+        nameX, nameY : nom des colonnes du dataframe dont on veut tracer l'histogramme (abscisse, ordonnée) (soit Vx, Vy ou Vz)
+        x_bins, y_bins : nombre de bins en abscisse et en ordonnée
+        title : titre de l'histogramme
+        show_plot : boolean, if we want to see the plot
+        save : pathe to save the picture
+
+        Returns
+        ----------
+        hist_values : The bi-dimensional histogram of samples x and y. Values in x are histogrammed along the first dimension and values in y are histogrammed along the second dimension.
+        X_values : The bin edges along the x axis.
+        Y_values : The bin edges along the y axis.
+        """
+        if title == None:
+            title = "Histogramme pour {} fichiers".format(self.n_cycles)
+        plt.clf()
+        # plt.figure(figsize=(10, 7))
+        plt.figure()
+        X_list = self.atoms[nameX].to_numpy()
+        Y_list = self.atoms[nameY].to_numpy()
+        hist_values, X_values, Y_values, _ = plt.hist2d(
+            X_list, Y_list, bins=[x_bins, y_bins], cmap=plt.cm.Blues
+        )
+        if show_boxes:
+
+            def draw_box(cX, σX, cY, σY, color="orange", label="box"):
+                plt.plot(
+                    [cX - σX, cX + σX, cX + σX, cX - σX, cX - σX],
+                    [cY - σY, cY - σY, cY + σY, cY + σY, cY - σY],
+                    color,
+                    label=label,
+                )
+
+            # on affiche la boite 1
+            posX = self.boxes["1"][nameX]["position"]
+            sizeX = self.boxes["1"][nameX]["size"]
+            posY = self.boxes["1"][nameY]["position"]
+            sizeY = self.boxes["1"][nameY]["size"]
+            draw_box(posX, sizeX / 2, posY, sizeY / 2, color="orange", label=None)
+            draw_box(
+                posX, 3 * sizeX / 2, posY, 3 * sizeY / 2, color="darkred", label=None
+            )
+
+            # et le boite 2
+            posX = self.boxes["2"][nameX]["position"]
+            sizeX = self.boxes["2"][nameX]["size"]
+            posY = self.boxes["2"][nameY]["position"]
+            sizeY = self.boxes["2"][nameY]["size"]
+            draw_box(posX, sizeX / 2, posY, sizeY / 2, color="orange", label="box")
+            draw_box(
+                posX, 3 * sizeX / 2, posY, 3 * sizeY / 2, color="darkred", label="3*box"
+            )
+
+            ### On affiche 3x les boites
+            # on affiche la boite 1
+            posX = self.boxes["1"][nameX]["position"]
+            sizeX = 3 * self.boxes["1"][nameX]["size"]
+            posY = self.boxes["1"][nameY]["position"]
+            sizeY = 3 * self.boxes["1"][nameY]["size"]
+
+            # et le boite 2
+            posX = self.boxes["2"][nameX]["position"]
+            sizeX = 3 * self.boxes["2"][nameX]["size"]
+            posY = self.boxes["2"][nameY]["position"]
+            sizeY = 3 * self.boxes["2"][nameY]["size"]
+        plt.colorbar()
+        plt.legend()
+        plt.title(title)
+        plt.xlabel(nameX)
+        plt.ylabel(nameY)
+        if save:
+            plt.savefig(save)
+        if show_plot is True:
+            plt.show()
+        else:
+            plt.close()
+        return (hist_values, X_values, Y_values)
+
+    def show_2D_plot(self, x, y, z="g^2", vmin=0.8, vmax=2):
+        """
+        Show a 2D plot of some computed values.
+
+        Parameters
+        ----------
+        x : string, colonne du dataframe result à plotter
+        y : string, idem
+        z : string, idem
+        vmin : float, valeur minimale pour la colormap
+        vmax : float, valeur maximale pour la colormap
+        """
+        df_pivoted_correlations = self.result.pivot(index=x, columns=y, values=z)
+        fig, ax = plt.subplots(figsize=(13, 10))
+        sns.heatmap(
+            df_pivoted_correlations,
+            cmap="YlGnBu",
+            ax=ax,
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax.invert_yaxis()
+        plt.title(z)
+        plt.show()
+
 
     def get_atoms_distribution(
         self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
@@ -1438,3 +1466,60 @@ class CorrelationXYIntegrated(Correlation):
                     },
                 }
             )
+if __name__ == "__main__":
+    import seaborn as sns
+    import pandas as pd
+    selected_data = pd.read_pickle("/home/victor/ownCloud/LabWiki/Journal/2023/06/13/data.pkl")
+    selec_bec_arrival_times = pd.read_pickle("/home/victor/ownCloud/LabWiki/Journal/2023/06/13/bec.pkl")
+    ROI = {
+        "Vz": {"min": -50, "max": 50},
+        "Vy": {"min": -70, "max": 70},
+        "Vx": {"max": 25, "min": -75},
+    }
+    boxZsize = 5
+    boxXsize = 10
+    boxYsize = 10
+    Xposition = 0
+    Yposition = 0
+    boxes = {
+        "1": {
+            "Vx": {"size": boxXsize, "position": Xposition},
+            "Vy": {"size": boxYsize, "position": Yposition},
+            "Vz": {"size": boxZsize, "position": 25},
+        },
+        "2": {
+            "Vx": {"size": boxXsize, "position": Xposition},
+            "Vy": {"size": boxYsize, "position": Yposition},
+            "Vz": {"size": boxZsize, "position": -25},
+        },
+    }
+    corr = Correlation(
+        selected_data,
+        ROI=ROI,
+        boxes=boxes,
+        raman_kick=42.5,
+        bec_arrival_time=selec_bec_arrival_times["BEC Arrival Time"].mean(),
+    ref_frame_speed = {"Vx": -2, "Vy": -5, "Vz": 94 },
+    remove_shot_noise = False
+    )
+    corr.define_variable1(
+        box="1", axe="Vx", type="position", name="Vx1", min=-20, max=11, step=10
+    )
+    corr.define_variable2(
+        box="1", axe="Vy", type="position", name="Vy1", min=-20, max=20, step=10
+    )
+    corr.compute_correlations()
+    df_pivoted_correlations = corr.result.pivot(index="Vx1", columns="Vy1", values="g^2")
+    fig, axes = plt.subplots(figsize = (8,3), ncols = 2)
+    sns.heatmap(
+        df_pivoted_correlations,
+        cmap="seismic",
+        ax=axes[0],
+        # norm=LogNorm()
+        center = 1,
+
+    )
+    axes[0].invert_yaxis()
+    sns.scatterplot(data = corr.result, x = "Vx1", y = "N_1", hue = "Vy1", palette = "Dark2")
+    plt.tight_layout()
+    plt.show()
