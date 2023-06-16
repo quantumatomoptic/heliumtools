@@ -81,7 +81,10 @@ def return_cycle_from_path(path):
     """
     path = str(path)  # on s'assure que path soit bien un string (pas un Path object)
     try:
-        json_path = path.replace(".atoms", ".json")
+        if ".atoms" in path:
+            json_path = path.replace(".atoms", ".json")
+        elif ".json" in path:
+            json_path = path
         with open(json_path) as f:
             list_of_metadatas = json.load(f)
         for element in list_of_metadatas:
@@ -237,13 +240,11 @@ def fit_BEC_arrival_time(
     data = pd.DataFrame({"X": X, "Y": Y, "T": T})
     data = apply_roi(data, ROI_for_fit)
 
-
     X = data["X"].to_numpy()
     Y = data["Y"].to_numpy()
     T = data["T"].to_numpy()
     ans["Number of Atoms in ROIfit"] = len(T)
-    ans["BEC Std Arrival Time"]= np.std(T)
-
+    ans["BEC Std Arrival Time"] = np.std(T)
 
     #### FIT IN TIME
 
@@ -276,8 +277,8 @@ def fit_BEC_arrival_time(
         failed_status = True
         popt = p0
         # perr = [np.nan, np.nan, np.nan]
-    ans["BEC Arrival Time"] =  popt[0]
-    ans["BEC fitted Std Arrival Time"] =  popt[2]
+    ans["BEC Arrival Time"] = popt[0]
+    ans["BEC fitted Std Arrival Time"] = popt[2]
     ans["BEC Arrival Time with fit"] = popt[0]
     ### FIT IN X
     bin_heightsX, bin_bordersX = np.histogram(
@@ -392,7 +393,6 @@ def obtain_arrival_times(atom_files, **kwargs):
         df_arrival_time = pd.concat(list_of_df)
         list_of_df = [df_arrival_time]
 
-
     return df_arrival_time
 
 
@@ -435,12 +435,56 @@ def export_data_set_to_pickle(
             ROI_for_fit=ROI_for_fit,
             width_saturation=width_saturation,
         )
-        df_arrival_times =  pd.merge(df_arrival_times, atoms_in_ROI.groupby("Cycle").count()["T"].rename("Number of Atoms in ROI").reset_index(), on = "Cycle")
+        df_arrival_times = pd.merge(
+            df_arrival_times,
+            atoms_in_ROI.groupby("Cycle")
+            .count()["T"]
+            .rename("Number of Atoms in ROI")
+            .reset_index(),
+            on="Cycle",
+        )
         df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
         filename = os.path.join(folder, "arrival_times.pkl")
         df_arrival_times.to_pickle(filename)
 
     return filename_dataset
+
+
+def gather_HAL_fits(folder):
+    folder = Path(folder + "/.HAL_fits")
+    ext = [".json"]
+    path_list = sorted(
+        [
+            path.as_posix()
+            for path in filter(lambda path: path.suffix in ext, folder.glob("*"))
+        ]
+    )  # string object
+    dataframe = pd.DataFrame()
+    for filename in path_list:
+        sequence_parameters_filename = filename.replace(".HAL_fits/", "")
+        seq, cycle = return_cycle_from_path(sequence_parameters_filename)
+        column_names = ["Sequence", "Cycle"]
+        column_values = [seq, cycle]
+        if os.path.exists(filename):
+            f = open(filename)
+            data = json.load(f)
+            data = data["collection"]
+            for ROI_name, ROI in data.items():
+                for key, values in ROI["result"].items():
+                    if key == "values":
+                        for element in values:
+                            column_names.append(
+                                "{} | {} ({})".format(
+                                    ROI_name, element["name"], element["unit"]
+                                )
+                            )
+                            column_values.append(element["value"])
+        new_df = pd.DataFrame([column_values], columns=column_names)
+        dataframe = pd.concat([dataframe, new_df])
+    dataframe.reset_index(drop=True, inplace=True)
+    filename_parameters = os.path.join(folder, "hal_fits.pkl")
+    dataframe.to_pickle(filename_parameters)
+    return dataframe
 
 
 def gather_saved_sequence_parameters(folder):
@@ -452,11 +496,18 @@ def gather_saved_sequence_parameters(folder):
     folder : path like
         chemin vers le dossier contenant tous les .atoms
     """
-    atoms = select_atoms_in_folder(folder)
+    folder = Path(folder)
+    ext = [".json"]
+    path_list = sorted(
+        [
+            path.as_posix()
+            for path in filter(lambda path: path.suffix in ext, folder.glob("*"))
+        ]
+    )  # string object
     dataframe = pd.DataFrame()
-    for atom_name in atoms:
-        filename = atom_name.replace(".atoms", ".json")
-        seq, cycle = return_cycle_from_path(atom_name)
+    for filename in path_list:
+        # filename = atom_name.replace(".atoms", ".json")
+        seq, cycle = return_cycle_from_path(filename)
         column_names = ["Sequence", "Cycle"]
         column_values = [seq, cycle]
         if os.path.exists(filename):
@@ -491,19 +542,20 @@ if __name__ == "__main__":
     #     find_arrival_times=True,
     #     n_max_cycles=3,
     # )
-
-    folder = "/media/victor/8482-1010/gus_data/2023/05/15/053"
-    folder = "/home/victor/gus_data/2023/05/15/053"
-    check_BEC_fit(
-        folder,
-        width_saturation=0.3,
-        histogramm_width=0.01,
-        ROI_for_fit={
-            "T": {"min": 307, "max": 309.7},
-            "X": {"min": -35, "max": -7},
-            "Y": {"min": -35, "max": 35},
-        },
-    )
+    folder = "/mnt/manip_E/2023/06/16/060"
+    gather_saved_sequence_parameters(folder)
+    # folder = "/media/victor/8482-1010/gus_data/2023/05/15/053"
+    # folder = "/home/victor/gus_data/2023/05/15/053"
+    # check_BEC_fit(
+    #     folder,
+    #     width_saturation=0.3,
+    #     histogramm_width=0.01,
+    #     ROI_for_fit={
+    #         "T": {"min": 307, "max": 309.7},
+    #         "X": {"min": -35, "max": -7},
+    #         "Y": {"min": -35, "max": 35},
+    #     },
+    # )
 
     # X, Y, T = load_XYTTraw(folder + "/041_225.atoms")
     # print(
