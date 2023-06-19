@@ -105,6 +105,7 @@ class Correlation:
         self.id = int(time.time())
         self.is_there_a_copy_of_atoms = False
         self.log_level = logging.DEBUG
+        self.recenter_with_bec_arrival_time ={"Vx": True, "Vy": True, "Vz": True}
         #logging.basicConfig(level=self.log_level)
         #logger = logging.getLogger("spam")
         self.boxes = {
@@ -204,16 +205,12 @@ class Correlation:
                 self.atoms, self.bec_arrival_time
             )
             # take off the speed of each BEC
-            self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Z"]
-            self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC X"]
-            self.atoms["Vy"] = self.atoms["Vy"] - self.atoms["BEC Y"]
+            for Vj, AX in zip(["Vx", "Vy", "Vz"], ["X", "Y", "Z"]):
+                if self.recenter_with_bec_arrival_time[Vj]:
+                    self.atoms[Vj] = self.atoms[Vj] - self.atoms["BEC "+ AX]
             # print(self.bec_arrival_time["BEC Arrival Time"].mean())
 
-            ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
-            df = self.atoms[self.atoms["Number of Atoms"] < self.bad_shot_limit]
-            for cycle, nb_atoms in zip(df["Cycle"], df["Number of Atoms"]):
-                logging.info(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
-                self.n_cycles -= 1
+
             # drop columns with no more interest (for later calculations)
             for column in self.atoms.columns:
                 if column not in ["Vz", "Vx", "Vy", "Cycle", "Vperp", "theta"]:
