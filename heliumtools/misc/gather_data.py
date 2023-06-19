@@ -179,21 +179,90 @@ def load_XYTTraw(path):
     return (X, Y, T)
 
 
+def apply_ROD(df, ROD):
+    """This function returns athe atoms dataframe such that all elements are OUTSIDE the ROD dictionary range. If the ROD is an empty dictionary, this function returns the initial dataframe.
+
+    Parameters
+    ----------
+    df : pandas dataframe
+        DataFrame with all atoms.
+    ROI : dic
+        dictionary for which every entry (for exemple 'T') matches a column of the df dataframe. The function returns a dictionary with the same number of columns as df but for which every line is NOT in a range required by the ROD dictionary, i.e. a maximum and a minimum value. Since a recent update, each entry of the dictionary can be a tuple or a list with two number or a dictionary with entries "min/max" or 'range'.
+
+    Returns
+    -------
+    pandas dataframe
+        initial dataframe in which all lines ARE NOT in the range of each entry of the ROD dictionary.
+    """
+    if not ROD:
+        return df
+    for key, value in ROD.items():
+        # Rappel : key est par ex "Vx" ; value est {"size":10, "position":0}
+        if "range" in value:
+            minimum = np.min(value["range"])
+            maximum = np.max(value["range"])
+        elif "minimum" in value and "maximum" in value:
+            minimum = value["minimum"]
+            maximum = value["maximum"]
+        elif "min" in value and "max" in value:
+            minimum = value["min"]
+            maximum = value["max"]
+        elif type(value) == list or type(value) == tuple:
+            minimum = min(value)
+            maximum = max(value)
+        else:
+            print("[WARNING] The ROD function was not recognized. Please fix me.")
+            return df
+
+        if key in df:
+            df = df[~((df[key] >= minimum) & (df[key] < maximum))]
+        else:
+            print(f"[WARNING] The key {key} of the ROI is not in the other dataframe.")
+    return df
+
+
 def apply_ROI(atoms, ROI):
     """
-    Modifie le dataframe "atoms" en appliquant la ROI. Cela permet d'alléger les données à traiter.
-    Si la ROI est vide, la méthode ne fait rien.
+    This function returns athe atoms dataframe such that all elements are within the ROI dictionary range. If the ROI is an empty dictionary, this function returns the initial dataframe.
 
     Parameters
     ----------
     atoms : pandas dataframe
-        pandas dataframe avec les
+        DataFrame with all atoms.
     ROI : dic
-        dictionnaire du type {"T": {"max":120, "min":-120}} où les entrées correspondent aux entrées du dataframe atoms
+        dictionary for which every entry (for exemple 'T') matches a column of the atoms dataframe. The function returns a dictionary with the same number of columns as atoms but for which every line is in a range required by the ROI dictionary, i.e. a maximum and a minimum value. Since a recent update, each entry of the dictionary can be a tuple or a list with two number or a dictionary with entries "min/max" or 'range'.
+
+    Returns
+    -------
+    pandas dataframe
+        initial dataframe in which all lines ARE in the range of each entry of the ROI dictionary.
     """
     if ROI:
-        for key, entry in ROI.items():
-            atoms = atoms[((atoms[key] <= entry["max"]) & (atoms[key] > entry["min"]))]
+        for key, value in ROI.items():
+            # Rappel : key est par ex "Vx" ; value est {"size":10, "position":0}
+            if "range" in value:
+                minimum = np.min(value["range"])
+                maximum = np.max(value["range"])
+            elif "minimum" in value and "maximum" in value:
+                minimum = value["minimum"]
+                maximum = value["maximum"]
+            elif "min" in value and "max" in value:
+                minimum = value["min"]
+                maximum = value["max"]
+            elif type(value) == list or type(value) == tuple:
+                minimum = min(value)
+                maximum = max(value)
+            else:
+                print(
+                    "[WARNING] The ROI format was not recognized. Please read the apply_ROI documentation. We expect a dictionary with all entrien"
+                )
+                return atoms
+            if key in atoms:
+                atoms = atoms[((atoms[key] <= maximum) & (atoms[key] > minimum))]
+            else:
+                print(
+                    f"[WARNING] The key {key} of the ROI is not in the other dataframe."
+                )
     return atoms
 
 
@@ -399,6 +468,7 @@ def obtain_arrival_times(atom_files, **kwargs):
 def export_data_set_to_pickle(
     folder,
     ROI,
+    ROD={"T": [10, 20]},
     find_arrival_times=False,
     n_max_cycles=1e8,
     histogramm_width=0.01,
