@@ -35,10 +35,8 @@ def histogram_plots_with_inset(df, X1, X2, Y, X1_label="", X2_label="", title=""
     if X2_label == "":
         X2_label = X2
     fig, ax1 = plt.subplots()
-    stds = df.std()
-    means = df.mean()
-    sigma0 = stds[X1]
-    mean0 = means[X1]
+    sigma0 = df[X1].std()
+    mean0 = df[X1].mean()
     plt.hist(
         df[X1],
         bins=100,

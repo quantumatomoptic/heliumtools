@@ -105,9 +105,9 @@ class Correlation:
         self.id = int(time.time())
         self.is_there_a_copy_of_atoms = False
         self.log_level = logging.DEBUG
-        self.recenter_with_bec_arrival_time ={"Vx": True, "Vy": True, "Vz": True}
-        #logging.basicConfig(level=self.log_level)
-        #logger = logging.getLogger("spam")
+        self.recenter_with_bec_arrival_time = {"Vx": True, "Vy": True, "Vz": True}
+        # logging.basicConfig(level=self.log_level)
+        # logger = logging.getLogger("spam")
         self.boxes = {
             "1": {
                 "Vx": {"size": 10, "position": 0},
@@ -207,9 +207,8 @@ class Correlation:
             # take off the speed of each BEC
             for Vj, AX in zip(["Vx", "Vy", "Vz"], ["X", "Y", "Z"]):
                 if self.recenter_with_bec_arrival_time[Vj]:
-                    self.atoms[Vj] = self.atoms[Vj] - self.atoms["BEC "+ AX]
+                    self.atoms[Vj] = self.atoms[Vj] - self.atoms["BEC " + AX]
             # print(self.bec_arrival_time["BEC Arrival Time"].mean())
-
 
             # drop columns with no more interest (for later calculations)
             for column in self.atoms.columns:
@@ -218,15 +217,15 @@ class Correlation:
 
         else:
             pass
-            #logging.error(
+            # logging.error(
             #    "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
-            #)
+            # )
 
         for axis in self.ref_frame_speed:
             if axis in ["Vx", "Vy", "Vz"] and self.ref_frame_speed[axis] != 0:
-                #logging.info(
+                # logging.info(
                 #    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
-                #)
+                # )
                 self.atoms[axis] -= self.ref_frame_speed[axis]
 
         self.cycles_array = self.atoms["Cycle"].unique()
@@ -414,8 +413,6 @@ class Correlation:
         result.reset_index(drop=True)
         return result
 
-
-
     ###########################################################
     ######## GESTION DES CAS DE FIGURE AVANT LE CALCUL  #######
     ###########################################################
@@ -459,7 +456,9 @@ class Correlation:
         """
         boxes = ["1", "2"]
         if self.var1.box not in boxes:
-            print(f"[ERROR] : the var1 box is neither '1' nor '2' but {self.var1.box } ")
+            print(
+                f"[ERROR] : the var1 box is neither '1' nor '2' but {self.var1.box } "
+            )
             return
         boxes.remove(self.var1.box)
         box_not_scanned = boxes[0]
@@ -470,7 +469,9 @@ class Correlation:
         result_var_list = []
         for i in range(self.var1.n_step):
             # We must set the new value for the box which is scanned :
-            self.boxes[self.var1.box][self.var1.axe][self.var1.type] = self.var1.get_value_i(i)
+            self.boxes[self.var1.box][self.var1.axe][
+                self.var1.type
+            ] = self.var1.get_value_i(i)
             df = self.counts_atoms_in_boxes_one_variable(
                 self.atoms,
                 self.var2,
@@ -480,12 +481,11 @@ class Correlation:
             df[self.var1.name] = self.var1.get_value_i(i)
             result_var_list.append(df)
         result_var = pd.concat(result_var_list).reset_index()
-            #print(len(result_var_2))
-            #result_var2_list = [result_var_2]
+        # print(len(result_var_2))
+        # result_var2_list = [result_var_2]
 
         total = pd.merge(atom_beam_not_scanned, result_var, on="Cycle")
         self.compute_result(total)
-
 
     def compute_correlations_different_box_scanned(self):
         """
@@ -976,6 +976,7 @@ class Correlation:
         )
 
         # print("Computation is done.")
+
     ###########################################################
     ############### FONCTION D'AFFICHAGE  #####################
     ###########################################################
@@ -1097,7 +1098,6 @@ class Correlation:
         ax.invert_yaxis()
         plt.title(z)
         plt.show()
-
 
     def get_atoms_distribution(
         self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
@@ -1463,11 +1463,18 @@ class CorrelationXYIntegrated(Correlation):
                     },
                 }
             )
+
+
 if __name__ == "__main__":
     import seaborn as sns
     import pandas as pd
-    selected_data = pd.read_pickle("/home/victor/ownCloud/LabWiki/Journal/2023/06/13/data.pkl")
-    selec_bec_arrival_times = pd.read_pickle("/home/victor/ownCloud/LabWiki/Journal/2023/06/13/bec.pkl")
+
+    selected_data = pd.read_pickle(
+        "/home/victor/ownCloud/LabWiki/Journal/2023/06/13/data.pkl"
+    )
+    selec_bec_arrival_times = pd.read_pickle(
+        "/home/victor/ownCloud/LabWiki/Journal/2023/06/13/bec.pkl"
+    )
     ROI = {
         "Vz": {"min": -50, "max": 50},
         "Vy": {"min": -70, "max": 70},
@@ -1496,8 +1503,8 @@ if __name__ == "__main__":
         boxes=boxes,
         raman_kick=42.5,
         bec_arrival_time=selec_bec_arrival_times["BEC Arrival Time"].mean(),
-    ref_frame_speed = {"Vx": -2, "Vy": -5, "Vz": 94 },
-    remove_shot_noise = False
+        ref_frame_speed={"Vx": -2, "Vy": -5, "Vz": 94},
+        remove_shot_noise=False,
     )
     corr.define_variable1(
         box="1", axe="Vx", type="position", name="Vx1", min=-20, max=11, step=10
@@ -1506,17 +1513,18 @@ if __name__ == "__main__":
         box="1", axe="Vy", type="position", name="Vy1", min=-20, max=20, step=10
     )
     corr.compute_correlations()
-    df_pivoted_correlations = corr.result.pivot(index="Vx1", columns="Vy1", values="g^2")
-    fig, axes = plt.subplots(figsize = (8,3), ncols = 2)
+    df_pivoted_correlations = corr.result.pivot(
+        index="Vx1", columns="Vy1", values="g^2"
+    )
+    fig, axes = plt.subplots(figsize=(8, 3), ncols=2)
     sns.heatmap(
         df_pivoted_correlations,
         cmap="seismic",
         ax=axes[0],
         # norm=LogNorm()
-        center = 1,
-
+        center=1,
     )
     axes[0].invert_yaxis()
-    sns.scatterplot(data = corr.result, x = "Vx1", y = "N_1", hue = "Vy1", palette = "Dark2")
+    sns.scatterplot(data=corr.result, x="Vx1", y="N_1", hue="Vy1", palette="Dark2")
     plt.tight_layout()
     plt.show()

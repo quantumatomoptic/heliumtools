@@ -40,6 +40,13 @@ def gaussian_function(x, mean, amplitude, standard_deviation, offset):
     )
 
 
+def apply_roi(df, roi):
+    for key, value in roi.items():
+        df = df[df[key] > value["min"]]
+        df = df[df[key] < value["max"]]
+    return df
+
+
 def select_atoms_in_folder(folder):
     """Renvoie l'ensemble des fichiers .atoms de folder.
 
@@ -64,13 +71,6 @@ def select_atoms_in_folder(folder):
     return path_list
 
 
-def apply_roi(df, roi):
-    for key, value in roi.items():
-        df = df[df[key] > value["min"]]
-        df = df[df[key] < value["max"]]
-    return df
-
-
 def return_cycle_from_path(path):
     """return the cycle from a path. If no cycle is found, return -1. Since April 2023, we save at each run of the experiment a unique id that give time in seconds since Helium1 Epoch time (aka first MOT with qcontrol3).
 
@@ -92,6 +92,7 @@ def return_cycle_from_path(path):
                 seq = element["value"]
             elif element["name"] == "cycle_id":
                 cycle = element["value"]
+                run_id = element["value"]
         return seq, cycle
     except:
         pass
@@ -113,7 +114,10 @@ def return_cycle_from_path(path):
     seq = int(expr[0:3])
     expr = expr[4:]
     cycle = int(expr)
-    return seq, cycle
+    return (
+        seq,
+        cycle,
+    )
 
 
 def load_atoms(folder, n_max_cycles=1e8):
@@ -307,7 +311,7 @@ def fit_BEC_arrival_time(
     """
     ans = {"Number of Atoms": len(X)}
     data = pd.DataFrame({"X": X, "Y": Y, "T": T})
-    data = apply_roi(data, ROI_for_fit)
+    data = apply_ROI(data, ROI_for_fit)
 
     X = data["X"].to_numpy()
     Y = data["Y"].to_numpy()
@@ -474,6 +478,7 @@ def export_data_set_to_pickle(
     histogramm_width=0.01,
     ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
     width_saturation=0,
+    supplementary_rois=[],
 ):
     """Exporte le dataset folder comme pickle.
 
@@ -488,6 +493,7 @@ def export_data_set_to_pickle(
     ### STEP 1 : gather data and save it
     atom_files, atoms = load_atoms(folder, n_max_cycles=n_max_cycles)
     atoms_in_ROI = apply_ROI(atoms, ROI)
+    atoms_in_ROI = apply_ROD(atoms_in_ROI, ROD)
     filename_dataset = os.path.join(folder, "dataset.pkl")
     atoms_in_ROI.to_pickle(filename_dataset)
     df_parameters = gather_saved_sequence_parameters(folder)
@@ -505,6 +511,7 @@ def export_data_set_to_pickle(
             ROI_for_fit=ROI_for_fit,
             width_saturation=width_saturation,
         )
+
         df_arrival_times = pd.merge(
             df_arrival_times,
             atoms_in_ROI.groupby("Cycle")
@@ -513,6 +520,16 @@ def export_data_set_to_pickle(
             .reset_index(),
             on="Cycle",
         )
+        for i, roi in enumerate(supplementary_rois):
+            at = apply_ROI(atoms, roi)
+            df_arrival_times = pd.merge(
+                df_arrival_times,
+                at.groupby("Cycle")
+                .count()["T"]
+                .rename("Number of Atoms in supplementary ROI{}".format(i))
+                .reset_index(),
+                on="Cycle",
+            )
         df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
         filename = os.path.join(folder, "arrival_times.pkl")
         df_arrival_times.to_pickle(filename)

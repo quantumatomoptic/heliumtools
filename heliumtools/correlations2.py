@@ -380,7 +380,7 @@ class CorrelationHe2Style:
         """
         atXY = atX.merge(
             atY, how="outer", on="Cycle"
-        )  # , on="index_A"), atABprime --> merge on cycles might be an issue when computing local correlation with uncorrelated atoms (normalization).
+        )
         # atXY = atX.merge(atY, how="cross")
         atXY.drop(
             atXY[atXY["index_x"] == atXY["index_y"]].index,
