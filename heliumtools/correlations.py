@@ -772,6 +772,8 @@ class Correlation:
                 * (self.result["N_2**2"] - self.result["N_2"])
             )
         )
+        self.result["G^2(k1,k1)"] =  self.result["N_1**2"] - self.result["N_1"]
+        self.result["G^2(k2,k2)"] =  self.result["N_2**2"] - self.result["N_2"]
         self.result["g^2(k1,k1)"] = (
             self.result["N_1**2"] - self.result["N_1"]
         ) / self.result["N_1"] ** 2
