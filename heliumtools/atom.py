@@ -192,7 +192,7 @@ class Helium:
         relative :float
             relative speed compare to lattice momentum
         """
-        klatt = 2 * np.pi / (wavelength * 1e-9) * np.sin(2 * np.pi * theta / 360)
+        klatt = 2 * np.pi / (wavelength * 1e-9) * np.sin(np.pi * theta / 360)
 
         return 0.001 * self.mass * v / (csts.hbar * klatt)
 
@@ -213,7 +213,7 @@ class Helium:
         relative :float
             speed comapre to lattice momentum
         """
-        klatt = 2 * np.pi / (wavelength * 1e-9) * np.sin(2 * np.pi * theta / 360)
+        klatt = 2 * np.pi / (wavelength * 1e-9) * np.sin(np.pi * theta / 360)
 
         return k * (csts.hbar * klatt) / (0.001 * self.mass)
 
@@ -224,12 +224,20 @@ if __name__ == "__main__":
 
     # # init object
     he = Helium()
-    for k in [1, 0.048, 0.028]:
+    for k in [0.12, 0.17, 0.0095, 0.098, 0.12, 0.008, 0.014]:
         print(
             "k = {} klatt gives v = {:.4f} mm/s".format(
                 k, he.convert_lattice_momentum_to_speed(k)
             )
         )
+    theta = 166 / 360 * 2 * pi
+    wavelength = 1064*1e-9
+    k = np.sin(theta /2 )* 2 * pi / wavelength
+    detuning = 2*np.pi * 103.5 * 1000
+    v0 = detuning / 2 / k * 1000
+    vref = 2*(-v0 + he.convert_lattice_momentum_to_speed(1))
+    print("Lattice speed is : {} mm/s".format(v0))
+    print("Frame is at {} mm/s".format(vref))
     # # polarizability
     # print(he.get_alpha(unit="SI"))
     # print(he.get_alpha(unit="au"))

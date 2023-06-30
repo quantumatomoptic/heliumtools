@@ -679,14 +679,14 @@ class CorrelationHe2StyleBigDenominator(CorrelationHe2Style):
                 ### Beam B
                 atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
                 atB_rand = self.get_all_atoms_except_cycle(self.atomsB, cycles)
-                G2BB = self.get_G2(atB, atB, local=True)
+                G2BB = self.get_G2(atB, atB, local=True, numerator = True)
                 self.result["G2BB"] += G2BB.flatten()
-                G2BB_rand = self.get_G2(atB, atB_rand, local=True)
+                G2BB_rand = self.get_G2(atB, atB_rand, local=True, numerator = False)
                 self.result["G2BB random"] += G2BB_rand.flatten()/normalization_factor
                 ### Crossed A & B
-                G2AB = self.get_G2(atA, atB, local=False)
+                G2AB = self.get_G2(atA, atB, local=False, numerator = True)
                 self.result["G2AB"] += G2AB.flatten()
-                G2AB_rand = self.get_G2(atA, atB_rand, local=False)
+                G2AB_rand = self.get_G2(atA, atB_rand, local=False, numerator = False)
                 self.result["G2AB random"] += G2AB_rand.flatten()/normalization_factor
             # if i ==3:
             #     break

@@ -41,10 +41,8 @@ def gaussian_function(x, mean, amplitude, standard_deviation, offset):
 
 
 def apply_roi(df, roi):
-    for key, value in roi.items():
-        df = df[df[key] > value["min"]]
-        df = df[df[key] < value["max"]]
-    return df
+    print("[WARNING] : This function should be deleted in the next version of Heliumtools. Please use apply_ROI(df -> pd.DataFrame, ROI -> dictionary) instead.")
+    return apply_ROI(df, roi)
 
 
 def select_atoms_in_folder(folder):
