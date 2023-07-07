@@ -698,7 +698,358 @@ class CorrelationHe2StyleBigDenominator(CorrelationHe2Style):
             self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
             self.result["g2 ab"] = self.result["G2AB"] / self.result["G2AB random"]
             
+import seaborn as sns
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import snoop
+from random import choice, shuffle, randint, sample
+from tqdm import tqdm, trange
+import copy
+import time
+import torch
+from math import ceil
 
+import time
+
+
+
+class CorrelationHe2StyleBigDenominatorTest():
+    """
+    Classe selfelationHe2Style. Prend en entrée un dataframe avec X, Y et T et calcule de corrélations etc...
+    """
+    def __init__(self, atoms, **kwargs):
+        """
+        Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
+        """
+        #super().__init__(atoms, **kwargs)
+        self.atoms = copy.deepcopy(atoms)
+        self.ROI = {}
+        self.ROD = {}
+        self.round_decimal = 7
+        self.only_one_beam = False
+        self.computer_performance = 1
+        self.computer_capacity = 1
+        self.ratio_of_atoms_for_denominator = 0.1
+        self.axis = ["Vx", "Vy", "Vz"]
+        self.ref_frame_speed = {"Vx": 0, "Vy": 0, "Vz": 0}
+        self.ROI = {}
+        self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
+        self.voxel_numbers = {"Vx": 11, "Vy": 11, "Vz": 11}
+        self.beams = {
+            "A": {
+                "Vx": {"size": 20, "position": 0},
+                "Vy": {"size": 20, "position": 0},
+                "Vz": {"size": 5, "position": 25},
+            },
+            "B": {
+                "Vx": {"size": 20, "position": 0},
+                "Vy": {"size": 20, "position": 0},
+                "Vz": {"size": 5, "position": -25},
+            },
+        }
+        self.__dict__.update(kwargs)
+        # atoms : (mm,mm, ms) --> (mm/s, mm/s, mm/s)
+        #self.build_the_atoms_dataframe()
+        self.apply_ROI()  # Keep only atoms in ROI
+        self.apply_ROD()  # Take off atoms in Region Of Desinterest.
+        self.cycles_array = atoms["Cycle"].unique()
+        self.n_cycles = len(atoms["Cycle"].unique())
+        self.random_cycle_mapping = self.get_randomize_cycle_mapping()
+        
+        
+        
+    def get_G2(self, atX: pd.DataFrame, atY: pd.DataFrame, local=True, numerator = True) -> pd.DataFrame:
+        """Function that compute the 3D velocity difference between all atoms in the crossed atX x atY dataframe (atoms in beam X, X being A or B). If local is True, it computes the difference while if local is False, it computes the sum.
+
+        Detailed explanation :
+        atX = DataFrame("Vx":[1,2] ; "Vy":[9,8] ; "Vz":[0,0], "index": [1018, 1019], "Cycle":[112,112] )
+        atY = atX and we want to compute the local correlation. First step is to create the cross product of this DataFrame using merge (or concat depending on the version of the code). We create the following dataframe (_x and_y suffix are added by pandas) :
+        atXY = "Vx_x", "Vy_x", "Vz_x", "index_x", "Cycle_x", "Vx_y", "Vy_y", "Vz_y", "index_y", "Cycle_y")
+                 1        9       0       1018        112       1        9       0       1018        112
+                 2        8       0       1019        112       1        9       0       1018        112
+                 1        9       0       1018        112       2        8       0       1019        112
+                 2        8       0       1019        112       2        9       0       1019        112
+        This dataframe represent ALL the possible atom couple (twice). However, since the operator value we want to compute is a+a+aa, we must delete rows where the left atom is the same than the right atom.
+        We then compute simply the difference in each axis [Vx, Vy, Vz] and suppress all other columns. With our exemple, we would end up with
+        atXY = "Vx"  "Vy"  "Vz"
+                -1     1     0
+                 1    -1     0
+        We finally compute the 3D histogram of this matrix, using the properties of the voxel map entered by the user.
+
+        Parameters
+        ----------
+        atX : pd.DataFrame
+            Pandas DataFrame with atom speeds : it must contains "Vx", "Vy" and "Vz" and "index" where Vi are the speed along each axis and index is a unique number per atom of the dataset. Such df are created in the update_atoms_in_beams() method.
+        atY : pd.DataFrame
+            Pandas DataFrame with atoms of a given.
+
+        Returns
+        -------
+        pd.DataFrame
+            Pandas DataFrame with all velocities differences.
+        """
+        if numerator:
+            atXY = atX.merge(
+                atY, how="outer", on="Cycle"
+            )
+            atXY.drop(
+                atXY[atXY["index_x"] == atXY["index_y"]].index,
+                axis=0,
+                inplace=True,
+            ) 
+        else:
+            atXY = atX.merge(atY, how="cross")
+             # suppress identical atoms because a+a+aa is zero when acting on the SAME atom.
+        for axis in self.axis:
+            if local:
+                atXY[axis] = atXY[axis + "_x"] - atXY[axis + "_y"]
+            else:
+                atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
+        cols_to_remove = [col for col in atXY.columns if col not in self.axis]
+        # print("Datasize : {}".format(len(atXY)))
+        r = [
+            self.voxel_map_range[0][0],
+            self.voxel_map_range[0][1],
+            self.voxel_map_range[1][0],
+            self.voxel_map_range[1][1],
+            self.voxel_map_range[2][0],
+            self.voxel_map_range[2][1],
+        ]
+        atXY.drop(cols_to_remove, axis=1, inplace=True)
+        # t0 = time.time()
+        # G2XY, edges = np.histogramdd(
+        #    atXY.to_numpy(), bins=self.voxel_map_size, range=self.voxel_map_range
+        # )
+        # t1 = time.time()
+        G2XY, edges = torch.histogramdd(
+            torch.from_numpy(atXY.to_numpy()), bins=list(self.voxel_map_size), range=r
+        )
+        # t2 = time.time()
+        # dt_torch = t2 - t1
+        # dt_numpy = t1 - t0
+        # if dt_torch < dt_numpy:
+        #     print("Torch is {:.0f} times better".format((dt_numpy/dt_torch - 1)))
+        # else:
+        #     print("Numpy is {:.0f} times better".format((dt_torch/dt_numpy - 1)))
+        # del atXY
+        return G2XY.detach().cpu().numpy()
+    
+    
+    
+    def get_all_atoms_except_cycle(self, atoms, cycles):
+        at =  atoms[~(atoms["Cycle"].isin(cycles))]
+        if self.ratio_of_atoms_for_denominator ==1:
+            return at, self.n_cycles + 1 - len(cycles)
+        possible_cycles  = at["Cycle"].unique()
+        no_of_cycles = ceil(len(possible_cycles) * self.ratio_of_atoms_for_denominator)
+        selected_cycles = sample(list(possible_cycles),no_of_cycles)
+        at = at[(at["Cycle"].isin(selected_cycles))]
+        return at, no_of_cycles
+
+
+
+    def compute_correlations(self):
+        """Principal function of the code. L'idée du code est le suivant :
+        * on parcourt les cycles de la séquence et pour chaque cycle, on récupère les atomes dans la ROI1 et la ROI2.
+        * pour chaque cycle, on calcule la différence (corrélations locales) ou la somme (corrélation croisées) de l'ensemble des couple d'atomes.
+        * on fait ensuite l'histogramme 3D de cet ensemble. On l'ajoute à l'histogramme total.
+        """
+        self.initialize_voxel_map_properties()
+        self.update_atoms_in_beams()
+
+        cycles_array_splitted = np.array_split(
+            self.cycles_array, int(self.n_cycles / self.computer_capacity)
+        )
+        self.normalization_factors = []
+        for i, cycles in enumerate(cycles_array_splitted):
+            #normalization_factor = self.n_cycles + 1 - len(cycles)
+            #self.normalization_factors.append(normalization_factor)
+            ### Beam A
+            self.time = time.time()
+            atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
+            atA_rand, normalization_factor = self.get_all_atoms_except_cycle(self.atomsA, cycles)
+            print("Gather data for one cycle : "+ str(int(time.time() - self.time)))
+            self.time = time.time()
+            G2AA = self.get_G2(atA, atA, local=True, numerator = True)
+            print("Compute G2 numerator : "+ str(int(time.time() - self.time)))
+            self.time = time.time()
+            self.result["G2AA"] += G2AA.flatten()
+            G2AA_rand = self.get_G2(atA, atA_rand, local=True, numerator = False)
+            print("Compute G2 denominator : "+ str(int(time.time() - self.time)))
+            self.time = time.time()
+            self.result["G2AA random"] += G2AA_rand.flatten()/normalization_factor
+            if self.only_one_beam is False:
+                ### Beam B
+                atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
+                atB_rand = self.get_all_atoms_except_cycle(self.atomsB, cycles)
+                G2BB = self.get_G2(atB, atB, local=True, numerator = True)
+                self.result["G2BB"] += G2BB.flatten()
+                G2BB_rand = self.get_G2(atB, atB_rand, local=True, numerator = False)
+                self.result["G2BB random"] += G2BB_rand.flatten()/normalization_factor
+                ### Crossed A & B
+                G2AB = self.get_G2(atA, atB, local=False, numerator = True)
+                self.result["G2AB"] += G2AB.flatten()
+                G2AB_rand = self.get_G2(atA, atB_rand, local=False, numerator = False)
+                self.result["G2AB random"] += G2AB_rand.flatten()/normalization_factor
+            # if i ==3:
+            #     break
+        print("[Info] : The denominator normalization used {:.1f} % of atoms".format(100 * np.mean(self.normalization_factors)/self.n_cycles))
+        self.result["g2 aa"] = self.result["G2AA"] / self.result["G2AA random"]
+        # self.result["G2AA"] = self.beamA_volume * self.result["G2AA"] --> normalisation ? not needed yet but keep in mind
+        # self.result["G2AA random"] = self.beamA_volume * self.result["G2AA"]
+        if self.only_one_beam is False:
+            self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
+            self.result["g2 ab"] = self.result["G2AB"] / self.result["G2AB random"]
+    def merge_dataframe_on_cycles(self, df1, df2):
+        """
+        Merge 2 dataframe sur l'entête "Cycle". Met 0 si le df2 n'a pas de valeur à ce cycle.
+        """
+        df_merged = df1.merge(
+            df2, how="outer", on="Cycle"
+        )  # l'option "outer" permet de conserver les cycles où
+        # il n'y a pas d'atomes. Pandas ajoute donc un NaN à la place.
+        df_merged = df_merged.fillna(0)
+        return df_merged
+
+    def initialize_voxel_map_properties(self):
+        """_summary_"""
+        self.voxel_map_size = tuple(
+            [int(self.voxel_numbers[axis]) for axis in self.axis]
+        )
+        # self.voxel_map = np.zeros(self.voxel_map_size)
+        # self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
+        self.voxel_map_range = tuple(
+            [
+                (
+                    -self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
+                    self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
+                )
+                for axis in self.axis
+            ]
+        )
+        voxel_centers = []
+        for axis in self.axis:
+            mini = (
+                -self.voxel_numbers[axis] * self.voxel_size[axis] / 2
+                + self.voxel_size[axis] / 2
+            )
+            maxi = +self.voxel_numbers[axis] * self.voxel_size[axis] / 2
+            voxel_centers.append(np.arange(mini, maxi, step=self.voxel_size[axis]))
+            if len(voxel_centers[-1]) != self.voxel_numbers[axis]:
+                print(len(voxel_centers[-1]))
+                raise Exception(
+                    "Something strange appended in the voxel map initialization."
+                )
+        # create the result dataframe
+
+        data = np.array(
+            [
+                [x, y, z]
+                for x in voxel_centers[0]
+                for y in voxel_centers[1]
+                for z in voxel_centers[2]
+            ]
+        )
+        self.result = pd.DataFrame(data=data, columns=self.axis)
+        if self.only_one_beam is True:
+            for column in [
+                "G2AA",
+                "G2AA random",
+            ]:
+                self.result[column] = np.zeros(len(self.result))
+        else:
+            for column in [
+                "G2AA",
+                "G2BB",
+                "G2AB",
+                "G2AA random",
+                "G2BB random",
+                "G2AB random1",
+                "G2AB random2",
+                "G2AB random",
+            ]:
+                self.result[column] = np.zeros(len(self.result))
+                    
+    def get_atoms_in_beams(self, beam):
+        """
+        Récupère  les atomes à l'intérieur de beam. Cela permet d'alléger les données à traiter.
+        Si le beam est vide, la méthode ne fait rien. Le format du beam doit être {"Vx": {"position":120, "size":-120}}
+        """
+        if beam:
+            atoms_in_beam = self.atoms
+            for key, entry in beam.items():
+                atoms_in_beam = atoms_in_beam[
+                    (
+                        (atoms_in_beam[key] <= entry["position"] + entry["size"] / 2.0)
+                        & (atoms_in_beam[key] > entry["position"] - entry["size"] / 2.0)
+                    )
+                ]
+        return atoms_in_beam
+
+    def update_atoms_in_beams(self):
+        self.atomsA = self.get_atoms_in_beams(beam=self.beams["A"]).reset_index()
+        self.atomsA["index"] = np.arange(0, len(self.atomsA))
+        self.atomsB = self.get_atoms_in_beams(beam=self.beams["B"]).reset_index()
+        self.atomsB["index"] = np.arange(len(self.atomsA), len(self.atomsA)+len(self.atomsB))
+        self.atomsA_randomized = self.atomsA.copy()
+        self.atomsA_randomized["Cycle"] = self.atomsA_randomized["Cycle"].map(
+            self.random_cycle_mapping
+        )
+        self.atomsB_randomized = self.atomsB.copy()
+        self.atomsB_randomized["Cycle"] = self.atomsB_randomized["Cycle"].map(
+            self.random_cycle_mapping
+        )
+        self.beamA_volume = 1
+        self.beamB_volume = 1
+        for ax in self.axis:
+            self.beamA_volume *= self.beams["A"][ax]["size"]
+            self.beamB_volume *= self.beams["B"][ax]["size"]
+    
+    def apply_ROD(self):
+        """
+        Modifie le dataframe "atoms" en appliquant la region of desinterest i.e. en sélectionnant les atomes autre que ceux dans la ROD. Si la ROF est vide, la méthode ne fait rien.
+        """
+        if self.ROD:
+            for key, entry in self.ROD.items():
+                self.atoms = self.atoms[
+                    (
+                        (self.atoms[key] > entry["max"])
+                        | (self.atoms[key] < entry["min"])
+                    )
+                ]
+
+    def apply_ROI(self):
+        """
+        Modifie le dataframe "atoms" en appliquant la ROI. Cela permet d'alléger les données à traiter.
+        Si la ROI est vide, la méthode ne fait rien. Le format de la ROI doit être {"Vx": {"max":120, "min":-120}}
+        """
+        if self.ROI:
+            for key, entry in self.ROI.items():
+                self.atoms = self.atoms[
+                    (
+                        (self.atoms[key] <= entry["max"])
+                        & (self.atoms[key] > entry["min"])
+                    )
+                ]
+    def get_randomize_cycle_mapping(self) -> dict:
+        """This function shuffles the self.cycles_array to create a random_cycles array. It ensure that all cycles have been mooved and then defined a mapping between the two arrays.
+
+        Returns
+        -------
+        dictionary
+            mapping function to map initial cycle to randomized cycle
+        """
+        random_cycles = self.cycles_array.copy()
+        shuffle(random_cycles)
+        while np.min((random_cycles - self.cycles_array) ** 2) == 0:
+            a = randint(0, self.n_cycles)
+            arg = np.argmin((random_cycles - self.cycles_array) ** 2)
+            random_cycles[arg], random_cycles[(arg + a) % self.n_cycles] = (
+                random_cycles[(arg + a) % self.n_cycles],
+                random_cycles[arg],
+            )
+        return dict(zip(self.cycles_array, random_cycles))
 
 
 if __name__ == "__main__":
