@@ -27,7 +27,7 @@ import matplotlib.cm as cm
 import matplotlib.colors as colors
 import time
 import logging
-from data_builder import DataBuilder
+from .data_builder import DataBuilder
 
 class Correlation(DataBuilder):
     """

@@ -40,8 +40,8 @@ from tqdm import tqdm, trange
 import copy
 import time
 import torch
-from misc.gather_data import apply_ROI, apply_ROD
-from data_builder import DataBuilder
+from .misc.gather_data import apply_ROI, apply_ROD
+from .data_builder import DataBuilder
 
 
 class CorrelationHe2Style(DataBuilder):
@@ -92,12 +92,11 @@ class CorrelationHe2Style(DataBuilder):
         self.atomsB.drop(cols_to_remove, axis=1, inplace=True)
         # we change the type of atoms data from float64 to integer (int16, int32) as small as possible.
         for Vj in self.axis:
-            self.atomsA[Vj] = self.precision * self.atomsA[Vj]
-            self.atomsB[Vj] = self.precision * self.atomsB[Vj]
-        self.atomsA = self.atomsA.astype('int').astype(np.int32)
-        #self.atomsA = self.atomsA.apply(pd.to_numeric,downcast='integer', errors = 'raise')
-        self.atomsB = self.atomsB.astype('int').astype(np.int32)
-        #self.atomsB = self.atomsB.apply(pd.to_numeric,downcast='integer', errors = 'raise')
+            self.atomsA[Vj] = self.atomsA[Vj].astype(np.float32)
+            self.atomsB[Vj] = self.atomsB[Vj].astype(np.float32)
+        for col in ["Cycle", "index"]:
+            self.atomsA[col] = self.atomsA[col].astype(np.int32)
+            self.atomsB[col] = self.atomsB[col].astype(np.int32)
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -120,8 +119,8 @@ class CorrelationHe2Style(DataBuilder):
         self.voxel_map_range_int = tuple(
             [
                 (
-                    int(- self.precision * self.voxel_numbers[axis] * self.voxel_size[axis] / 2),
-                    int(self.precision * self.voxel_numbers[axis] * self.voxel_size[axis] / 2),
+                    - self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
+                     self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
                 )
                 for axis in self.axis
             ]
@@ -164,6 +163,8 @@ class CorrelationHe2Style(DataBuilder):
                 "G2AA denominator",
                 "G2BB denominator",
                 "G2AB denominator",
+                #"G2AB denominator1",
+                #"G2AB denominator2",
 
             ]:
                 self.result[column] = np.zeros(len(self.result))
@@ -225,11 +226,12 @@ class CorrelationHe2Style(DataBuilder):
                 else:
                     atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
             # STEP 3 : 3D histogram using torch.
-            atXY = atXY.astype(np.float32)
+            #atXY = atXY.astype(np.float32)
             G2XY, edges = torch.histogramdd(
                 torch.from_numpy(np.array([atXY[ax].to_numpy() for ax in self.axis]).T), bins=list(self.voxel_map_size), range=r
             )
             del atXY
+            return G2XY.detach().cpu().numpy()
         elif numerator is False:
             ### === POSSIBILITY 1 : USE TORCH ===
             # STEP 1: create a really really big dataframe of size (big, 3), initialize as empty
@@ -281,64 +283,33 @@ class CorrelationHe2Style(DataBuilder):
 
     def compute_denominator(self):
         for cycle in tqdm(self.cycles_array):
+            ### Beam A
             atA = self.atomsA[self.atomsA["Cycle"]==cycle]
             atA_all =  self.atomsA[~(self.atomsA["Cycle"]==cycle)]
-            G2AA = self.get_G2(atA, atA, local=True,  numerator = False)
+            G2AA = self.get_G2(atA, atA_all, local=True,  numerator = False)
             self.result["G2AA denominator"] += G2AA.flatten()
-            # ### Beam B
-            # atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
-            # atB_rand = self.atomsB_randomized[
-            #     self.atomsB_randomized["Cycle"].isin(cycles)
-            # ]
-            # G2BB = self.get_G2(atB, atB, local=True)
-            # self.result["G2BB"] += G2BB.flatten()
-            # G2BB_rand = self.get_G2(atB, atB_rand, local=True)
-            # self.result["G2BB random"] += G2BB_rand.flatten()
-            # ### Crossed A & B
-            # G2AB = self.get_G2(atA, atB, local=False)
-            # self.result["G2AB"] += G2AB.flatten()
-            # G2AB_rand1 = self.get_G2(atA, atB_rand, local=False)
-            # G2AB_rand2 = self.get_G2(atA_rand, atB, local=False)
-            # self.result["G2AB random1"] += G2AB_rand1.flatten()
-            # self.result["G2AB random2"] += G2AB_rand2.flatten()
-            # self.result["G2AB random2"] +=0.5*(G2AB_rand1.flatten() + G2AB_rand2.flatten())
+            ### Beam B
+            atB = self.atomsB[self.atomsB["Cycle"]==cycle]
+            atB_all =  self.atomsB[~(self.atomsB["Cycle"]==cycle)]
+            G2BB = self.get_G2(atB, atB_all, local=True,  numerator = False)
+            self.result["G2BB denominator"] += G2BB.flatten()
+            ### Crossed Beam
+            G2AB = self.get_G2(atA, atB_all, local=False,  numerator = False)
+            G2BA = self.get_G2(atB, atA_all, local=False,  numerator = False)
+            self.result["G2AB denominator"] += (G2AB.flatten() + G2BA.flatten())/2
+            #self.result["G2AB denominator1"] += G2AB.flatten()
+            #self.result["G2AB denominator2"] += G2BB.flatten()
+
 
 
     def compute_correlations(self):
-        """Principal function of the code. L'idée du code est le suivant :
-        * on parcourt les cycles de la séquence et pour chaque cycle, on récupère les atomes dans la ROI1 et la ROI2.
-        * pour chaque cycle, on calcule la différence (corrélations locales) ou la somme (corrélation croisées) de l'ensemble des couple d'atomes.
-        * on fait ensuite l'histogramme 3D de cet ensemble. On l'ajoute à l'histogramme total.
+        """This function initialize 
         """
         self.initialize_voxel_map_properties()
         self.update_atoms_in_beams()
-        print("HELLO")
-        #self.compute_numerator()
+        self.compute_numerator()
         self.compute_denominator()
-        # for cycles in tqdm(cycles_array_splitted):
-        #     ### Beam A
-        #     atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
-        #     atA_rand = self.atomsA_randomized[
-        #         self.atomsA_randomized["Cycle"].isin(cycles)
-        #     ]
-        #     G2AA = self.get_G2(atA, atA, local=True)
-        #     self.result["G2AA"] += G2AA.flatten()
-        #     G2AA_rand = self.get_G2(atA, atA_rand, local=True)
-        #     self.result["G2AA random"] += G2AA_rand.flatten()
-        #     if self.only_one_beam is False:
-        #         pass   
-
-        # self.result["g2 aa"] = self.result["G2AA"] / self.result["G2AA random"]
-        # # self.result["G2AA"] = self.beamA_volume * self.result["G2AA"] --> normalisation ? not needed yet but keep in mind
-        # # self.result["G2AA random"] = self.beamA_volume * self.result["G2AA"]
-        # if self.only_one_beam is False:
-        #     self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
-        #     self.result["g2 ab"] = (
-        #         2
-        #         * self.result["G2AB"]
-        #         / (self.result["G2AB random1"] + self.result["G2AB random2"])
-        #     )
-
+        
 
 
     ################################################
@@ -374,7 +345,7 @@ class CorrelationHe2Style(DataBuilder):
         no_of_atoms = len(self.atoms)
         cycle_memory = mem / no_of_atoms * average_atom_number
         print("Memory needed for all atoms : {:.3f} MB".format(mem))
-        print("Memory needed to compute the denominator for the average cycle :  {:.3f} kB".format(
+        print("Memory needed to compute the denominator for the average cycle :  {:.3f} MB".format(
             mem*average_atom_number))
         print("Memory needed to compute the denominator for the worst cycle :  {:.3f} MB".format(
             mem*max_atom_number))
@@ -986,7 +957,7 @@ if __name__ == "__main__":
                     "Vz": {"size": 25, "position": posiZ},
                 },
             }
-    voxel_size = {"Vx": 2, "Vy": 2, "Vz": 0.1}
+    voxel_size = {"Vx": 2, "Vy": 2, "Vz": 0.25}
     computer_capacity = 300
     #selected_data = selected_data[selected_data["Cycle"] < selected_data["Cycle"].unique()[300]]
     voxel_numbers = {"Vx": 31, "Vy":31 , "Vz": 101}
@@ -1002,5 +973,6 @@ if __name__ == "__main__":
     #corr.show_density_plots()
     corr.get_memory_informations()
     corr.compute_correlations()
+    corr.result.to_pickle("/home/victor/ownCloud/LabWiki/Journal/2023/06/13/data_corr.pkl")
 
     
