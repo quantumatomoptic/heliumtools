@@ -11,7 +11,8 @@
 Content of correlations.py
 -----------------------------
 
-Definition of Correlation and Variable classes
+Definition of Correlation and Variable classes.
+[July23] This class inherits from the DataBuilder class so that all correlation classes have the same data_builder parents.
 
 """
 
@@ -26,11 +27,11 @@ import matplotlib.cm as cm
 import matplotlib.colors as colors
 import time
 import logging
+from data_builder import DataBuilder
 
-
-class Correlation:
+class Correlation(DataBuilder):
     """
-    Classe corrélation. Prend en entrée un dataframe avec X, Y et T et calcule de corrélations etc...
+    Correlation class that inherits from the DatBuilder class 
 
     Mandatory parameters
     --------------------
@@ -79,35 +80,17 @@ class Correlation:
 
     compute_correlations : construct the result dataframe in which correlations are stored.
 
-    show_density : plot the density of the atoms dataframe
-
     """
 
     def __init__(self, atoms, **kwargs):
         """
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
         """
-        self.atoms = copy.deepcopy(atoms)
-        self.cycles_array = atoms["Cycle"].unique()
-        self.n_cycles = len(atoms["Cycle"].unique())
-        self.bec_arrival_time = 307.763  # temps d'arrivée du BEC, en ms
-        self.theoretical_arrival_time = 307.763  # 24/06/2022 & 17/05/2022
-        self.raman_kick = 42.5  # mm/s, kick Raman
-        self.gravity = 9.81
-        self.bad_shot_limit = 100
+        super().__init__(atoms, **kwargs)
         self.var1 = None
         self.var2 = None
         self.remove_shot_noise = True
-        self.ref_frame_speed = {"Vx": 0, "Vy": 0, "Vz": 0}
-        self.ROI = {}  # Region Of Interest
-        self.ROD = {}  # Region Of Desinterest.
         self.round_decimal = 7
-        self.id = int(time.time())
-        self.is_there_a_copy_of_atoms = False
-        self.log_level = logging.DEBUG
-        self.recenter_with_bec_arrival_time = {"Vx": True, "Vy": True, "Vz": True}
-        # logging.basicConfig(level=self.log_level)
-        # logger = logging.getLogger("spam")
         self.boxes = {
             "1": {
                 "Vx": {"size": 10, "position": 0},
@@ -121,155 +104,14 @@ class Correlation:
             },
         }
         self.compute_errors = False
+        self.remove_shot_noise = True
         self.__dict__.update(kwargs)
-        self.bec_arrival_time = copy.deepcopy(self.bec_arrival_time)
         self.boxes = copy.deepcopy(self.boxes)
-        # atoms : (mm,mm, ms) --> (mm/s, mm/s, mm/s)
-        self.build_the_atoms_dataframe()
-        self.apply_ROI()  # Keep only atoms in ROI
-        self.apply_ROD()  # Take off atoms in Region Of Desinterest.
-
-        # print("Data are loaded")
-        # Initialisation de self.result datframe avec toutes les corrélations
-        # self.result = pd.DataFrame(
-        #     np.zeros(1, len(self.quantity_of_interest())),
-        #     columns=self.quantity_of_interest,
-        # )
+        
 
     def set_boxes(self, boxes):
         self.boxes = boxes.copy()
-
-    def build_the_atoms_dataframe(self):
-        """
-        Cette méthode construit le dataframe contenant l'ensemble des positions des atomes : elle construit le dataframe self.atoms, dont les vitesses sont exprimées en mm/s à partir du dataframe initial.
-        """
-        # Cleaning the self.atoms dataframe : must contains only 4 columns (to avoid mixing when merging.)
-        for column in self.atoms.columns:
-            if column not in ["X", "Y", "T", "Cycle"]:
-                self.atoms.drop(column, inplace=True, axis=1)
-        if (
-            type(self.bec_arrival_time) == int
-            or type(self.bec_arrival_time) == float
-            or isinstance(self.bec_arrival_time, np.float64)
-            or isinstance(self.bec_arrival_time, np.float32)
-            or isinstance(self.bec_arrival_time, np.int32)
-            or isinstance(self.bec_arrival_time, np.int64)
-        ):
-            l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
-            self.atoms["X"] = 1000 * self.atoms["X"] / self.atoms["T"] + self.raman_kick
-            self.atoms = self.atoms.rename(columns={"X": "Vx"})
-            self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
-            self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-            self.atoms["T"] = (
-                0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
-            )
-            self.atoms = self.atoms.rename(columns={"T": "Vz"})
-        elif isinstance(self.bec_arrival_time, pd.DataFrame):
-            self.atoms["X"] = (
-                1000 * self.atoms["X"] / self.atoms["T"]
-            )  # + self.raman_kick
-            self.atoms = self.atoms.rename(columns={"X": "Vx"})
-            self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
-            self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-
-            l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
-            self.atoms["T"] = (
-                0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
-            )
-            self.atoms = self.atoms.rename(columns={"T": "Vz"})
-            ## Start to recenter data
-            # compute the speed of BECs in mm/s, starting with Vx, Vy and finally Vz.
-
-            if "BEC Center X" in self.bec_arrival_time.columns:
-                self.bec_arrival_time["BEC X"] = (
-                    1000
-                    * self.bec_arrival_time["BEC Center X"]
-                    / self.bec_arrival_time["BEC Arrival Time"]
-                )
-            else:
-                self.bec_arrival_time["BEC X"] = -self.raman_kick
-            if "BEC Center Y" in self.bec_arrival_time.columns:
-                self.bec_arrival_time["BEC Y"] = (
-                    1000
-                    * self.bec_arrival_time["BEC Center Y"]
-                    / self.bec_arrival_time["BEC Arrival Time"]
-                )
-            else:
-                self.bec_arrival_time["BEC Y"] = 0
-            self.bec_arrival_time["BEC Z"] = (
-                0.5 * self.gravity * self.bec_arrival_time["BEC Arrival Time"]
-                - l_fall / self.bec_arrival_time["BEC Arrival Time"]
-            )
-            # check now if we have perform some Bragg diffraction to fit the BEC
-            self.atoms = self.merge_dataframe_on_cycles(
-                self.atoms, self.bec_arrival_time
-            )
-            # take off the speed of each BEC
-            for Vj, AX in zip(["Vx", "Vy", "Vz"], ["X", "Y", "Z"]):
-                if self.recenter_with_bec_arrival_time[Vj]:
-                    self.atoms[Vj] = self.atoms[Vj] - self.atoms["BEC " + AX]
-            # print(self.bec_arrival_time["BEC Arrival Time"].mean())
-
-            # drop columns with no more interest (for later calculations)
-            for column in self.atoms.columns:
-                if column not in ["Vz", "Vx", "Vy", "Cycle", "Vperp", "theta"]:
-                    self.atoms.drop(column, inplace=True, axis=1)
-
-        else:
-            pass
-            # logging.error(
-            #    "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
-            # )
-
-        for axis in self.ref_frame_speed:
-            if axis in ["Vx", "Vy", "Vz"] and self.ref_frame_speed[axis] != 0:
-                # logging.info(
-                #    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
-                # )
-                self.atoms[axis] -= self.ref_frame_speed[axis]
-
-        self.cycles_array = self.atoms["Cycle"].unique()
-        self.n_cycles = len(self.atoms["Cycle"].unique())
-        self.compute_cylindrical_coordinates()
-
-    def compute_cylindrical_coordinates(self):
-        """Compute transverse velocity and angular angle of the atom dataframe."""
-        self.atoms["Vperp"] = np.sqrt(self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2)
-        self.atoms["theta"] = np.arccos(
-            self.atoms["Vx"] / self.atoms["Vperp"]
-        )  # [0, pi] range
-        local_condition = self.atoms["Vy"] < 0
-        self.atoms.loc[local_condition, "theta"] = 2 * np.pi - self.atoms["theta"]
-
-    def save_copy_of_atoms(self):
-        """Save a copy of the atom dataframe. Important to do if one does bottstraping."""
-        self.atoms_dataframe_copy = copy.deepcopy(self.atoms)
-        self.cycles_array_copy = copy.deepcopy(self.cycles_array)
-        self.is_there_a_copy_of_atoms = True
-
-    def recover_true_atoms(self):
-        self.atoms = copy.deepcopy(self.atoms_dataframe_copy)
-        self.cycles_array = copy.deepcopy(self.cycles_array_copy)
-
-    def bootstrap_atoms(self):
-        if self.is_there_a_copy_of_atoms is False:
-            self.save_copy_of_atoms()
-            print(
-                "[Warning] : I just saved a copy of the atom dataframe because you will destruct your original dataframe."
-            )
-        new_atoms = []
-        for n in range(self.n_cycles):
-            cycle = random.choice(self.cycles_array_copy)
-            df = copy.deepcopy(
-                self.atoms_dataframe_copy[self.atoms_dataframe_copy["Cycle"] == cycle]
-            )
-            df["Cycle"] = n * np.ones(len(df))
-            new_atoms.append(df)
-        self.atoms = pd.concat(new_atoms)
-        self.cycles_array = self.atoms["Cycle"].unique()
-        if len(self.cycles_array) != self.n_cycles:
-            print("WWWWWWWAAAAAAAAAAAAA something went wrong it is weird.")
-
+    
     def define_variable1(self, **kwargs):
         self.var1 = Variable(**kwargs)
 
@@ -303,32 +145,6 @@ class Correlation:
             df = df[((df[key] >= minimum) & (df[key] < maximum))]
         return df
 
-    def apply_ROI(self):
-        """
-        Modifie le dataframe "atoms" en appliquant la ROI. Cela permet d'alléger les données à traiter.
-        Si la ROI est vide, la méthode ne fait rien. Le format de la ROI doit être {"Vx": {"max":120, "min":-120}}
-        """
-        if self.ROI:
-            for key, entry in self.ROI.items():
-                self.atoms = self.atoms[
-                    (
-                        (self.atoms[key] <= entry["max"])
-                        & (self.atoms[key] > entry["min"])
-                    )
-                ]
-
-    def apply_ROD(self):
-        """
-        Modifie le dataframe "atoms" en appliquant la region of desinterest i.e. en sélectionnant les atomes autre que ceux dans la ROD. Si la ROF est vide, la méthode ne fait rien.
-        """
-        if self.ROD:
-            for key, entry in self.ROD.items():
-                self.atoms = self.atoms[
-                    (
-                        (self.atoms[key] > entry["max"])
-                        | (self.atoms[key] < entry["min"])
-                    )
-                ]
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -1076,30 +892,6 @@ class Correlation:
             plt.close()
         return (hist_values, X_values, Y_values)
 
-    def show_2D_plot(self, x, y, z="g^2", vmin=0.8, vmax=2):
-        """
-        Show a 2D plot of some computed values.
-
-        Parameters
-        ----------
-        x : string, colonne du dataframe result à plotter
-        y : string, idem
-        z : string, idem
-        vmin : float, valeur minimale pour la colormap
-        vmax : float, valeur maximale pour la colormap
-        """
-        df_pivoted_correlations = self.result.pivot(index=x, columns=y, values=z)
-        fig, ax = plt.subplots(figsize=(13, 10))
-        sns.heatmap(
-            df_pivoted_correlations,
-            cmap="YlGnBu",
-            ax=ax,
-            vmin=vmin,
-            vmax=vmax,
-        )
-        ax.invert_yaxis()
-        plt.title(z)
-        plt.show()
 
     def get_atoms_distribution(
         self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
@@ -1295,32 +1087,7 @@ class Correlation:
             plt.show()
         return (moy1, moy2, pro2D)
 
-    def return_dictionary_correlation_property(self) -> dict:
-        """Return a dictionay with all the parameter of the simulation.
-
-        Returns
-        -------
-        dict
-            dictionary with all parameters of the correlation.
-        """
-        from flatten_dict import flatten, reducers
-
-        dictionary = {}
-        for key, value in self.__dict__.items():
-            if type(value) in [int, float, dict, bool]:
-                dictionary[key] = value
-            elif type(value) == Variable:
-                dictionary[key] = {}
-                val_dic = copy.deepcopy(value.__dict__)
-                del val_dic["values"]
-                dictionary[key] = val_dic
-        dictionary = flatten(dictionary, reducer=reducers.make_reducer(delimiter=" | "))
-        return dictionary
-
-    def return_pandas_dataframe_correlation_properties(self) -> pd.DataFrame:
-        dictionary = self.return_dictionary_correlation_property()
-        df = pd.DataFrame(data=[dictionary.values()], columns=dictionary.keys())
-        return df
+    
 
 
 class Variable:
@@ -1508,6 +1275,7 @@ if __name__ == "__main__":
         ref_frame_speed={"Vx": -2, "Vy": -5, "Vz": 94},
         remove_shot_noise=False,
     )
+    print(corr.remove_shot_noise)
     corr.define_variable1(
         box="1", axe="Vx", type="position", name="Vx1", min=-20, max=11, step=10
     )
