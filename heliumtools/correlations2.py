@@ -40,34 +40,24 @@ from tqdm import tqdm, trange
 import copy
 import time
 import torch
+from misc.gather_data import apply_ROI, apply_ROD
+from data_builder import DataBuilder
 
 
-class CorrelationHe2Style:
+class CorrelationHe2Style(DataBuilder):
     """
-    Classe selfelationHe2Style. Prend en entrée un dataframe avec X, Y et T et calcule de corrélations etc...
+    CorrelationHe2Style class that inherits from the DatBuilder class
     """
 
     def __init__(self, atoms, **kwargs):
         """
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
         """
-        self.atoms = copy.deepcopy(atoms)
-        self.bec_arrival_time = 307.763  # temps d'arrivée du BEC, en ms
-        self.theoretical_arrival_time = 307.763  # 24/06/2022 & 17/05/2022
-        self.raman_kick = 42.5  # mm/s, kick Raman
-        self.gravity = 9.81
-        self.bad_shot_limit = 100
-        self.remove_shot_noise = True
-        self.additionnal_bec_speed_ms = 0
-        self.ROI = {}
-        self.ROD = {}
-        self.round_decimal = 7
+        super().__init__(atoms, **kwargs)
         self.only_one_beam = False
         self.computer_performance = 1
-        self.id = int(time.time())
+        self.precision = 100
         self.axis = ["Vx", "Vy", "Vz"]
-        self.ref_frame_speed = {"Vx": 0, "Vy": 0, "Vz": 0}
-        self.ROI = {}
         self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
         self.voxel_numbers = {"Vx": 11, "Vy": 11, "Vz": 11}
         self.beams = {
@@ -83,201 +73,31 @@ class CorrelationHe2Style:
             },
         }
         self.__dict__.update(kwargs)
-        # atoms : (mm,mm, ms) --> (mm/s, mm/s, mm/s)
-        self.build_the_atoms_dataframe()
-        self.apply_ROI()  # Keep only atoms in ROI
-        self.apply_ROD()  # Take off atoms in Region Of Desinterest.
-        self.cycles_array = atoms["Cycle"].unique()
-        self.n_cycles = len(atoms["Cycle"].unique())
-        self.random_cycle_mapping = self.get_randomize_cycle_mapping()
-        # Initialisation de self.result datframe avec toutes les corrélations
-        # self.result = pd.DataFrame(
-        #     np.zeros(1, len(self.quantity_of_interest())),
-        #     columns=self.quantity_of_interest,
-        # )
-
-    def build_the_atoms_dataframe(self):
-        """
-        Cette méthode construit le dataframe contenant l'ensemble des positions des atomes : elle construit le dataframe self.atoms, dont les vitesses sont exprimées en mm/s à partir du dataframe initial.
-        """
-        # Cleaning the self.atoms dataframe : must contains only 4 columns (to avoid mixing when merging.)
-        for column in self.atoms.columns:
-            if column not in ["X", "Y", "T", "Cycle"]:
-                self.atoms.drop(column, inplace=True, axis=1)
-        if (
-            type(self.bec_arrival_time) == int
-            or type(self.bec_arrival_time) == float
-            or isinstance(self.bec_arrival_time, np.float64)
-            or isinstance(self.bec_arrival_time, np.float32)
-            or isinstance(self.bec_arrival_time, np.int32)
-            or isinstance(self.bec_arrival_time, np.int64)
-        ):
-            l_fall = 0.5 * self.gravity * self.bec_arrival_time**2
-            self.atoms["X"] = 1000 * self.atoms["X"] / self.atoms["T"] + self.raman_kick
-            self.atoms = self.atoms.rename(columns={"X": "Vx"})
-            self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
-            self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-            self.atoms["T"] = (
-                0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
-            )
-            self.atoms = self.atoms.rename(columns={"T": "Vz"})
-        elif isinstance(self.bec_arrival_time, pd.DataFrame):
-            print(self.bec_arrival_time["BEC Arrival Time"].mean())
-            self.atoms["X"] = (
-                1000 * self.atoms["X"] / self.atoms["T"]
-            )  # + self.raman_kick
-            self.atoms = self.atoms.rename(columns={"X": "Vx"})
-            self.atoms["Y"] = 1000 * self.atoms["Y"] / self.atoms["T"]
-            self.atoms = self.atoms.rename(columns={"Y": "Vy"})
-
-            l_fall = 0.5 * self.gravity * self.theoretical_arrival_time**2
-            self.atoms["T"] = (
-                0.5 * self.gravity * self.atoms["T"] - l_fall / self.atoms["T"]
-            )
-            self.atoms = self.atoms.rename(columns={"T": "Vz"})
-            ## Start to recenter data
-            # compute the speed of BECs in mm/s, starting with Vx, Vy and finally Vz.
-            print(self.bec_arrival_time["BEC Arrival Time"].mean())
-            if "BEC Center X" in self.bec_arrival_time.columns:
-                self.bec_arrival_time["BEC X"] = (
-                    1000
-                    * self.bec_arrival_time["BEC Center X"]
-                    / self.bec_arrival_time["BEC Arrival Time"]
-                )
-            else:
-                self.bec_arrival_time["BEC X"] = self.raman_kick
-            print(self.bec_arrival_time["BEC Arrival Time"].mean())
-            if "BEC Center Y" in self.bec_arrival_time.columns:
-                self.bec_arrival_time["BEC Y"] = (
-                    1000
-                    * self.bec_arrival_time["BEC Center Y"]
-                    / self.bec_arrival_time["BEC Arrival Time"]
-                )
-            else:
-                self.bec_arrival_time["BEC Y"] = 0
-            print(self.bec_arrival_time["BEC Arrival Time"].mean())
-            self.bec_arrival_time["BEC Z"] = (
-                0.5 * self.gravity * self.bec_arrival_time["BEC Arrival Time"]
-                - l_fall / self.bec_arrival_time["BEC Arrival Time"]
-            )
-            # check now if we have perform some Bragg diffraction to fit the BEC
-            print(self.bec_arrival_time["BEC Arrival Time"].mean())
-
-            self.atoms = self.merge_dataframe_on_cycles(
-                self.atoms, self.bec_arrival_time
-            )
-            # take off the speed of each BEC
-            self.atoms["Vz"] = self.atoms["Vz"] - self.atoms["BEC Z"]
-            self.atoms["Vx"] = self.atoms["Vx"] - self.atoms["BEC X"]
-            self.atoms["Vy"] = self.atoms["Vy"] - self.atoms["BEC Y"]
-            print(self.bec_arrival_time["BEC Arrival Time"].mean())
-
-            ## On supprime ensuite les bad shots : là où il y a moins de 100 atomes
-            df = self.atoms[self.atoms["Number of Atoms"] < self.bad_shot_limit]
-            for cycle, nb_atoms in zip(df["Cycle"], df["Number of Atoms"]):
-                print(f"Delete cycle {cycle} with only {nb_atoms} atoms.")
-                self.n_cycles -= 1
-            # drop columns with no more interest (for later calculations)
-            for column in self.atoms.columns:
-                if column not in ["Vz", "Vx", "Vy", "Cycle"]:
-                    self.atoms.drop(column, inplace=True, axis=1)
-            print(self.bec_arrival_time["BEC Arrival Time"].mean())
-
-        else:
-            print(
-                "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
-            )
-
-        for axis in self.ref_frame_speed:
-            if axis in ["Vx", "Vy", "Vz"] and self.ref_frame_speed[axis] != 0:
-                print(
-                    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
-                )
-                self.atoms[axis] -= self.ref_frame_speed[axis]
-
-        self.cycles_array = self.atoms["Cycle"].unique()
-        self.n_cycles = len(self.atoms["Cycle"].unique())
-
-    def apply_ROD(self):
-        """
-        Modifie le dataframe "atoms" en appliquant la region of desinterest i.e. en sélectionnant les atomes autre que ceux dans la ROD. Si la ROF est vide, la méthode ne fait rien.
-        """
-        if self.ROD:
-            for key, entry in self.ROD.items():
-                self.atoms = self.atoms[
-                    (
-                        (self.atoms[key] > entry["max"])
-                        | (self.atoms[key] < entry["min"])
-                    )
-                ]
-
-    def apply_ROI(self):
-        """
-        Modifie le dataframe "atoms" en appliquant la ROI. Cela permet d'alléger les données à traiter.
-        Si la ROI est vide, la méthode ne fait rien. Le format de la ROI doit être {"Vx": {"max":120, "min":-120}}
-        """
-        if self.ROI:
-            for key, entry in self.ROI.items():
-                self.atoms = self.atoms[
-                    (
-                        (self.atoms[key] <= entry["max"])
-                        & (self.atoms[key] > entry["min"])
-                    )
-                ]
-
-    def get_atoms_in_beams(self, beam):
-        """
-        Récupère  les atomes à l'intérieur de beam. Cela permet d'alléger les données à traiter.
-        Si le beam est vide, la méthode ne fait rien. Le format du beam doit être {"Vx": {"position":120, "size":-120}}
-        """
-        if beam:
-            atoms_in_beam = self.atoms
-            for key, entry in beam.items():
-                atoms_in_beam = atoms_in_beam[
-                    (
-                        (atoms_in_beam[key] <= entry["position"] + entry["size"] / 2.0)
-                        & (atoms_in_beam[key] > entry["position"] - entry["size"] / 2.0)
-                    )
-                ]
-        return atoms_in_beam
-
-    def get_randomize_cycle_mapping(self) -> dict:
-        """This function shuffles the self.cycles_array to create a random_cycles array. It ensure that all cycles have been mooved and then defined a mapping between the two arrays.
-
-        Returns
-        -------
-        dictionary
-            mapping function to map initial cycle to randomized cycle
-        """
-        random_cycles = self.cycles_array.copy()
-        shuffle(random_cycles)
-        while np.min((random_cycles - self.cycles_array) ** 2) == 0:
-            a = randint(0, self.n_cycles)
-            arg = np.argmin((random_cycles - self.cycles_array) ** 2)
-            random_cycles[arg], random_cycles[(arg + a) % self.n_cycles] = (
-                random_cycles[(arg + a) % self.n_cycles],
-                random_cycles[arg],
-            )
-        return dict(zip(self.cycles_array, random_cycles))
+        
+    ############################################
+    ## BASIC FUNCTIONS CALLED BY THE PROGRAMM ##
+    ############################################
 
     def update_atoms_in_beams(self):
-        self.atomsA = self.get_atoms_in_beams(beam=self.beams["A"]).reset_index()
-        self.atomsA["index"] = np.arange(0, len(self.atomsA))
-        self.atomsB = self.get_atoms_in_beams(beam=self.beams["B"]).reset_index()
-        self.atomsB["index"] = np.arange(len(self.atomsA), len(self.atomsA)+len(self.atomsB))
-        self.atomsA_randomized = self.atomsA.copy()
-        self.atomsA_randomized["Cycle"] = self.atomsA_randomized["Cycle"].map(
-            self.random_cycle_mapping
-        )
-        self.atomsB_randomized = self.atomsB.copy()
-        self.atomsB_randomized["Cycle"] = self.atomsB_randomized["Cycle"].map(
-            self.random_cycle_mapping
-        )
-        self.beamA_volume = 1
-        self.beamB_volume = 1
-        for ax in self.axis:
-            self.beamA_volume *= self.beams["A"][ax]["size"]
-            self.beamB_volume *= self.beams["B"][ax]["size"]
+        """
+        This method updates atoms in beam A and B. It is this function that multiplies transform velocities from float to int so that calculations are faster. 
+        """
+        self.atoms.reset_index(drop = True, inplace = True)
+        self.atoms["index"] = np.arange(0, len(self.atoms))
+        self.atomsA = copy.deepcopy(apply_ROI(self.atoms, self.beams["A"]))
+        self.atomsB = copy.deepcopy(apply_ROI(self.atoms, self.beams["B"]))
+        cols_to_remove = [col for col in self.atomsA.columns if col not in self.axis+["Cycle", "index"]]
+        self.atomsA.drop(cols_to_remove, axis=1, inplace=True)
+        cols_to_remove = [col for col in self.atomsB.columns if col not in self.axis+["Cycle", "index"]]
+        self.atomsB.drop(cols_to_remove, axis=1, inplace=True)
+        # we change the type of atoms data from float64 to integer (int16, int32) as small as possible.
+        for Vj in self.axis:
+            self.atomsA[Vj] = self.precision * self.atomsA[Vj]
+            self.atomsB[Vj] = self.precision * self.atomsB[Vj]
+        self.atomsA = self.atomsA.astype('int').astype(np.int32)
+        #self.atomsA = self.atomsA.apply(pd.to_numeric,downcast='integer', errors = 'raise')
+        self.atomsB = self.atomsB.astype('int').astype(np.int32)
+        #self.atomsB = self.atomsB.apply(pd.to_numeric,downcast='integer', errors = 'raise')
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -297,11 +117,11 @@ class CorrelationHe2Style:
         )
         # self.voxel_map = np.zeros(self.voxel_map_size)
         # self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
-        self.voxel_map_range = tuple(
+        self.voxel_map_range_int = tuple(
             [
                 (
-                    -self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
-                    self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
+                    int(- self.precision * self.voxel_numbers[axis] * self.voxel_size[axis] / 2),
+                    int(self.precision * self.voxel_numbers[axis] * self.voxel_size[axis] / 2),
                 )
                 for axis in self.axis
             ]
@@ -333,7 +153,7 @@ class CorrelationHe2Style:
         if self.only_one_beam is True:
             for column in [
                 "G2AA",
-                "G2AA random",
+                "G2AA denominator",
             ]:
                 self.result[column] = np.zeros(len(self.result))
         else:
@@ -341,27 +161,29 @@ class CorrelationHe2Style:
                 "G2AA",
                 "G2BB",
                 "G2AB",
-                "G2AA random",
-                "G2BB random",
-                "G2AB random1",
-                "G2AB random2",
-                "G2AB random",
+                "G2AA denominator",
+                "G2BB denominator",
+                "G2AB denominator",
+
             ]:
                 self.result[column] = np.zeros(len(self.result))
 
-    def get_G2(self, atX: pd.DataFrame, atY: pd.DataFrame, local=True) -> pd.DataFrame:
-        """Function that compute the 3D velocity difference between all atoms in the crossed atX x atY dataframe (atoms in beam X, X being A or B). If local is True, it computes the difference while if local is False, it computes the sum.
 
-        Detailed explanation :
+    def get_G2(self,  atX: pd.DataFrame, atY: pd.DataFrame, local = True, numerator = True)-> pd.DataFrame:
+        """Function that compute the 3D velocity difference between all atoms in the crossed atX x atY dataframe (atoms in beam X, Y being A or B). If local is True, it computes the difference while if local is False, it computes the sum.
+
+
+        Detailed explanation with an example :
         atX = DataFrame("Vx":[1,2] ; "Vy":[9,8] ; "Vz":[0,0], "index": [1018, 1019], "Cycle":[112,112] )
-        atY = atX and we want to compute the local correlation. First step is to create the cross product of this DataFrame using merge (or concat depending on the version of the code). We create the following dataframe (_x and_y suffix are added by pandas) :
-        atXY = "Vx_x", "Vy_x", "Vz_x", "index_x", "Cycle_x", "Vx_y", "Vy_y", "Vz_y", "index_y", "Cycle_y")
-                 1        9       0       1018        112       1        9       0       1018        112
-                 2        8       0       1019        112       1        9       0       1018        112
-                 1        9       0       1018        112       2        8       0       1019        112
-                 2        8       0       1019        112       2        9       0       1019        112
+        atY = atX
+        We want to compute the local correlations. First step is to create the cross product of this DataFrame using merge. We create the following dataframe (_x and_y suffix are added by pandas) :
+        atXY = "Vx_x", "Vy_x", "Vz_x", "index_x", "Cycle", "Vx_y", "Vy_y", "Vz_y", "index_y", 
+                 1        9       0       1018        112       1        9       0       1018 
+                 2        8       0       1019        112       1        9       0       1018 
+                 1        9       0       1018        112       2        8       0       1019 
+                 2        8       0       1019        112       2        9       0       1019 
         This dataframe represent ALL the possible atom couple (twice). However, since the operator value we want to compute is a+a+aa, we must delete rows where the left atom is the same than the right atom.
-        We then compute simply the difference in each axis [Vx, Vy, Vz] and suppress all other columns. With our exemple, we would end up with
+        Step 2 consists in computing simply the difference in each axis [Vx, Vy, Vz] and suppress all other columns. With our exemple, we would end up with
         atXY = "Vx"  "Vy"  "Vz"
                 -1     1     0
                  1    -1     0
@@ -379,48 +201,108 @@ class CorrelationHe2Style:
         pd.DataFrame
             Pandas DataFrame with all velocities differences.
         """
-        atXY = atX.merge(
-            atY, how="outer", on="Cycle"
-        )
-        # atXY = atX.merge(atY, how="cross")
-        atXY.drop(
-            atXY[atXY["index_x"] == atXY["index_y"]].index,
-            axis=0,
-            inplace=True,
-        )  # suppress identical atoms because a+a+aa is zero when acting on the SAME atom.
-        for axis in self.axis:
-            if local:
-                atXY[axis] = atXY[axis + "_x"] - atXY[axis + "_y"]
-            else:
-                atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
-        cols_to_remove = [col for col in atXY.columns if col not in self.axis]
-        # print("Datasize : {}".format(len(atXY)))
         r = [
-            self.voxel_map_range[0][0],
-            self.voxel_map_range[0][1],
-            self.voxel_map_range[1][0],
-            self.voxel_map_range[1][1],
-            self.voxel_map_range[2][0],
-            self.voxel_map_range[2][1],
+            self.voxel_map_range_int[0][0],
+            self.voxel_map_range_int[0][1],
+            self.voxel_map_range_int[1][0],
+            self.voxel_map_range_int[1][1],
+            self.voxel_map_range_int[2][0],
+            self.voxel_map_range_int[2][1],
         ]
-        atXY.drop(cols_to_remove, axis=1, inplace=True)
-        # t0 = time.time()
-        # G2XY, edges = np.histogramdd(
-        #    atXY.to_numpy(), bins=self.voxel_map_size, range=self.voxel_map_range
-        # )
-        # t1 = time.time()
-        G2XY, edges = torch.histogramdd(
-            torch.from_numpy(atXY.to_numpy()), bins=list(self.voxel_map_size), range=r
+        # STEP 1 : create a "big" dataframe with all (ki,kj) couples with ki different from kj, ki is taken from atX and kj is taken from atY. 
+        if numerator is True:
+            atXY = atX.merge(atY, how="outer", on="Cycle")
+            # atXY = atX.merge(atY, how="cross") --> not possible with variable cycles
+            atXY.drop(
+                atXY[atXY["index_x"] == atXY["index_y"]].index,
+                axis=0,
+                inplace=True,
+            )  # suppress identical atoms because a+a+aa is zero when acting on the SAME atom.
+            # STEP 2 : compute difference or sum of the two atoms
+            for axis in self.axis:
+                if local is True:
+                    atXY[axis] = atXY[axis + "_x"] - atXY[axis + "_y"]
+                else:
+                    atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
+            # STEP 3 : 3D histogram using torch.
+            atXY = atXY.astype(np.float32)
+            G2XY, edges = torch.histogramdd(
+                torch.from_numpy(np.array([atXY[ax].to_numpy() for ax in self.axis]).T), bins=list(self.voxel_map_size), range=r
+            )
+            del atXY
+        elif numerator is False:
+            ### === POSSIBILITY 1 : USE TORCH ===
+            # STEP 1: create a really really big dataframe of size (big, 3), initialize as empty
+            atXY = torch.zeros((len(atX)*len(atY), len(self.axis)))
+            # STEP 2 : compute difference or sum and add it to the torch
+            for i, ax in enumerate(self.axis):
+                a = torch.cartesian_prod(
+                    torch.tensor(atX[ax].to_numpy()), 
+                    torch.tensor(atY[ax].to_numpy()))
+                if local is True:
+                    atXY[:, i] = a[:,0] - a[:,1]
+                else:
+                    atXY[:, i] = a[:,0] + a[:,1]
+            # STEP 3 : 3D histogram using torch.
+            G2XY, edges = torch.histogramdd(
+                atXY, bins=list(self.voxel_map_size), range=r
+            )
+            ### === POSSIBILITY 2 : USE PANDAS === 
+            # atXY = atX.merge(atY, how="cross")
+            # atXY.drop(
+            #     atXY[atXY["index_x"] == atXY["index_y"]].index,
+            #     axis=0,
+            #     inplace=True,
+            # )  # suppress identical atoms because a+a+aa is zero when acting on the SAME atom.
+            # # STEP 2 : compute difference or sum of the two atoms
+            # for axis in self.axis:
+            #     if local is True:
+            #         atXY[axis] = atXY[axis + "_x"] - atXY[axis + "_y"]
+            #     else:
+            #         atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
+            return G2XY.detach().cpu().numpy()
+
+    def compute_numerator(self):
+        cycles_array_splitted = np.array_split(
+            self.cycles_array, int(self.n_cycles / self.computer_performance)
         )
-        # t2 = time.time()
-        # dt_torch = t2 - t1
-        # dt_numpy = t1 - t0
-        # if dt_torch < dt_numpy:
-        #     print("Torch is {:.0f} times better".format((dt_numpy/dt_torch - 1)))
-        # else:
-        #     print("Numpy is {:.0f} times better".format((dt_torch/dt_numpy - 1)))
-        # del atXY
-        return G2XY.detach().cpu().numpy()
+        for cycles in tqdm(cycles_array_splitted):
+            ### Beam A
+            atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
+            G2AA = self.get_G2(atA, atA, local=True,  numerator = True)
+            self.result["G2AA"] += G2AA.flatten()
+            atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
+            G2BB = self.get_G2(atB, atB, local=True, numerator = True)
+            self.result["G2BB"] += G2BB.flatten()
+            ### Crossed A & B
+            G2AB = self.get_G2(atA, atB, local=False,  numerator = True)
+            self.result["G2AB"] += G2AB.flatten()
+
+
+    def compute_denominator(self):
+        for cycle in tqdm(self.cycles_array):
+            atA = self.atomsA[self.atomsA["Cycle"]==cycle]
+            atA_all =  self.atomsA[~(self.atomsA["Cycle"]==cycle)]
+            G2AA = self.get_G2(atA, atA, local=True,  numerator = False)
+            self.result["G2AA denominator"] += G2AA.flatten()
+            # ### Beam B
+            # atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
+            # atB_rand = self.atomsB_randomized[
+            #     self.atomsB_randomized["Cycle"].isin(cycles)
+            # ]
+            # G2BB = self.get_G2(atB, atB, local=True)
+            # self.result["G2BB"] += G2BB.flatten()
+            # G2BB_rand = self.get_G2(atB, atB_rand, local=True)
+            # self.result["G2BB random"] += G2BB_rand.flatten()
+            # ### Crossed A & B
+            # G2AB = self.get_G2(atA, atB, local=False)
+            # self.result["G2AB"] += G2AB.flatten()
+            # G2AB_rand1 = self.get_G2(atA, atB_rand, local=False)
+            # G2AB_rand2 = self.get_G2(atA_rand, atB, local=False)
+            # self.result["G2AB random1"] += G2AB_rand1.flatten()
+            # self.result["G2AB random2"] += G2AB_rand2.flatten()
+            # self.result["G2AB random2"] +=0.5*(G2AB_rand1.flatten() + G2AB_rand2.flatten())
+
 
     def compute_correlations(self):
         """Principal function of the code. L'idée du code est le suivant :
@@ -430,48 +312,75 @@ class CorrelationHe2Style:
         """
         self.initialize_voxel_map_properties()
         self.update_atoms_in_beams()
-        cycles_array_splitted = np.array_split(
-            self.cycles_array, int(self.n_cycles / self.computer_capacity)
-        )
-        for cycles in tqdm(cycles_array_splitted):
-            ### Beam A
-            atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
-            atA_rand = self.atomsA_randomized[
-                self.atomsA_randomized["Cycle"].isin(cycles)
-            ]
-            G2AA = self.get_G2(atA, atA, local=True)
-            self.result["G2AA"] += G2AA.flatten()
-            G2AA_rand = self.get_G2(atA, atA_rand, local=True)
-            self.result["G2AA random"] += G2AA_rand.flatten()
-            if self.only_one_beam is False:
-                ### Beam B
-                atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
-                atB_rand = self.atomsB_randomized[
-                    self.atomsB_randomized["Cycle"].isin(cycles)
-                ]
-                G2BB = self.get_G2(atB, atB, local=True)
-                self.result["G2BB"] += G2BB.flatten()
-                G2BB_rand = self.get_G2(atB, atB_rand, local=True)
-                self.result["G2BB random"] += G2BB_rand.flatten()
-                ### Crossed A & B
-                G2AB = self.get_G2(atA, atB, local=False)
-                self.result["G2AB"] += G2AB.flatten()
-                G2AB_rand1 = self.get_G2(atA, atB_rand, local=False)
-                G2AB_rand2 = self.get_G2(atA_rand, atB, local=False)
-                self.result["G2AB random1"] += G2AB_rand1.flatten()
-                self.result["G2AB random2"] += G2AB_rand2.flatten()
-                self.result["G2AB random2"] +=0.5*(G2AB_rand1.flatten() + G2AB_rand2.flatten())
+        print("HELLO")
+        #self.compute_numerator()
+        self.compute_denominator()
+        # for cycles in tqdm(cycles_array_splitted):
+        #     ### Beam A
+        #     atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
+        #     atA_rand = self.atomsA_randomized[
+        #         self.atomsA_randomized["Cycle"].isin(cycles)
+        #     ]
+        #     G2AA = self.get_G2(atA, atA, local=True)
+        #     self.result["G2AA"] += G2AA.flatten()
+        #     G2AA_rand = self.get_G2(atA, atA_rand, local=True)
+        #     self.result["G2AA random"] += G2AA_rand.flatten()
+        #     if self.only_one_beam is False:
+        #         pass   
 
-        self.result["g2 aa"] = self.result["G2AA"] / self.result["G2AA random"]
-        # self.result["G2AA"] = self.beamA_volume * self.result["G2AA"] --> normalisation ? not needed yet but keep in mind
-        # self.result["G2AA random"] = self.beamA_volume * self.result["G2AA"]
-        if self.only_one_beam is False:
-            self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
-            self.result["g2 ab"] = (
-                2
-                * self.result["G2AB"]
-                / (self.result["G2AB random1"] + self.result["G2AB random2"])
-            )
+        # self.result["g2 aa"] = self.result["G2AA"] / self.result["G2AA random"]
+        # # self.result["G2AA"] = self.beamA_volume * self.result["G2AA"] --> normalisation ? not needed yet but keep in mind
+        # # self.result["G2AA random"] = self.beamA_volume * self.result["G2AA"]
+        # if self.only_one_beam is False:
+        #     self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
+        #     self.result["g2 ab"] = (
+        #         2
+        #         * self.result["G2AB"]
+        #         / (self.result["G2AB random1"] + self.result["G2AB random2"])
+        #     )
+
+
+
+    ################################################
+    ## VISUALISATION FUNCTIONS CALLED BY THE USER ##
+    ################################################
+    def get_memory_informations(self):
+        print("#"*50)
+        print("==== Default memory usage with float64 ====")
+        mem = self.atoms.memory_usage(deep=True).sum() / 1024 ** 2
+        average_cycle_memory = mem / self.n_cycles
+        a = self.atoms.groupby("Cycle").count()
+        average_atom_number = np.mean(a)
+        max_atom_number = np.max(a)
+        no_of_atoms = len(self.atoms)
+        cycle_memory = mem / no_of_atoms * average_atom_number
+        print("Memory needed for all atoms : {:.3f} MB".format(mem))
+        print("Memory needed to compute the denominator for the average cycle :  {:.3f} MB".format(
+            mem*average_atom_number))
+        print("Memory needed to compute the denominator for the worst cycle :  {:.3f} MB".format(
+            mem*max_atom_number))
+        print("Memory needed to compute the numerator with your computer_performance of {} : {:.3f} MB".format(
+            self.computer_performance, cycle_memory * average_atom_number * self.computer_performance))
+        print("==== Memory usage with integers ====")
+        self.update_atoms_in_beams()
+        df = pd.concat([self.atomsA, self.atomsB])
+        for col in df.columns:
+            print("Type of axis {} : {}".format(col, df[col].dtype))
+        mem = df.memory_usage(deep=True).sum() / 1024 ** 2
+        average_cycle_memory = mem / self.n_cycles
+        a = df.groupby("Cycle").count()
+        average_atom_number = np.mean(a)
+        max_atom_number = np.max(a)
+        no_of_atoms = len(self.atoms)
+        cycle_memory = mem / no_of_atoms * average_atom_number
+        print("Memory needed for all atoms : {:.3f} MB".format(mem))
+        print("Memory needed to compute the denominator for the average cycle :  {:.3f} kB".format(
+            mem*average_atom_number))
+        print("Memory needed to compute the denominator for the worst cycle :  {:.3f} MB".format(
+            mem*max_atom_number))
+        print("Memory needed to compute the numerator with your computer_performance of {} : {:.3f} MB".format(
+            self.computer_performance, cycle_memory * average_atom_number * self.computer_performance))
+
 
     def show_density_plots(self):
         # First Plot : 2D density
@@ -557,6 +466,7 @@ class CorrelationHe2Style:
         for elem, val in self.beams["B"].items():
             print(elem, val)
         print(self.atomsB.describe())
+
 
 
 
@@ -1077,19 +987,20 @@ if __name__ == "__main__":
                 },
             }
     voxel_size = {"Vx": 2, "Vy": 2, "Vz": 0.1}
-    computer_capacity = 8
+    computer_capacity = 300
+    #selected_data = selected_data[selected_data["Cycle"] < selected_data["Cycle"].unique()[300]]
     voxel_numbers = {"Vx": 31, "Vy":31 , "Vz": 101}
     selec_bec_arrival_times["BEC Arrival Time"] = selec_bec_arrival_times["BEC Arrival Time with fit"]
-    corr = CorrelationHe2StyleBigDenominator(
+    corr = CorrelationHe2Style(
         selected_data,
         ROI = ROI,
         bec_arrival_time=ARRIVAL_TIME,
         ref_frame_speed = REF_FRAME_SPEED,
         beams = beams, voxel_size = voxel_size,
-        voxel_numbers = voxel_numbers, computer_capacity = computer_capacity)
+        voxel_numbers = voxel_numbers, computer_performance = computer_capacity)
     #corr.atoms["Vz"] = corr.atoms["Vz"] - 0.55
     #corr.show_density_plots()
+    corr.get_memory_informations()
     corr.compute_correlations()
-    corr.result.to_pickle("~/res2.pkl")
 
     

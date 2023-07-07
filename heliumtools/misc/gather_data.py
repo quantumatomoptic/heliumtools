@@ -251,6 +251,9 @@ def apply_ROI(atoms, ROI):
             elif "min" in value and "max" in value:
                 minimum = value["min"]
                 maximum = value["max"]
+            elif "position" in value and "size" in value:
+                minimum = value["position"] - 0.5 * value["size"]
+                maximum = value["position"] + 0.5 * value["size"]
             elif type(value) == list or type(value) == tuple:
                 minimum = min(value)
                 maximum = max(value)
