@@ -116,7 +116,7 @@ class CorrelationHe2Style(DataBuilder):
         )
         # self.voxel_map = np.zeros(self.voxel_map_size)
         # self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
-        self.voxel_map_range_int = tuple(
+        self.voxel_map_range = tuple(
             [
                 (
                     - self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
@@ -203,12 +203,12 @@ class CorrelationHe2Style(DataBuilder):
             Pandas DataFrame with all velocities differences.
         """
         r = [
-            self.voxel_map_range_int[0][0],
-            self.voxel_map_range_int[0][1],
-            self.voxel_map_range_int[1][0],
-            self.voxel_map_range_int[1][1],
-            self.voxel_map_range_int[2][0],
-            self.voxel_map_range_int[2][1],
+            self.voxel_map_range[0][0],
+            self.voxel_map_range[0][1],
+            self.voxel_map_range[1][0],
+            self.voxel_map_range[1][1],
+            self.voxel_map_range[2][0],
+            self.voxel_map_range[2][1],
         ]
         # STEP 1 : create a "big" dataframe with all (ki,kj) couples with ki different from kj, ki is taken from atX and kj is taken from atY. 
         if numerator is True:
@@ -268,7 +268,7 @@ class CorrelationHe2Style(DataBuilder):
         cycles_array_splitted = np.array_split(
             self.cycles_array, int(self.n_cycles / self.computer_performance)
         )
-        for cycles in tqdm(cycles_array_splitted):
+        for cycles in cycles_array_splitted:
             ### Beam A
             atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
             G2AA = self.get_G2(atA, atA, local=True,  numerator = True)
@@ -286,13 +286,15 @@ class CorrelationHe2Style(DataBuilder):
             ### Beam A
             atA = self.atomsA[self.atomsA["Cycle"]==cycle]
             atA_all =  self.atomsA[~(self.atomsA["Cycle"]==cycle)]
-            G2AA = self.get_G2(atA, atA_all, local=True,  numerator = False)
-            self.result["G2AA denominator"] += G2AA.flatten()
+            G2AA1 = self.get_G2(atA, atA_all, local=True,  numerator = False)
+            G2AA2 = self.get_G2(atA_all,atA , local=True,  numerator = False)
+            self.result["G2AA denominator"] += (G2AA1.flatten() +G2AA2.flatten() )/2
             ### Beam B
             atB = self.atomsB[self.atomsB["Cycle"]==cycle]
             atB_all =  self.atomsB[~(self.atomsB["Cycle"]==cycle)]
-            G2BB = self.get_G2(atB, atB_all, local=True,  numerator = False)
-            self.result["G2BB denominator"] += G2BB.flatten()
+            G2BB1 = self.get_G2(atB, atB_all, local=True,  numerator = False)
+            G2BB2 = self.get_G2(atB_all, atB, local=True,  numerator = False)
+            self.result["G2BB denominator"] += (G2BB1.flatten()+G2BB2.flatten())/2
             ### Crossed Beam
             G2AB = self.get_G2(atA, atB_all, local=False,  numerator = False)
             G2BA = self.get_G2(atB, atA_all, local=False,  numerator = False)
@@ -301,8 +303,7 @@ class CorrelationHe2Style(DataBuilder):
             #self.result["G2AB denominator2"] += G2BB.flatten()
 
 
-
-    def compute_correlations(self):
+    def compute_correlations(self,):
         """This function initialize 
         """
         self.initialize_voxel_map_properties()
@@ -310,6 +311,52 @@ class CorrelationHe2Style(DataBuilder):
         self.compute_numerator()
         self.compute_denominator()
         
+    def compute_correlations_bootstrap(self,N = 30):
+        if "result" not in self.__dict__:
+            self.initialize_voxel_map_properties()
+            self.update_atoms_in_beams()
+            self.compute_numerator()
+            self.compute_denominator()
+
+        if "G2AA mean" not in self.result.columns:
+            self.boostrap_iteration = 0
+            for X in ["G2AA", "G2BB", "G2AB"]:
+                self.result[X + " mean"] = np.zeros(len(self.result))
+                self.result[X + " squared"] = np.zeros(len(self.result))
+                self.result[X + " std"] = np.zeros(len(self.result))
+
+        ## Start to Bootstrap Atoms
+        self.save_copy_of_atoms()
+        for boostrap_num in tqdm(range(N)):
+            self.bootstrap_atoms()
+            self.update_atoms_in_beams()
+            cycles_array_splitted = np.array_split(
+                self.cycles_array, int(self.n_cycles / self.computer_performance)
+                )
+            res = pd.DataFrame(data = np.zeros((len(self.result), 3)), columns = ["G2AA", "G2BB", "G2AB"])
+            
+            for cycles in cycles_array_splitted:
+                ### Beam A
+                atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
+                G2AA = self.get_G2(atA, atA, local=True,  numerator = True)
+                res["G2AA"] += G2AA.flatten()
+                atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
+                G2BB = self.get_G2(atB, atB, local=True, numerator = True)
+                res["G2BB"] += G2BB.flatten()
+                ### Crossed A & B
+                G2AB = self.get_G2(atA, atB, local=False,  numerator = True)
+                res["G2AB"] += G2AB.flatten()
+            # Save the result in result
+            for X in ["G2AA", "G2BB", "G2AB"]:
+                self.result[X + " mean"] = (self.result[X + " mean"] * self.boostrap_iteration + res[X])/(self.boostrap_iteration +1)
+                self.result[X + " squared"] = (self.result[X + " squared"] * self.boostrap_iteration +res[X]**2)/(self.boostrap_iteration +1)
+            self.boostrap_iteration += 1
+            for X in ["G2AA", "G2BB", "G2AB"]:
+                self.result[X + " std"] = self.result[X + " squared"] - self.result[X + " mean"]**2
+
+
+
+
 
 
     ################################################
@@ -960,7 +1007,7 @@ if __name__ == "__main__":
     voxel_size = {"Vx": 2, "Vy": 2, "Vz": 0.25}
     computer_capacity = 300
     #selected_data = selected_data[selected_data["Cycle"] < selected_data["Cycle"].unique()[300]]
-    voxel_numbers = {"Vx": 31, "Vy":31 , "Vz": 101}
+    voxel_numbers = {"Vx": 61, "Vy":61 , "Vz": 151}
     selec_bec_arrival_times["BEC Arrival Time"] = selec_bec_arrival_times["BEC Arrival Time with fit"]
     corr = CorrelationHe2Style(
         selected_data,
