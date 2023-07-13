@@ -14,7 +14,7 @@
 """
 Content of lattice.py
 
-Orientation des axes : la gravité est orientée vers le bas : le faisceau up monte et le faisceau down descend. 
+Orientation des axes : la gravité est orientée vers le bas : le faisceau up monte et le faisceau down descend.
 
 
 
@@ -127,7 +127,6 @@ class Lattice:
         if all is True:
             for number, element in enumerate(self.__dict__):
                 print(f"{element} : {self.__dict__[element]}")
-
 
     def check_attributs(self):
         """fonction appelée après l'itnitialisation pour vérifier tous les attributs."""

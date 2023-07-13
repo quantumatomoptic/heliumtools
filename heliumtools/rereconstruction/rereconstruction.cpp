@@ -4,14 +4,17 @@
 //  Developped by Victor, ...
 //
 //  Last (big) change on the ... by ...
+//  12/07/23 (Victor) It happened on the 03/07, TDC time lists were not sorted and this caused the algorithm (3 & 4) not to work properly. To avoid this, we now sort the list when loading them.
 //
 //  Copyright (c) 2022 - Helium1@LCF
 // ----------------------------------
 //
 
 /*
-Ce code permet de re-reconstruire les atomes d'un répertoire. L'utilisation est la suivante :
-on écrit dans un fichier de configuration
+This code ables to reconstruct atoms a posteriori. It should not be mandatory to recompile it to make it work on a linux computer. One should just change the configuration file conf.txt and enter
+Firts line : sequence directory in which there are .times
+Second line : directory (not yet created) in which new .atoms will be stored
+Third line : the programm number the user wants to use
 */
 #include <iostream>
 #include <fstream>
@@ -153,12 +156,14 @@ int main()
     { // ------ LOAD TIMES ------
         string inputfile = params.seq_folder + "/" + *i;
         string outputfile = params.new_seq_folder + "/" + *i;
-        copy_paste_file(inputfile + ".json", outputfile + ".json");
-        copy_paste_file(inputfile + ".sequence_parameters", outputfile + ".sequence_parameters");
         X1 = load_timedata(inputfile + ".timesx1");
+        X1.sort();
         X2 = load_timedata(inputfile + ".timesx2");
+        X2.sort();
         Y1 = load_timedata(inputfile + ".timesy1");
+        Y1.sort();
         Y2 = load_timedata(inputfile + ".timesy2");
+        Y2.sort();
         reconstruction_statistics["Number of X1"] = X1.size();
         reconstruction_statistics["Number of X2"] = X2.size();
         reconstruction_statistics["Number of Y1"] = Y1.size();
@@ -172,6 +177,8 @@ int main()
         cout << "         --------------------------------------------" << endl;
         cout << "Input file : " + inputfile << endl;
         cout << "Output file : " + outputfile << endl;
+        copy_paste_file(inputfile + ".json", outputfile + ".json");
+        copy_paste_file(inputfile + ".sequence_parameters", outputfile + ".sequence_parameters");
         auto t_start = high_resolution_clock::now();
         if (params.reconstruction_number == 1)
         {
@@ -418,8 +425,8 @@ bool reconstruction3(list<timedata> &X1_p,
 {
     cout << "Reconstruction 3 : Recovering All Potential Atoms" << endl;
     // gate X, gatY->bulb width
-    timedata gateY = timedata((params.evgate + params.atgate) / params.res);
-    timedata gateX = timedata((params.evgate + params.atgate) / params.res);
+    timedata gateY = 2 * timedata((params.evgate + params.atgate) / params.res);
+    timedata gateX = 2 * timedata((params.evgate + params.atgate) / params.res);
     // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
     timedata MCPdiameter = timedata(params.evgate / params.res);
     // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
