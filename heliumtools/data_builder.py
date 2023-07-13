@@ -59,7 +59,7 @@ class DataBuilder:
 
     show_density : plot the density of the atoms dataframe
 
-    compute_spherical_coordinates 
+    compute_spherical_coordinates
 
     """
 
@@ -169,7 +169,7 @@ class DataBuilder:
             #    "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
             # )
 
-        for axis in ["Vx", "Vy", "Vz"] :
+        for axis in ["Vx", "Vy", "Vz"]:
             if axis in self.ref_frame_speed:
                 # logging.info(
                 #    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
@@ -191,7 +191,7 @@ class DataBuilder:
         local_condition = self.atoms["Vy"] < 0
         self.atoms.loc[local_condition, "theta"] = 2 * np.pi - self.atoms["theta"]
 
-   ef compute_spherical_coordinates(self):
+    def compute_spherical_coordinates(self):
         """Compute spherical coordinates for the atom dataframe. Note that the call of that function might overlap with cylindrical coordinates."""
         self.atoms["rho"] = np.sqrt(
             self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2 + self.atoms["Vz"] ** 2
@@ -202,10 +202,11 @@ class DataBuilder:
 
         self.atoms["phi"] = np.arctan2(self.atoms["Vy"], self.atoms["Vx"])
 
-
     def compute_spherical_coordinates(self):
         """Compute spherical coordinates for the atom dataframe. Note that the call of that function might overlap with cylindrical coordinates."""
-        self.atoms["rho"] = np.sqrt(self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2 + self.atoms["Vy"] ** 2)
+        self.atoms["rho"] = np.sqrt(
+            self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2 + self.atoms["Vy"] ** 2
+        )
         self.atoms["theta"] = np.arccos(
             self.atoms["Vz"] / self.atoms["Vperp"]
         )  # [0, pi] range
@@ -214,19 +215,19 @@ class DataBuilder:
         local_condition = self.atoms["phi"] < 0
         self.atoms.loc[local_condition, "phi"] = 2 * np.pi + self.atoms["phi"]
 
-    def update_referential_speed(self, new_referential_speed:dict):
+    def update_referential_speed(self, new_referential_speed: dict):
         """This methods update the speed of the inertial frame taking into account the old inertial frame. This means that this frame is absolute with respect to the detected speed of atoms.
 
         Parameters
         ----------
         new_referential_speed : dict
-            dictionary with entries whos element are Vx, Vy and/or Vz and a float. 
+            dictionary with entries whos element are Vx, Vy and/or Vz and a float.
         """
         for axis in ["Vx", "Vy", "Vz"]:
             if axis not in new_referential_speed:
                 new_referential_speed[axis] = 0
             self.atoms[axis] -= new_referential_speed[axis] - self.ref_frame_speed[axis]
-                
+
         self.ref_frame_speed = copy.deepcopy(new_referential_speed)
         self.compute_cylindrical_coordinates()
 
