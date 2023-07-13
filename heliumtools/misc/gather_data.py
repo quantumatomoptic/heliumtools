@@ -41,7 +41,9 @@ def gaussian_function(x, mean, amplitude, standard_deviation, offset):
 
 
 def apply_roi(df, roi):
-    print("[WARNING] : This function should be deleted in the next version of Heliumtools. Please use apply_ROI(df -> pd.DataFrame, ROI -> dictionary) instead.")
+    print(
+        "[WARNING] : This function should be deleted in the next version of Heliumtools. Please use apply_ROI(df -> pd.DataFrame, ROI -> dictionary) instead."
+    )
     return apply_ROI(df, roi)
 
 
@@ -521,6 +523,14 @@ def export_data_set_to_pickle(
             .reset_index(),
             on="Cycle",
         )
+        df_arrival_times = pd.merge(
+            df_arrival_times,
+            atoms_in_ROI.groupby("Cycle")
+            .std()["T"]
+            .rename("dT of atoms in ROI")
+            .reset_index(),
+            on="Cycle",
+        )
         for i, roi in enumerate(supplementary_rois):
             at = apply_ROI(atoms, roi)
             df_arrival_times = pd.merge(
@@ -531,6 +541,7 @@ def export_data_set_to_pickle(
                 .reset_index(),
                 on="Cycle",
             )
+
         df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
         filename = os.path.join(folder, "arrival_times.pkl")
         df_arrival_times.to_pickle(filename)
