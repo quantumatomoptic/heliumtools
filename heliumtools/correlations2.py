@@ -301,6 +301,9 @@ class CorrelationHe2Style(DataBuilder):
             self.result["G2AB denominator"] += (G2AB.flatten() + G2BA.flatten())/2
             #self.result["G2AB denominator1"] += G2AB.flatten()
             #self.result["G2AB denominator2"] += G2BB.flatten()
+        for G2 in ["G2AA", "G2BB", "G2AB"]:
+            self.result[G2 + " denominator"] = self.result[G2 + " denominator"]/(self.n_cycles - 1)
+        #self.result["G2AB denominator"]
 
 
     def compute_correlations(self,):
@@ -349,7 +352,7 @@ class CorrelationHe2Style(DataBuilder):
             # Save the result in result
             for X in ["G2AA", "G2BB", "G2AB"]:
                 self.result[X + " mean"] = (self.result[X + " mean"] * self.boostrap_iteration + res[X])/(self.boostrap_iteration +1)
-                self.result[X + " squared"] = (self.result[X + " squared"] * self.boostrap_iteration +res[X]**2)/(self.boostrap_iteration +1)
+                self.result[X + " squared"] = (self.result[X + " squared"] * self.boostrap_iteration + res[X]**2)/(self.boostrap_iteration +1)
             self.boostrap_iteration += 1
             for X in ["G2AA", "G2BB", "G2AB"]:
                 self.result[X + " std"] = self.result[X + " squared"] - self.result[X + " mean"]**2
