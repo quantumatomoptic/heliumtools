@@ -1,16 +1,3 @@
-#!/usr/bin/env python3
-# -*- mode: Python; coding: utf-8 -*-
-
-"""
-@Author: victor
-@Date:   20 April 2023 @ 19:01
-@Last modified by:   victor
-@Last modified time: 09 May 2023 @ 16:43
-
-Comment :
-"""
-
-
 #!/usr/bin/env python
 # -*- mode:Python; coding: utf-8 -*-
 
@@ -183,6 +170,26 @@ def load_XYTTraw(path):
     return (X, Y, T)
 
 
+def load_times_of_atoms(path):
+    """returns X1, X2, Y1, Y2 of a reconstructed atom.
+
+    Parameters
+    ----------
+    path : str or PathLike object
+        path to the .atoms file
+    """
+    atoms = np.fromfile(path, dtype="uint64")
+    events_list = atoms.reshape(int(len(atoms) / 4), 4).T
+    return events_list[0], events_list[1], events_list[2], events_list[3]
+
+
+def load_offset_of_atoms(path):
+    path = str(path)
+    path = path.replace(".atoms", ".offsets")
+    offsets = np.fromfile(path, dtype="int64")
+    return offsets
+
+
 def apply_ROD(df, ROD):
     """This function returns athe atoms dataframe such that all elements are OUTSIDE the ROD dictionary range. If the ROD is an empty dictionary, this function returns the initial dataframe.
 
@@ -344,8 +351,9 @@ def fit_BEC_arrival_time(
     n_hole = int(width_saturation / histogramm_width)
     failed_status = False
     for i in range(n_hole):
-        bin_centers.pop(max_index + 1)
-        bin_heights.pop(max_index + 1)
+        if max_index + 2 < len(bin_centers):
+            bin_centers.pop(max_index + 1)
+            bin_heights.pop(max_index + 1)
     try:
         popt, pcov = curve_fit(gaussian_function, bin_centers, bin_heights, p0=p0)
         # perr = np.sqrt(np.diag(pcov))

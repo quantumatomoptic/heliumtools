@@ -202,19 +202,6 @@ class DataBuilder:
 
         self.atoms["phi"] = np.arctan2(self.atoms["Vy"], self.atoms["Vx"])
 
-    def compute_spherical_coordinates(self):
-        """Compute spherical coordinates for the atom dataframe. Note that the call of that function might overlap with cylindrical coordinates."""
-        self.atoms["rho"] = np.sqrt(
-            self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2 + self.atoms["Vy"] ** 2
-        )
-        self.atoms["theta"] = np.arccos(
-            self.atoms["Vz"] / self.atoms["Vperp"]
-        )  # [0, pi] range
-        self.atoms["phi"] = np.arctan2(self.atoms["Vy"] / self.atoms["Vx"])
-        # arctan2 gives back angles in [-pi, pi]
-        local_condition = self.atoms["phi"] < 0
-        self.atoms.loc[local_condition, "phi"] = 2 * np.pi + self.atoms["phi"]
-
     def update_referential_speed(self, new_referential_speed: dict):
         """This methods update the speed of the inertial frame taking into account the old inertial frame. This means that this frame is absolute with respect to the detected speed of atoms.
 

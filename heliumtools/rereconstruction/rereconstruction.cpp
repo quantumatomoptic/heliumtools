@@ -92,7 +92,8 @@ bool reconstruction4(list<timedata> &X1_p,
 void WriteStatistics(string filename, map<string, float> &reconstruction_statistics);
 void WriteAtoms(string filename, vector<atomdata> &atoms);
 void copy_paste_file(string input_file, string output_file);
-
+list<int> get_offset_of_atoms(vector<atomdata> &atoms_p, std::vector<std::vector<int>> &offset_p);
+void WriteOffsets(string filename, list<int> &offset_values_p);
 timedata AbsDiff(timedata T1, timedata T2);
 /*
 ==============================================================================================================
@@ -149,6 +150,7 @@ int main()
     // Définition des variables dont nous aurons l'usage plus tard.
     list<timedata> X1, X2, Y1, Y2;
     vector<atomdata> atoms;
+
     map<string, float> reconstruction_statistics; // reconstruction_statistics is a dictionnary like
 
     cout << "\n ... Starting to load .times files... \n";
@@ -208,6 +210,9 @@ int main()
         reconstruction_statistics["Reconstruction rate of Y2"] = round(100 * atoms_size / reconstruction_statistics["Number of Y2"]);
         WriteAtoms(outputfile + ".atoms", atoms);
         WriteStatistics(outputfile + ".stats", reconstruction_statistics);
+        list<int> offset_of_atoms;
+        offset_of_atoms = get_offset_of_atoms(atoms, offset);
+        WriteOffsets(outputfile + ".offsets", offset_of_atoms);
 
         // Clean up
         X1.clear();
@@ -815,6 +820,21 @@ atoms : vecteur de atomdata aka 4 temps x1, x2, y1, y2
     // WriteLog(message.str());
 }
 
+void WriteOffsets(string filename, list<int> &offset_values_p)
+// This function write the pointer list offset_value into a file name file.
+{
+
+    ofstream file;
+    file.open(filename, ofstream::out | ofstream::binary);
+    ostringstream message;
+    std::vector<timedata> buffer;
+    buffer.reserve(offset_values_p.size());
+    std::copy(begin(offset_values_p), end(offset_values_p), back_inserter(buffer));
+
+    file.write(reinterpret_cast<const char *>(buffer.data()), buffer.size() * sizeof(timedata));
+    file.close();
+}
+
 void copy_paste_file(string input_file, string output_file)
 /*Copy the file input_file and paste into output_file*/
 {
@@ -847,4 +867,19 @@ void copy_paste_file(string input_file, string output_file)
     {
         std::cout << "[WARNING] Impossible to read " << input_file << std::endl;
     }
+}
+
+list<int> get_offset_of_atoms(vector<atomdata> &atoms_p, std::vector<std::vector<int>> &offset_p)
+{
+    list<int> offset_of_atoms;
+    for (auto vectorit = atoms_p.begin(); vectorit != atoms_p.end(); ++vectorit)
+    {
+        // cout << (*vectorit).TX1 << endl;
+        int S = (*vectorit).TX1 + (*vectorit).TX2 - (*vectorit).TY1 - (*vectorit).TY2;
+        int X = 708 - (*vectorit).TX1 + (*vectorit).TX2;
+        int Y = 708 - (*vectorit).TY1 + (*vectorit).TY2;
+        int offset_diff = S - offset_p[X][Y];
+        offset_of_atoms.push_back(offset_diff);
+    }
+    return offset_of_atoms;
 }
