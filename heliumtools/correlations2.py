@@ -158,7 +158,8 @@ class CorrelationHe2Style(DataBuilder):
             ]
         )
         self.result = pd.DataFrame(data=data, columns=self.axis)
-        if self.only_one_beam is True:
+        # if self.only_one_beam is True:
+        if False:
             for column in [
                 "G2AA",
                 "G2AA denominator",
