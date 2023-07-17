@@ -398,7 +398,7 @@ class CorrelationHe2Style(DataBuilder):
     ################################################
     def get_memory_informations(self):
         print("#" * 50)
-        print("==== Default memory usage with float64 ====")
+        print("==== Default memory usage with initial data ====")
         mem = self.atoms.memory_usage(deep=True).sum() / 1024**2
         average_cycle_memory = mem / self.n_cycles
         a = self.atoms.groupby("Cycle").count()
@@ -423,11 +423,13 @@ class CorrelationHe2Style(DataBuilder):
                 cycle_memory * average_atom_number * self.computer_performance,
             )
         )
-        print("==== Memory usage with integers ====")
+
         self.update_atoms_in_beams()
-        df = pd.concat([self.atomsA, self.atomsB])
-        for col in df.columns:
+        df = self.atomsA
+        for col in self.atomsA.columns:
             print("Type of axis {} : {}".format(col, df[col].dtype))
+        print("==== Memory usage with beam A ====")
+
         mem = df.memory_usage(deep=True).sum() / 1024**2
         average_cycle_memory = mem / self.n_cycles
         a = df.groupby("Cycle").count()
