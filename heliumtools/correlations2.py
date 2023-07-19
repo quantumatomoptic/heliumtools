@@ -368,12 +368,12 @@ class CorrelationHe2Style(DataBuilder):
         mem = self.atoms.memory_usage(deep=True).sum() / 1024 ** 2
         average_cycle_memory = mem / self.n_cycles
         a = self.atoms.groupby("Cycle").count()
-        average_atom_number = np.mean(a)
-        max_atom_number = np.max(a)
+        average_atom_number = a.mean()["Vx"]
+        max_atom_number = np.max(a.mean()["Vx"])
         no_of_atoms = len(self.atoms)
         cycle_memory = mem / no_of_atoms * average_atom_number
         print("Memory needed for all atoms : {:.3f} MB".format(mem))
-        print("Memory needed to compute the denominator for the average cycle :  {:.3f} MB".format(
+        print("Memory needed to compute the denominator for the average cycle : {:.3f} MB".format(
             mem*average_atom_number))
         print("Memory needed to compute the denominator for the worst cycle :  {:.3f} MB".format(
             mem*max_atom_number))
@@ -387,8 +387,8 @@ class CorrelationHe2Style(DataBuilder):
         mem = df.memory_usage(deep=True).sum() / 1024 ** 2
         average_cycle_memory = mem / self.n_cycles
         a = df.groupby("Cycle").count()
-        average_atom_number = np.mean(a)
-        max_atom_number = np.max(a)
+        average_atom_number = a.mean()["Vx"]
+        max_atom_number = np.max(a.mean()["Vx"])
         no_of_atoms = len(self.atoms)
         cycle_memory = mem / no_of_atoms * average_atom_number
         print("Memory needed for all atoms : {:.3f} MB".format(mem))
@@ -546,7 +546,10 @@ class CorrelationHe2StyleBigDenominator(CorrelationHe2Style):
             if local:
                 atXY[axis] = atXY[axis + "_x"] - atXY[axis + "_y"]
             else:
-                atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
+                if axis == "Vz":
+                    atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
+                else:
+                    atXY[axis] = atXY[axis + "_x"] - atXY[axis + "_y"]
         cols_to_remove = [col for col in atXY.columns if col not in self.axis]
         # print("Datasize : {}".format(len(atXY)))
         r = [
