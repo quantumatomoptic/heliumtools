@@ -149,7 +149,7 @@ def load_XYTTraw(path):
     """
     v_perp_x = 1.02  # mm/ns
     v_perp_y = 1.13  # mm/ns
-    time_resolution = 1.2e-10
+    time_resolution = 2.75e-10
     # time_to_pos = 2 * 0.98e-9
 
     atoms_file = np.fromfile(path, dtype="uint64")

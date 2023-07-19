@@ -29,9 +29,10 @@ import time
 import logging
 from .data_builder import DataBuilder
 
+
 class Correlation(DataBuilder):
     """
-    Correlation class that inherits from the DatBuilder class 
+    Correlation class that inherits from the DatBuilder class
 
     Mandatory parameters
     --------------------
@@ -107,11 +108,10 @@ class Correlation(DataBuilder):
         self.remove_shot_noise = True
         self.__dict__.update(kwargs)
         self.boxes = copy.deepcopy(self.boxes)
-        
 
     def set_boxes(self, boxes):
         self.boxes = boxes.copy()
-    
+
     def define_variable1(self, **kwargs):
         self.var1 = Variable(**kwargs)
 
@@ -144,7 +144,6 @@ class Correlation(DataBuilder):
                 maximum = value["maximum"]
             df = df[((df[key] >= minimum) & (df[key] < maximum))]
         return df
-
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -588,8 +587,8 @@ class Correlation(DataBuilder):
                 * (self.result["N_2**2"] - self.result["N_2"])
             )
         )
-        self.result["G^2(k1,k1)"] =  self.result["N_1**2"] - self.result["N_1"]
-        self.result["G^2(k2,k2)"] =  self.result["N_2**2"] - self.result["N_2"]
+        self.result["G^2(k1,k1)"] = self.result["N_1**2"] - self.result["N_1"]
+        self.result["G^2(k2,k2)"] = self.result["N_2**2"] - self.result["N_2"]
         self.result["g^2(k1,k1)"] = (
             self.result["N_1**2"] - self.result["N_1"]
         ) / self.result["N_1"] ** 2
@@ -892,7 +891,6 @@ class Correlation(DataBuilder):
             plt.close()
         return (hist_values, X_values, Y_values)
 
-
     def get_atoms_distribution(
         self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
     ):
@@ -1086,8 +1084,6 @@ class Correlation(DataBuilder):
             plt.colorbar(im)
             plt.show()
         return (moy1, moy2, pro2D)
-
-    
 
 
 class Variable:

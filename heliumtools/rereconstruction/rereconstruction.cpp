@@ -43,7 +43,7 @@ struct atomdata
 
 struct paramstruct // reconstruction parameters
 {
-    double res = 120E-12;                  // TDC resolution (seconds) -> 0.12e-9
+    double res = 275E-12;                  // TDC resolution (seconds) -> 0.12e-9
     double evgate = 85.00E-9;              // time gate to identify matching detection events
     double atgate = 5.00E-9;               // time gate to identify matching events that should be counted as an atom
     double deltaTgate = 10.00E-9;          // time gate maximale une fois qu'on a obtenu un quadruplet
