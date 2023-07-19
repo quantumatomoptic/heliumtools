@@ -26,23 +26,24 @@ import time
 import logging
 from .misc.gather_data import apply_ROI, apply_ROD
 
+
 class DataBuilder:
     """
-    Classe DataBuilder. Takes as an input a pandas dataframe with 4 columns Cycle, X, Y et T and built a dataframe in mm/s for all speeds. 
+    Classe DataBuilder. Takes as an input a pandas dataframe with 4 columns Cycle, X, Y et T and built a dataframe in mm/s for all speeds.
 
     Mandatory parameters
     --------------------
     atoms : pandas dataframe
-    	Must have 4 columns in which each columns name is "Cycle" ; "X" ; "Y" et "T".
+        Must have 4 columns in which each columns name is "Cycle" ; "X" ; "Y" et "T".
 
-    
+
 
     Other attributs
     --------------------
 
     ROI : dict
-    	Define a Region Of Interest to select a part of the DataFrame. Note that any entry of this dictionary must be in the builted atom dataframe (must be among Cycle, Vx, Vy, Vz, Vperp, theta, Vrho, phi)
-    	Note that the apply_ROI method is applied immediately after the dataframe atom is built. 
+        Define a Region Of Interest to select a part of the DataFrame. Note that any entry of this dictionary must be in the builted atom dataframe (must be among Cycle, Vx, Vy, Vz, Vperp, theta, Vrho, phi)
+        Note that the apply_ROI method is applied immediately after the dataframe atom is built.
 
     ROD : dictionnaire, Region Of Desinterest
         pour ne sélectionner que les atomes en dehors de la ROD. Même remarque que pour ROI et même format.
@@ -51,17 +52,14 @@ class DataBuilder:
 
     raman_kick : float, kick raman en mm/s
 
-    var1 et var2 : objet Variable (cf classe ci-dessous), les paramètres des boîtes que nous allons changer pour faire les corrélations.
-
-    round_decimal : il s'est avéré (LabJournal du 24/05/2022) que python fait des arrondis un peu bizarre lorsqu'il calcule Vz1 + Vz2 : j'arrondi donc tous les nombres concernant Vz1 et Vz2 (ou plutot les varaibels self.var1.name) à la décimale  round_decimal ( par défaut 5) (--> voir la méthode copute_result)
-
-
     Some Methods
     --------------------
     apply_ROI() / apply_ROD() : select atoms only in ROI / outside ROD.
 
 
     show_density : plot the density of the atoms dataframe
+
+    compute_spherical_coordinates
 
     """
 
@@ -171,19 +169,21 @@ class DataBuilder:
             #    "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
             # )
 
-        for axis in self.ref_frame_speed:
-            if axis in ["Vx", "Vy", "Vz"] and self.ref_frame_speed[axis] != 0:
+        for axis in ["Vx", "Vy", "Vz"]:
+            if axis in self.ref_frame_speed:
                 # logging.info(
                 #    f"[INFO] : Reference frame is moving at {self.ref_frame_speed[axis]} mm/s along the {axis} axis."
                 # )
                 self.atoms[axis] -= self.ref_frame_speed[axis]
+            else:
+                self.ref_frame_speed[axis] = 0
 
         self.cycles_array = self.atoms["Cycle"].unique()
         self.n_cycles = len(self.atoms["Cycle"].unique())
         self.compute_cylindrical_coordinates()
 
     def compute_cylindrical_coordinates(self):
-        """Compute transverse velocity and angular angle of the atom dataframe. """
+        """Compute transverse velocity and angular angle of the atom dataframe."""
         self.atoms["Vperp"] = np.sqrt(self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2)
         self.atoms["theta"] = np.arccos(
             self.atoms["Vx"] / self.atoms["Vperp"]
@@ -191,16 +191,32 @@ class DataBuilder:
         local_condition = self.atoms["Vy"] < 0
         self.atoms.loc[local_condition, "theta"] = 2 * np.pi - self.atoms["theta"]
 
-
     def compute_spherical_coordinates(self):
         """Compute spherical coordinates for the atom dataframe. Note that the call of that function might overlap with cylindrical coordinates."""
-        self.atoms["rho"] = np.sqrt(self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2 + self.atoms["Vy"] ** 2)
+        self.atoms["rho"] = np.sqrt(
+            self.atoms["Vx"] ** 2 + self.atoms["Vy"] ** 2 + self.atoms["Vz"] ** 2
+        )
         self.atoms["theta"] = np.arccos(
-            self.atoms["Vx"] / self.atoms["Vperp"]
+            self.atoms["Vz"] / self.atoms["rho"]
         )  # [0, pi] range
-        local_condition = self.atoms["Vy"] < 0
-        self.atoms.loc[local_condition, "theta"] = 2 * np.pi - self.atoms["theta"]
 
+        self.atoms["phi"] = np.arctan2(self.atoms["Vy"], self.atoms["Vx"])
+
+    def update_referential_speed(self, new_referential_speed: dict):
+        """This methods update the speed of the inertial frame taking into account the old inertial frame. This means that this frame is absolute with respect to the detected speed of atoms.
+
+        Parameters
+        ----------
+        new_referential_speed : dict
+            dictionary with entries whos element are Vx, Vy and/or Vz and a float.
+        """
+        for axis in ["Vx", "Vy", "Vz"]:
+            if axis not in new_referential_speed:
+                new_referential_speed[axis] = 0
+            self.atoms[axis] -= new_referential_speed[axis] - self.ref_frame_speed[axis]
+
+        self.ref_frame_speed = copy.deepcopy(new_referential_speed)
+        self.compute_cylindrical_coordinates()
 
     def return_dictionary_correlation_property(self) -> dict:
         """Return a dictionay with all the parameter of the simulation.
@@ -228,7 +244,6 @@ class DataBuilder:
         dictionary = self.return_dictionary_correlation_property()
         df = pd.DataFrame(data=[dictionary.values()], columns=dictionary.keys())
         return df
-
 
     def save_copy_of_atoms(self):
         """Save a copy of the atom dataframe. Important to do if one does bottstraping."""
@@ -265,7 +280,6 @@ class DataBuilder:
         Si la ROI est vide, la méthode ne fait rien. Le format de la ROI doit être {"Vx": {"max":120, "min":-120}}
         """
         self.atoms = apply_ROI(self.atoms, self.ROI)
-
 
     def apply_ROD(self):
         """
