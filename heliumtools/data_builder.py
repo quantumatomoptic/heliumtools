@@ -200,7 +200,8 @@ class DataBuilder:
             self.atoms["Vz"] / self.atoms["rho"]
         )  # [0, pi] range
 
-        self.atoms["phi"] = np.arctan2(self.atoms["Vy"], self.atoms["Vx"])
+        self.atoms["phi"] = np.arctan2(self.atoms["Vy"], self.atoms["Vx"]) % (2 * np.pi)
+        # phi entre -pi et pi --> je mets entre 0 et 2pi
 
     def update_referential_speed(self, new_referential_speed: dict):
         """This methods update the speed of the inertial frame taking into account the old inertial frame. This means that this frame is absolute with respect to the detected speed of atoms.

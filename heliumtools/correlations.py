@@ -104,6 +104,7 @@ class Correlation(DataBuilder):
                 "Vz": {"size": 0.9, "position": 130},
             },
         }
+        self.is_there_a_copy_of_total = False
         self.compute_errors = False
         self.remove_shot_noise = True
         self.__dict__.update(kwargs)
@@ -299,8 +300,8 @@ class Correlation(DataBuilder):
         # print(len(result_var_2))
         # result_var2_list = [result_var_2]
 
-        total = pd.merge(atom_beam_not_scanned, result_var, on="Cycle")
-        self.compute_result(total)
+        self.total = pd.merge(atom_beam_not_scanned, result_var, on="Cycle")
+        self.compute_result(self.total)
 
     def compute_correlations_different_box_scanned(self):
         """
@@ -526,6 +527,8 @@ class Correlation(DataBuilder):
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
         total["(N_1-N_2)^4"] = (total["N_1"] - total["N_2"]) ** 4
+        total["M^2 jasukula"] = total["(N_1-N_2)^2"] / (total["N_1+N_2"])
+        total["M jaskula"] = total["N_1-N_2"] / np.sqrt(total["N_1+N_2"])
         self.total = total
         # on moyenne les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
         self.result = total.groupby(
@@ -595,6 +598,9 @@ class Correlation(DataBuilder):
         self.result["g^2(k2,k2)"] = (
             self.result["N_2**2"] - self.result["N_2"]
         ) / self.result["N_2"] ** 2
+        self.result["var(M jaskula)"] = (
+            self.result["M^2 jasukula"] - self.result["M jaskula"] ** 2
+        )
 
         # on enlève le shot noise si cela est demandé par l'utilisateur.
         if self.remove_shot_noise:
@@ -794,6 +800,32 @@ class Correlation(DataBuilder):
 
         # print("Computation is done.")
 
+    def save_copy_of_total(self):
+        """Save a copy of the total dataframe. Important to do if one does bottstraping."""
+        self.total_dataframe_copy = copy.deepcopy(self.total)
+        self.cycles_array_copy = copy.deepcopy(self.cycles_array)
+        self.is_there_a_copy_of_total = True
+
+    def recover_true_total(self):
+        self.total = copy.deepcopy(self.total_dataframe_copy)
+        self.cycles_array = copy.deepcopy(self.cycles_array_copy)
+
+    def bootstrap_total(self):
+        if self.is_there_a_copy_of_total is False:
+            self.save_copy_of_total()
+            print(
+                "[Warning] : I just saved a copy of the total dataframe because you will destruct your original dataframe."
+            )
+        new_total = []
+        for n in range(self.n_cycles):
+            cycle = random.choice(self.cycles_array_copy)
+            df = copy.deepcopy(
+                self.total_dataframe_copy[self.total_dataframe_copy["Cycle"] == cycle]
+            )
+            df["Cycle"] = n * np.ones(len(df))
+            new_total.append(df)
+        self.total = pd.concat(new_total)
+
     ###########################################################
     ############### FONCTION D'AFFICHAGE  #####################
     ###########################################################
@@ -808,6 +840,7 @@ class Correlation(DataBuilder):
         show_boxes=True,
         save=None,
         show_plot=True,
+        ax=None,
     ):
         """
             Affiche l'histogramme 2D de colonnes nameX et nameY du dataframe.
@@ -830,16 +863,18 @@ class Correlation(DataBuilder):
             title = "Histogramme pour {} fichiers".format(self.n_cycles)
         plt.clf()
         # plt.figure(figsize=(10, 7))
-        plt.figure()
+        if ax is None:
+            fig, ax = plt.subplots()
+
         X_list = self.atoms[nameX].to_numpy()
         Y_list = self.atoms[nameY].to_numpy()
-        hist_values, X_values, Y_values, _ = plt.hist2d(
+        hist_values, X_values, Y_values, _ = ax.hist2d(
             X_list, Y_list, bins=[x_bins, y_bins], cmap=plt.cm.Blues
         )
         if show_boxes:
 
             def draw_box(cX, σX, cY, σY, color="orange", label="box"):
-                plt.plot(
+                ax.plot(
                     [cX - σX, cX + σX, cX + σX, cX - σX, cX - σX],
                     [cY - σY, cY - σY, cY + σY, cY + σY, cY - σY],
                     color,
@@ -878,17 +913,16 @@ class Correlation(DataBuilder):
             sizeX = 3 * self.boxes["2"][nameX]["size"]
             posY = self.boxes["2"][nameY]["position"]
             sizeY = 3 * self.boxes["2"][nameY]["size"]
-        plt.colorbar()
-        plt.legend()
-        plt.title(title)
-        plt.xlabel(nameX)
-        plt.ylabel(nameY)
+        # ax.colorbar()
+        ax.legend()
+        ax.set_title(title)
+        ax.set_xlabel(nameX)
+        ax.set_ylabel(nameY)
         if save:
-            plt.savefig(save)
+            fig.savefig(save)
         if show_plot is True:
             plt.show()
-        else:
-            plt.close()
+
         return (hist_values, X_values, Y_values)
 
     def get_atoms_distribution(
@@ -1228,6 +1262,39 @@ class CorrelationXYIntegrated(Correlation):
                     },
                 }
             )
+
+
+class CorrelationCollision(Correlation):
+    def __init__(self, atoms, NsliceTheta, NslicePhi, **kwargs):
+        self.NslicePhi = self.check_Nslices_value(NslicePhi)
+        self.NsliceTheta = self.check_Nslices_value(NsliceTheta)
+        super().__init__(atoms, **kwargs)
+        self.compute_spherical_coordinates()
+        self.built_boxes_list()
+
+    def check_Nslices_value(self, N):
+        if N < 2:
+            print(
+                "WARNING : NTheta or NPhi value seems strange in CorrelationCollision Initialisation. Setting to 2."
+            )
+            return 2
+        if int(N) != N:
+            val = max(round(N), 2)
+            print(
+                "WARNING :  NTheta or NPhi value does not seem an integer. Setting to {}.".format(
+                    val
+                )
+            )
+
+            return val
+        return N
+
+    def built_boxes_list(self):
+        theta_min = np.min(self.atoms["theta"])
+        theta_max = np.max(self.atoms["theta"])
+        phi_min = np.min(self.atoms["phi"])
+        phi_max = np.max(self.atoms["phi"])
+        liste_theta = np.linspace()
 
 
 if __name__ == "__main__":

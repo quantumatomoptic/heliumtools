@@ -149,7 +149,8 @@ def load_XYTTraw(path):
     """
     v_perp_x = 1.02  # mm/ns
     v_perp_y = 1.13  # mm/ns
-    time_resolution = 2.75e-10
+    time_resolution = 2.75e-10  # old
+    time_resolution = 1.2e-10
     # time_to_pos = 2 * 0.98e-9
 
     atoms_file = np.fromfile(path, dtype="uint64")
@@ -649,20 +650,19 @@ if __name__ == "__main__":
     #     find_arrival_times=True,
     #     n_max_cycles=3,
     # )
-    folder = "/mnt/manip_E/2023/06/16/060"
-    gather_saved_sequence_parameters(folder)
+    folder = "/mnt/manip_E/2023/07/07/029"
     # folder = "/media/victor/8482-1010/gus_data/2023/05/15/053"
     # folder = "/home/victor/gus_data/2023/05/15/053"
-    # check_BEC_fit(
-    #     folder,
-    #     width_saturation=0.3,
-    #     histogramm_width=0.01,
-    #     ROI_for_fit={
-    #         "T": {"min": 307, "max": 309.7},
-    #         "X": {"min": -35, "max": -7},
-    #         "Y": {"min": -35, "max": 35},
-    #     },
-    # )
+    check_BEC_fit(
+        folder,
+        width_saturation=0.3,
+        histogramm_width=0.01,
+        ROI_for_fit={
+            "T": {"min": 300, "max": 315},
+            "X": {"min": -35, "max": -7},
+            "Y": {"min": -35, "max": 35},
+        },
+    )
 
     # X, Y, T = load_XYTTraw(folder + "/041_225.atoms")
     # print(
