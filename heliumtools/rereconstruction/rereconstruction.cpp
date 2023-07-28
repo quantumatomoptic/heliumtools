@@ -637,9 +637,26 @@ bool reconstruction5(list<timedata> &X1_p,
     timedata deltaT = timedata(params.deltaTgate / params.res);
     auto atoms_alone = 0;
     auto atoms_duplicata = 0;
-
+    timedata X1_last = 5 * gateX;
     while (X1_p.begin() != X1_p.end())
     {
+
+        // Specific for Reco5 : we must test if X1 is the time we consider in X1 (*X1_p.begin()) is alone in the intervall [-gateX, gateX]
+        if (AbsDiff(X1_last, *X1_p.begin()) < gateX)
+        {
+
+            X1_last = *X1_p.begin();
+            X1_p.erase(X1_p.begin());
+            continue;
+        }
+        else if (AbsDiff(*X1_p.begin(), *std::next(X1_p.begin())) < gateX)
+        {
+            X1_last = *X1_p.begin();
+            X1_p.erase(X1_p.begin());
+            continue;
+        }
+
+        X1_last = *X1_p.begin();
         // We first definitively get rid of all events occurring before the bulb start on X2, Y1, Y2
         // By construction, they will never match with a later event on X1
         if (*X1_p.begin() > gateX)
@@ -690,13 +707,9 @@ bool reconstruction5(list<timedata> &X1_p,
                     timedata dT = AbsDiff(TX, TY);
 
                     // an atom would be inside the MCP radius and fall atoms the same time on X and Y
-                    if (dist < MCPdiameter && dT < deltaT)
-                    { // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
+                    if (dist < MCPdiameter) // && dT < deltaT)
+                    {                       // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
                         // compare it to the MCP offset reference map.
-                        if (dT > deltaT)
-                        {
-                            cout << "dT < deltaT" << endl;
-                        }
                         // time difference between events on X and Y
                         // its a curious way of calculating an absolute value
                         // but we want to make sure that we don't loose precision (time coded on 64bits)
