@@ -52,6 +52,7 @@ struct paramstruct // reconstruction parameters
     int reconstruction_number = 1;
     bool use_offset_map = true;
     bool keep_all_potential_atoms = true;
+    int offset_resolution = 5;
 };
 
 typedef std::vector<std::string> stringvec;
@@ -441,8 +442,8 @@ bool reconstruction3(list<timedata> &X1_p,
 {
     cout << "Reconstruction 3 : Recovering All Potential Atoms" << endl;
     // gate X, gatY->bulb width
-    timedata gateY = 2 * timedata((params.evgate + params.atgate) / params.res);
-    timedata gateX = 2 * timedata((params.evgate + params.atgate) / params.res);
+    timedata gateY = timedata((params.evgate + params.atgate) / params.res);
+    timedata gateX = timedata((params.evgate + params.atgate) / params.res);
     // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
     timedata MCPdiameter = timedata(params.evgate / params.res);
     // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
@@ -469,10 +470,6 @@ bool reconstruction3(list<timedata> &X1_p,
         // cout << "X1" << *X1_p.begin() << endl;
         while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + gateX))
         {
-            if (*X1_p.begin() == 83123996)
-            {
-                cout << "Salut " << *searchX2 << endl;
-            };
             auto searchY1 = Y1_p.begin();
             while (searchY1 != Y1_p.end() && *searchY1 < (*X1_p.begin() + gateY))
             {
@@ -496,8 +493,9 @@ bool reconstruction3(list<timedata> &X1_p,
                     timedata dT = AbsDiff(TX, TY);
 
                     // an atom would be inside the MCP radius and fall atoms the same time on X and Y
-                    if (dist < MCPdiameter && dT < deltaT)
-                    { // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
+                    if (dist < MCPdiameter) // && dT < deltaT)
+                    {
+                        // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
                         // compare it to the MCP offset reference map.
 
                         // time difference between events on X and Y
@@ -507,7 +505,7 @@ bool reconstruction3(list<timedata> &X1_p,
 
                         int X = 708 - TX1 + TX2;
                         int Y = 708 - TY1 + TY2;
-                        if (AbsDiff(offset_p[X][Y], S) < 5) // 5 ??? --> this need to be set using resolution map.
+                        if (AbsDiff(offset_p[X][Y], S) < params.offset_resolution) // 5 ??? --> this need to be set using resolution map.
                         /*if (AbsDiff(S, 0) < 80)*/
                         {
                             atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
@@ -829,6 +827,26 @@ bool read_configuration_file(string filepath, paramstruct &parameters_p)
     std::cout << "The programm number chosen is " << myline << "\n";
     parameters_p.reconstruction_number = stoi(myline);
 
+    // LIGNE 4 : la valeur maximale d'offset autorisée
+    std::getline(myfile, myline);
+    if (!(myfile))
+    {
+        std::cout << "Error during reading the conf file : no line 4 -->  what is the maximum value you authorize for offset deviation ???" << endl;
+        std::cout << "Maximum offset deviation is set to 5." << endl;
+        parameters_p.offset_resolution = 5;
+    }
+    else
+    {
+        std::cout << "The maximum offset deviation is " << myline << "\n";
+        parameters_p.offset_resolution = stoi(myline);
+    }
+    if (parameters_p.offset_resolution <= 0)
+    {
+        std::cout << "WWWHHHHHAAAAATTTTTT YOU want a negative offset ReSOluTiOn ?!? " << endl;
+        std::cout << endl
+                  << endl
+                  << "... Are you stupid ? Please read the doc before use me. Go to the LabWiki/Experiment/Reconstruction page !!" << endl;
+    }
     // // LIGNE 3 : si on veut utiliser la carte d'offset
     // std::getline(myfile, myline);
     // if (!(myfile))
