@@ -492,7 +492,7 @@ bool reconstruction3(list<timedata> &X1_p,
                     // but we want to make sure that we don't loose precision (time coded on 64bits)
                     timedata dT = AbsDiff(TX, TY);
 
-                    // an atom would be inside the MCP radius and fall atoms the same time on X and Y
+                    // an atom would be inside the MCP radius and fall atoms the same time on X and Y. Note that this fucking diame
                     if (dist < MCPdiameter) // && dT < deltaT)
                     {
                         // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
@@ -501,11 +501,11 @@ bool reconstruction3(list<timedata> &X1_p,
                         // time difference between events on X and Y
                         // its a curious way of calculating an absolute value
                         // but we want to make sure that we don't loose precision (time coded on 64bits)
-                        timedata S = TX1 + TX2 - TY1 - TY2;
-
+                        int S = TX1 + TX2 - TY1 - TY2;
                         int X = 708 - TX1 + TX2;
                         int Y = 708 - TY1 + TY2;
-                        if (AbsDiff(offset_p[X][Y], S) < params.offset_resolution) // 5 ??? --> this need to be set using resolution map.
+
+                        if (AbsDiff(offset_p[X][Y], S) < params.offset_resolution)
                         /*if (AbsDiff(S, 0) < 80)*/
                         {
                             atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
