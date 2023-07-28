@@ -658,6 +658,10 @@ bool reconstruction5(list<timedata> &X1_p,
         // We then look for events that can correspond to an atom
         // As soon as we have found such events, we erase them from the list and keep going along X1
         atomdata atom;
+        timedata TX1 = 0;
+        timedata TX2 = 0;
+        timedata TY1 = 0;
+        timedata TY2 = 0;
         auto searchX2 = X2_p.begin();
         bool atomfound = false;
         while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + gateX))
@@ -700,7 +704,7 @@ bool reconstruction5(list<timedata> &X1_p,
                         atomfound = true;
                         int X = 708 - TX1 + TX2;
                         int Y = 708 - TY1 + TY2;
-                        atomdata atom = atomdata{TX1, TX2, TY1, TY2};
+                        atom = atomdata{TX1, TX2, TY1, TY2};
                     }
                     ++searchY2;
                 }
@@ -732,6 +736,7 @@ bool reconstruction5(list<timedata> &X1_p,
     else
         return true;
 }
+
 /*
 ======================================
 AUTRES FONCTIONS APPELÉES DANS LE CODE
