@@ -221,9 +221,9 @@ int main()
         reconstruction_statistics["Reconstruction rate of Y2"] = round(100 * atoms_size / reconstruction_statistics["Number of Y2"]);
         WriteAtoms(outputfile + ".atoms", atoms);
         WriteStatistics(outputfile + ".stats", reconstruction_statistics);
-        // list<int> offset_of_atoms;
-        // offset_of_atoms = get_offset_of_atoms(atoms, offset);
-        // WriteOffsets(outputfile + ".offsets", offset_of_atoms);
+        list<int> offset_of_atoms;
+        offset_of_atoms = get_offset_of_atoms(atoms, offset);
+        WriteOffsets(outputfile + ".offsets", offset_of_atoms);
 
         // Clean up
         X1.clear();
