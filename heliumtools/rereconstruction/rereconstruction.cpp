@@ -259,8 +259,8 @@ bool reconstruction1(list<timedata> &X1_p,
     // gate X, gatY->bulb width
     timedata gateY = timedata((params.evgate + params.atgate) / params.res);
     timedata gateX = timedata((params.evgate + params.atgate) / params.res);
-    // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
-    timedata MCPdiameter = timedata(params.evgate / params.res);
+    // MCPradius -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
+    timedata MCPradius = timedata(params.evgate / params.res);
     // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
     timedata deltaT = timedata(params.deltaTgate / params.res);
     while (X1_p.begin() != X1_p.end())
@@ -305,7 +305,7 @@ bool reconstruction1(list<timedata> &X1_p,
                     timedata dT = AbsDiff(TX, TY);
 
                     // an atom would be inside the MCP radius and fall atoms the same time on X and Y
-                    if (dist < MCPdiameter && dT < deltaT)
+                    if (dist < MCPradius && dT < deltaT)
                     {
                         atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
                         atomfound = true;
@@ -345,8 +345,8 @@ bool reconstruction2(list<timedata> &X1_p,
     // gate X, gatY->bulb width
     timedata gateY = timedata((params.evgate + params.atgate) / params.res);
     timedata gateX = timedata((params.evgate + params.atgate) / params.res);
-    // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
-    timedata MCPdiameter = timedata(params.evgate / params.res);
+    // MCPradius -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
+    timedata MCPradius = timedata(params.evgate / params.res);
     // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
     timedata deltaT = timedata(params.deltaTgate / params.res);
     while (X1_p.begin() != X1_p.end())
@@ -391,7 +391,7 @@ bool reconstruction2(list<timedata> &X1_p,
                     timedata dT = AbsDiff(TX, TY);
 
                     // an atom would be inside the MCP radius and fall atoms the same time on X and Y
-                    if (dist < MCPdiameter && dT < deltaT)
+                    if (dist < MCPradius && dT < deltaT)
                     { // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
                         // compare it to the MCP offset reference map.
 
@@ -440,12 +440,12 @@ bool reconstruction3(list<timedata> &X1_p,
                      paramstruct params,
                      std::vector<std::vector<int>> &offset_p)
 {
-    cout << "Reconstruction 3 : Recovering All Potential Atoms" << endl;
+    cout << "Reconstruction 3 : Recovering All Potential Atoms taking into account offset maps." << endl;
     // gate X, gatY->bulb width
     timedata gateY = timedata((params.evgate + params.atgate) / params.res);
     timedata gateX = timedata((params.evgate + params.atgate) / params.res);
-    // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
-    timedata MCPdiameter = timedata(params.evgate / params.res);
+    // MCPradius -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
+    timedata MCPradius = timedata(params.evgate / params.res);
     // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
     timedata deltaT = timedata(params.deltaTgate / params.res);
 
@@ -482,27 +482,16 @@ bool reconstruction3(list<timedata> &X1_p,
                     timedata TY2 = *searchY2;
                     timedata dTX = AbsDiff(TX1, TX2);
                     timedata dTY = AbsDiff(TY1, TY2);
-                    timedata TX = (TX1 + TX2) / 2;
-                    timedata TY = (TY1 + TY2) / 2;
                     // distance to the MCP centre
                     timedata dist = timedata(sqrt(pow(dTX, 2) + pow(dTY, 2)));
 
-                    // time difference between events on X and Y
-                    // its a curious way of calculating an absolute value
-                    // but we want to make sure that we don't loose precision (time coded on 64bits)
-                    timedata dT = AbsDiff(TX, TY);
-
-                    // an atom would be inside the MCP radius and fall atoms the same time on X and Y. Note that this fucking diame
-                    if (dist < MCPdiameter) // && dT < deltaT)
+                    // an atom would be inside the MCP radius and fall atoms the same time on X and Y.
+                    if (dist < MCPradius) // && dT < deltaT)
                     {
                         // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
                         // compare it to the MCP offset reference map.
-
-                        // time difference between events on X and Y
-                        // its a curious way of calculating an absolute value
-                        // but we want to make sure that we don't loose precision (time coded on 64bits)
-                        int S = TX1 + TX2 - TY1 - TY2;
-                        int X = 708 - TX1 + TX2;
+                        int S = TX1 + TX2 - TY1 - TY2; // S must be a signed integer
+                        int X = 708 - TX1 + TX2;       // position on the mcp map
                         int Y = 708 - TY1 + TY2;
 
                         if (AbsDiff(offset_p[X][Y], S) < params.offset_resolution)
@@ -538,8 +527,8 @@ bool reconstruction4(list<timedata> &X1_p,
     // gate X, gatY->bulb width
     timedata gateY = timedata((params.evgate + params.atgate) / params.res);
     timedata gateX = timedata((params.evgate + params.atgate) / params.res);
-    // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
-    timedata MCPdiameter = timedata(params.evgate / params.res);
+    // MCPradius -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
+    timedata MCPradius = timedata(params.evgate / params.res);
     // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
     timedata deltaT = timedata(params.deltaTgate / params.res);
 
@@ -586,7 +575,7 @@ bool reconstruction4(list<timedata> &X1_p,
                     timedata dT = AbsDiff(TX, TY);
 
                     // an atom would be inside the MCP radius and fall atoms the same time on X and Y
-                    if (dist < MCPdiameter && dT < deltaT)
+                    if (dist < MCPradius && dT < deltaT)
                     { // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
                         // compare it to the MCP offset reference map.
                         if (dT > deltaT)
@@ -629,8 +618,8 @@ bool reconstruction5(list<timedata> &X1_p,
     // gate X, gatY->bulb width
     timedata gateY = timedata((params.evgate + params.atgate) / params.res);
     timedata gateX = timedata((params.evgate + params.atgate) / params.res);
-    // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
-    timedata MCPdiameter = timedata(params.evgate / params.res);
+    // MCPradius -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
+    timedata MCPradius = timedata(params.evgate / params.res);
     // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
     timedata deltaT = timedata(params.deltaTgate / params.res);
     auto atoms_alone = 0;
@@ -705,8 +694,8 @@ bool reconstruction5(list<timedata> &X1_p,
                     timedata dT = AbsDiff(TX, TY);
 
                     // an atom would be inside the MCP radius and fall atoms the same time on X and Y
-                    if (dist < MCPdiameter) // && dT < deltaT)
-                    {                       // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
+                    if (dist < MCPradius) // && dT < deltaT)
+                    {                     // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
                         // compare it to the MCP offset reference map.
                         // time difference between events on X and Y
                         // its a curious way of calculating an absolute value
