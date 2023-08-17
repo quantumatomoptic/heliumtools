@@ -800,6 +800,7 @@ def export_data_set_to_pickle(
     df_parameters.to_pickle(filename_parameters)
     if find_arrival_times:
         filename = os.path.join(folder, "arrival_times.pkl")
+        df_arrival_times = df_arrival_times.merge(df_parameters, on="Cycle")
         df_arrival_times.to_pickle(filename)
 
     return filename_dataset
