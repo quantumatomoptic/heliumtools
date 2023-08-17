@@ -97,7 +97,7 @@ bool reconstruction5(list<timedata> &X1_p,
                      vector<atomdata> &atoms_p,
                      paramstruct params);
 
-void WriteStatistics(string filename, map<string, float> &reconstruction_statistics);
+void WriteStatistics(string filename, map<string, float> &reconstruction_statistics, string inputfile);
 void WriteAtoms(string filename, vector<atomdata> &atoms);
 void copy_paste_file(string input_file, string output_file);
 list<int> get_offset_of_atoms(vector<atomdata> &atoms_p, std::vector<std::vector<int>> &offset_p);
@@ -221,7 +221,7 @@ int main()
         reconstruction_statistics["Reconstruction rate of Y1"] = round(100 * atoms_size / reconstruction_statistics["Number of Y1"]);
         reconstruction_statistics["Reconstruction rate of Y2"] = round(100 * atoms_size / reconstruction_statistics["Number of Y2"]);
         WriteAtoms(outputfile + ".atoms", atoms);
-        WriteStatistics(outputfile + ".stats", reconstruction_statistics);
+        WriteStatistics(outputfile + ".stats", reconstruction_statistics, inputfile);
         list<int> offset_of_atoms;
         offset_of_atoms = get_offset_of_atoms(atoms, offset);
         WriteOffsets(outputfile + ".offsets", offset_of_atoms);
@@ -931,7 +931,7 @@ void load_offset_map(string offset_map_path, std::vector<std::vector<int>> &offs
     std::cout << "Done. \n \n";
 }
 
-void WriteStatistics(string filename, map<string, float> &reconstruction_statistics)
+void WriteStatistics(string filename, map<string, float> &reconstruction_statistics, string inputfile)
 // This functions save on the disk the statistics of the reconstruction programm.
 //
 // Arguments
@@ -946,6 +946,7 @@ void WriteStatistics(string filename, map<string, float> &reconstruction_statist
     ofstream statfile;
     statfile.open(filename);
     map<string, float>::iterator iter;
+    statfile << "Origin file : " << inputfile << "\n";
     for (iter = reconstruction_statistics.begin(); iter != reconstruction_statistics.end(); iter++)
     {
         statfile << (*iter).first << " : " << (*iter).second << "\n";

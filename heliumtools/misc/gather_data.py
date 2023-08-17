@@ -192,10 +192,33 @@ def load_offset_of_atoms(path):
 
 
 def load_raw_time(times_path):
+    # if the .atoms is from a rereconstruction, there are no .atoms files hence we must recover them using the other algorithm.
+    if ~os.path.exists(times_path):
+        config_path = times_path.split(".times")[0] + ".stats"
+        myfile = open(config_path, "r")
+        lines = myfile.readlines()
+
+        for index, line in enumerate(lines):
+            content = line.strip()
+            if "Origin file : " in content:
+                times_path = (
+                    content.replace("Origin file : ", "")
+                    + ".times"
+                    + times_path.split(".times")[1]
+                )
+                break
+
+        myfile.close()
     times = np.fromfile(times_path, dtype="uint64")
     time_resolution = 1.2e-10
     times = times * time_resolution * 1e3
     return times
+
+
+def data_filter(data, bec_arrival_times, filters):
+    selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
+    selected_data = data[data["Cycle"].isin(selec_bec_arrival_times["Cycle"])]
+    return selected_data, selec_bec_arrival_times
 
 
 def apply_ROD(df, ROD):
@@ -743,7 +766,6 @@ def export_data_set_to_pickle(
         chemin vers le dossier contenant tous les .atoms
     ROI : dictionnaire
      Exemple : {"T": {"min": 300, "max": 350}}
-
     """
     ### STEP 1 : gather data and save it
     selected_files = select_atoms_in_folder(folder)
@@ -905,9 +927,9 @@ if __name__ == "__main__":
     #     n_max_cycles=3,
     # )
 
-    if False:  # check du fit du BEC
+    if True:  # check du fit du BEC
         folder = "/mnt/manip_E/2023/07/12/030"
-        folder = "/mnt/manip_E/2023/08/16/006"
+        folder = "/mnt/manip_E/2023/08/15/006"
         check_BEC_fit(
             folder,
             width_saturation=0.3,
@@ -920,7 +942,7 @@ if __name__ == "__main__":
     if False:
         folder = "/mnt/manip_E/2023/08/16/006"
         df_parameters = gather_saved_sequence_parameters(folder)
-    if True:
+    if False:
         folder = "/mnt/manip_E/2023/08/16/006"
         export_data_set_to_pickle(
             folder, ROI={"T": [312, 322]}, find_arrival_times=True
