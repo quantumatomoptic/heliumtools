@@ -191,6 +191,13 @@ def load_offset_of_atoms(path):
     return offsets
 
 
+def load_raw_time(times_path):
+    times = np.fromfile(times_path, dtype="uint64")
+    time_resolution = 1.2e-10
+    times = times * time_resolution * 1e3
+    return times
+
+
 def apply_ROD(df, ROD):
     """This function returns athe atoms dataframe such that all elements are OUTSIDE the ROD dictionary range. If the ROD is an empty dictionary, this function returns the initial dataframe.
 
@@ -210,21 +217,7 @@ def apply_ROD(df, ROD):
         return df
     for key, value in ROD.items():
         # Rappel : key est par ex "Vx" ; value est {"size":10, "position":0}
-        if "range" in value:
-            minimum = np.min(value["range"])
-            maximum = np.max(value["range"])
-        elif "minimum" in value and "maximum" in value:
-            minimum = value["minimum"]
-            maximum = value["maximum"]
-        elif "min" in value and "max" in value:
-            minimum = value["min"]
-            maximum = value["max"]
-        elif type(value) == list or type(value) == tuple:
-            minimum = min(value)
-            maximum = max(value)
-        else:
-            print("[WARNING] The ROD function was not recognized. Please fix me.")
-            return df
+        (minimum, maximum) = get_roi_min_max(ROD, key)
 
         if key in df:
             df = df[~((df[key] >= minimum) & (df[key] < maximum))]
@@ -235,7 +228,7 @@ def apply_ROD(df, ROD):
 
 def apply_ROI(atoms, ROI):
     """
-    This function returns athe atoms dataframe such that all elements are within the ROI dictionary range. If the ROI is an empty dictionary, this function returns the initial dataframe.
+    This function returns the atoms dataframe such that all elements are within the ROI dictionary range. If the ROI is an empty dictionary, this function returns the initial dataframe.
 
     Parameters
     ----------
@@ -252,26 +245,7 @@ def apply_ROI(atoms, ROI):
     if ROI:
         for key, value in ROI.items():
             # Rappel : key est par ex "Vx" ; value est {"size":10, "position":0}
-            if "range" in value:
-                minimum = np.min(value["range"])
-                maximum = np.max(value["range"])
-            elif "minimum" in value and "maximum" in value:
-                minimum = value["minimum"]
-                maximum = value["maximum"]
-            elif "min" in value and "max" in value:
-                minimum = value["min"]
-                maximum = value["max"]
-            elif "position" in value and "size" in value:
-                minimum = value["position"] - 0.5 * value["size"]
-                maximum = value["position"] + 0.5 * value["size"]
-            elif type(value) == list or type(value) == tuple:
-                minimum = min(value)
-                maximum = max(value)
-            else:
-                print(
-                    "[WARNING] The ROI format was not recognized. Please read the apply_ROI documentation. We expect a dictionary with all entrien"
-                )
-                return atoms
+            (minimum, maximum) = get_roi_min_max(ROI, key)
             if key in atoms:
                 atoms = atoms[((atoms[key] <= maximum) & (atoms[key] > minimum))]
             else:
@@ -279,6 +253,272 @@ def apply_ROI(atoms, ROI):
                     f"[WARNING] The key {key} of the ROI is not in the other dataframe."
                 )
     return atoms
+
+
+def get_roi_min_max(roi, axis):
+    """This function returns the maximum and minimum value of a roi type dictionary for a given entry axis.
+
+    Parameters
+    ----------
+    roi : dictionary
+        ROI type dictionary
+    axis : str
+        key of the dictionary from which we we want the minimum and maximum value
+
+    Returns
+    -------
+    tuples
+        maximum and minimum value of the key axis of the roi.
+    """
+    if axis not in roi:
+        print(f"[WARNING] : the axis {axis} is not in the ROI.")
+        return (-np.inf, np.inf)
+    value = roi[axis]
+    if "range" in value:
+        minimum = np.min(value["range"])
+        maximum = np.max(value["range"])
+    elif "minimum" in value and "maximum" in value:
+        minimum = value["minimum"]
+        maximum = value["maximum"]
+    elif "min" in value and "max" in value:
+        minimum = value["min"]
+        maximum = value["max"]
+    elif "position" in value and "size" in value:
+        minimum = value["position"] - 0.5 * value["size"]
+        maximum = value["position"] + 0.5 * value["size"]
+    elif type(value) == list or type(value) == tuple:
+        minimum = min(value)
+        maximum = max(value)
+    else:
+        print(
+            "[WARNING] The ROI format was not recognized. Please read the apply_ROI documentation. We expect a dictionary with all values being either a dictionary or a list. "
+        )
+    return (minimum, maximum)
+
+
+def get_roi_size(roi, axis):
+    """Returns the size of a ROI like dictionary along a given axis."""
+    (minimum, maximum) = get_roi_min_max(roi, axis)
+    return maximum - minimum
+
+
+def check_roi_for_fit(roi):
+    """Check if the roi use for the fit of the BEC arrival time has enough entries."""
+    if "T" not in roi:
+        print(
+            f"[WARNING] There is no entry T in the ROI for fit. Adding default value [305.5, 309.7]."
+        )
+        roi["T"] = [305.5, 309.7]
+    if "X" not in roi:
+        print(
+            f"[WARNING] There is no entry X in the ROI for fit. Adding default value [-35,-7]."
+        )
+        roi["X"] = [-35, -7]
+    if "Y" not in roi:
+        print(
+            f"[WARNING] There is no entry Y in the ROI for fit. Adding default value [-35, 35]."
+        )
+        roi["Y"] = [-35, 35]
+    return roi
+
+
+def fit_BEC_arrival_time(
+    data,
+    filename,
+    ROI_for_fit={
+        "T": {"min": 305.5, "max": 309.7},
+        "X": {"min": -35, "max": -7},
+        "Y": {"min": -35, "max": 35},
+    },
+    histogramm_width=0.01,
+    width_saturation=0,
+    show_fit=False,
+):
+    """
+    This functions fit BEC arrival times. It generates a dictionary named ans in which we store some properties of the arrival times of our BEC.
+    """
+    ans = {"Number of Atoms": len(data)}
+    ROI_for_fit = check_roi_for_fit(ROI_for_fit)
+    data = apply_ROI(data, ROI_for_fit)
+    X = data["X"].to_numpy()
+    Y = data["Y"].to_numpy()
+    T = data["T"].to_numpy()
+    ans["Number of Atoms in ROIfit"] = len(data)
+    ans["BEC Std Arrival Time"] = np.std(data["T"])
+    if show_fit:
+        fig, axes = plt.subplots(figsize=(3.3 * 4, 3 * 2), ncols=4, nrows=2)
+        axes = axes.flatten()
+        print(" ##########  FIT   ##########")
+        print("p0 : [mean, amplitude, standard_deviation, offset]")
+
+    #### FIT IN TIME
+    if True:
+        mini, maxi = get_roi_min_max(ROI_for_fit, "T")
+        bin_heights, bin_borders = np.histogram(
+            T,
+            bins=np.arange(mini, maxi, histogramm_width),
+        )
+        bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
+        # find the position of the max
+        max_index = np.argmax(bin_heights)
+        mean = bin_centers[max_index]
+        ans["BEC Arrival Time with max"] = mean
+        sigma = np.mean(bin_heights * (bin_centers - mean) ** 2)
+        sigma = 0.1
+        p0 = [mean, np.max(bin_heights), sigma, 0]
+        bin_heights = list(bin_heights)
+        bin_centers = list(bin_centers)
+        # ci -dessous, on supprime un certain nombre de points pour ne pas prendre en compte la saturation du mcp.
+        n_hole = int(width_saturation / histogramm_width)
+        failed_status = False
+        for i in range(n_hole):
+            if max_index + 2 < len(bin_centers):
+                bin_centers.pop(max_index + 1)
+                bin_heights.pop(max_index + 1)
+        try:
+            popt, pcov = curve_fit(gaussian_function, bin_centers, bin_heights, p0=p0)
+            # perr = np.sqrt(np.diag(pcov))
+        except:
+            failed_status = True
+            popt = p0
+        ans["BEC Arrival Time"] = popt[0]
+        ans["BEC fitted Std Arrival Time"] = popt[2]
+        ans["BEC Arrival Time with fit"] = popt[0]
+        if show_fit:
+            ax = axes[0]
+            ax.plot(bin_centers, bin_heights, "o", alpha=0.8, label="data")
+            print("Fit in T :")
+            print(f"p0 : {p0}")
+            print(f"popt : {popt}")
+            print("=" * 20)
+            ax.plot(
+                bin_centers, gaussian_function(bin_centers, *popt), "-", label="fit"
+            )
+            ax.plot(
+                bin_centers, gaussian_function(bin_centers, *p0), "--", label="guess"
+            )
+            ax.set_title("Mean : {:.3f} ms".format(popt[0]))
+            ax.set_xlabel("Arrival time of reconstructed atoms (ms)")
+    ##### FIT in X and Y
+    for i, XY in enumerate(["X", "Y"]):
+        (bin_mini, bin_maxi) = get_roi_min_max(ROI_for_fit, XY)
+        bin_heightsXY, bin_bordersXY = np.histogram(
+            data[XY].to_numpy(),
+            bins=np.arange(bin_mini, bin_maxi),
+        )
+        bin_centersXY = np.array(bin_bordersXY[:-1] + np.diff(bin_bordersXY) / 2)
+        # find the position of the max
+        max_indexXY = np.argmax(bin_heightsXY)
+        arr_time_maximumXY = bin_centersXY[max_indexXY]
+        mean = bin_centersXY[max_indexXY]
+        offset = np.min(bin_heightsXY)
+        # sigma = np.mean((bin_heightsXY - offset) * (bin_centersXY - mean) ** 2)
+        sigma = 4
+        p0XY = [mean, np.max(bin_heightsXY) - offset, np.abs(sigma), offset]
+        bin_heightsXY = list(bin_heightsXY)
+        bin_centersXY = list(bin_centersXY)
+        try:
+            poptXY, pcovXY = curve_fit(
+                gaussian_function, bin_centersXY, bin_heightsXY, p0=p0XY
+            )
+        except:
+            failed_status = True
+            poptXY = p0XY
+        ans["BEC Center " + XY] = poptXY[0]
+        if show_fit:
+            print("Fit in " + XY + " :")
+            print(f"p0 : {p0XY}")
+            print(f"popt : {poptXY}")
+            print("=" * 20)
+            ax = axes[1 + i]
+            ax.plot(bin_centersXY, bin_heightsXY, "*", alpha=0.7, label="data")
+            ax.plot(
+                bin_centersXY,
+                gaussian_function(bin_centersXY, *poptXY),
+                "-",
+                label="fit",
+            )
+            ax.plot(
+                bin_centersXY,
+                gaussian_function(bin_centersXY, *p0XY),
+                "--",
+                label="guess",
+            )
+            ax.set_title("Mean : {:.3f} mm".format(poptXY[0]))
+            ax.set_xlabel(XY + " position of reconstructed atoms (mm)")
+    ##### FIT of each channel X1, x2, y1 and y2
+    if filename:
+        ans["Mean Arrival Time (fit .times)"] = 0
+        for index, xj in enumerate(["x1", "x2", "y1", "y2"]):
+            try:
+                times = load_raw_time(filename.replace(".atoms", ".times" + xj))
+            except:
+                break
+            mini, maxi = get_roi_min_max(ROI_for_fit, "T")
+            times = times[np.where(times > mini)]
+            times = times[np.where(times < maxi)]
+            ans["BEC Std of " + xj] = np.std(times)
+
+            bin_heights, bin_borders = np.histogram(
+                times,
+                bins=np.arange(mini, maxi, histogramm_width),
+            )
+            bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
+            # find the position of the max
+            max_index = np.argmax(bin_heights)
+            mean = bin_centers[max_index]
+            ans[xj + " Arrival Time (maximum)"] = mean
+            sigma = np.mean(bin_heights * (bin_centers - mean) ** 2)
+            sigma = 0.1
+            p0 = [mean, np.max(bin_heights), sigma, 0]
+            bin_heights = list(bin_heights)
+            bin_centers = list(bin_centers)
+            # ci -dessous, on supprime un certain nombre de points pour ne pas prendre en compte la saturation du mcp.
+            n_hole = int(width_saturation / histogramm_width)
+            failed_status = False
+            for i in range(n_hole):
+                if max_index + 2 < len(bin_centers):
+                    bin_centers.pop(max_index + 1)
+                    bin_heights.pop(max_index + 1)
+            try:
+                popt, pcov = curve_fit(
+                    gaussian_function, bin_centers, bin_heights, p0=p0
+                )
+                # perr = np.sqrt(np.diag(pcov))
+            except:
+                failed_status = True
+                popt = p0
+            ans[xj + " Arrival Time (fit)"] = popt[0]
+            ans["Mean Arrival Time (fit .times)"] += popt[0]
+            if show_fit:
+                ax = axes[3 + index]
+                ax.plot(bin_centers, bin_heights, "o", alpha=0.8, label="data")
+                print("Fit in T :")
+                print(f"p0 : {p0}")
+                print(f"popt : {popt}")
+                print("=" * 20)
+                ax.plot(
+                    bin_centers, gaussian_function(bin_centers, *popt), "-", label="fit"
+                )
+                ax.plot(
+                    bin_centers,
+                    gaussian_function(bin_centers, *p0),
+                    "--",
+                    label="guess",
+                )
+                ax.set_title("Mean : {:.3f} ms".format(popt[0]))
+                ax.set_xlabel("Unreconstructed signal " + xj)
+        ans["Mean Arrival Time (fit .times)"] = (
+            ans["Mean Arrival Time (fit .times)"] / 4
+        )
+    if show_fit:
+        for ax in axes:
+            ax.legend(
+                loc=0,
+            )
+        plt.tight_layout()
+        plt.show()
+    return ans, failed_status
 
 
 def check_BEC_fit(
@@ -292,19 +532,22 @@ def check_BEC_fit(
     width_saturation=0,
 ):
     atom_files = select_atoms_in_folder(folder)
-    X, Y, T = load_XYTTraw(atom_files[random.randint(0, len(atom_files))])
-    fit_BEC_arrival_time(
-        X,
-        Y,
-        T,
+    selected_file = atom_files[random.randint(0, len(atom_files))]
+    X, Y, T = load_XYTTraw(selected_file)
+    data = pd.DataFrame({"X": X, "Y": Y, "T": T})
+    ans = fit_BEC_arrival_time(
+        data,
+        selected_file,
         show_fit=True,
         histogramm_width=histogramm_width,
         ROI_for_fit=ROI_for_fit,
         width_saturation=width_saturation,
     )
 
+    print(ans)
 
-def fit_BEC_arrival_time(
+
+def fit_BEC_arrival_time_old(
     X,
     Y,
     T,
@@ -322,6 +565,7 @@ def fit_BEC_arrival_time(
     """
     ans = {"Number of Atoms": len(X)}
     data = pd.DataFrame({"X": X, "Y": Y, "T": T})
+    ROI_for_fit = check_roi_for_fit(ROI_for_fit)
     data = apply_ROI(data, ROI_for_fit)
 
     X = data["X"].to_numpy()
@@ -331,7 +575,6 @@ def fit_BEC_arrival_time(
     ans["BEC Std Arrival Time"] = np.std(T)
 
     #### FIT IN TIME
-
     bin_heights, bin_borders = np.histogram(
         T,
         bins=np.arange(
@@ -416,7 +659,7 @@ def fit_BEC_arrival_time(
         axes[0].plot(bin_centers, bin_heights, "*", label="data")
         print(" ##########  FIT   ##########")
         print("p0 : [mean, amplitude, standard_deviation, offset]")
-        print("Fit in T :")
+        print("Fit in " + xj + " :")
         print(f"p0 : {p0}")
         print(f"popt : {popt}")
         print("=" * 20)
@@ -503,55 +746,59 @@ def export_data_set_to_pickle(
 
     """
     ### STEP 1 : gather data and save it
-    atom_files, atoms = load_atoms(folder, n_max_cycles=n_max_cycles)
-    atoms_in_ROI = apply_ROI(atoms, ROI)
-    atoms_in_ROI = apply_ROD(atoms_in_ROI, ROD)
-    filename_dataset = os.path.join(folder, "dataset.pkl")
-    atoms_in_ROI.to_pickle(filename_dataset)
-    df_parameters = gather_saved_sequence_parameters(folder)
-    message = "Warning: since a new version of export_dataset_to_pickle, we fit the X and Y position of the BEC and a ROI should be given in the ROI_for_fit dictionary."
-    if find_arrival_times:
-        if "X" not in ROI_for_fit.keys():
-            ROI_for_fit["X"] = {"min": -35, "max": -7}
-            print(message)
-        if "Y" not in ROI_for_fit.keys():
-            ROI_for_fit["Y"] = {"min": -35, "max": 35}
-            print(message)
-        df_arrival_times = obtain_arrival_times(
-            atom_files,
-            histogramm_width=histogramm_width,
-            ROI_for_fit=ROI_for_fit,
-            width_saturation=width_saturation,
-        )
+    selected_files = select_atoms_in_folder(folder)
+    ROI_for_fit = check_roi_for_fit(ROI_for_fit)
+    N_files = min([len(selected_files), n_max_cycles])
+    # on va remplir les listes suivantes avec l'ensemble des atomes.
+    Xc, Yc, Tc, Cyclec = [], [], [], []
+    selected_files = selected_files[0:N_files]
+    print("Starting to gather atoms")
+    df_atoms = pd.DataFrame()
+    df_parameters = pd.DataFrame()
+    df_arrival_times = pd.DataFrame()
+    for i, filename in tqdm(enumerate(selected_files)):
+        X, Y, T = load_XYTTraw(filename)
+        seq, cycle = return_cycle_from_path(filename)
+        raw_data = pd.DataFrame({"X": X, "Y": Y, "T": T})
+        raw_data["Cycle"] = cycle
+        atoms_in_ROI = apply_ROI(raw_data, ROI)
+        atoms_in_ROI = apply_ROD(atoms_in_ROI, ROD)
+        df_atoms = pd.concat([df_atoms, atoms_in_ROI])
 
-        df_arrival_times = pd.merge(
-            df_arrival_times,
-            atoms_in_ROI.groupby("Cycle")
-            .count()["T"]
-            .rename("Number of Atoms in ROI")
-            .reset_index(),
-            on="Cycle",
-        )
-        df_arrival_times = pd.merge(
-            df_arrival_times,
-            atoms_in_ROI.groupby("Cycle")
-            .std()["T"]
-            .rename("dT of atoms in ROI")
-            .reset_index(),
-            on="Cycle",
-        )
-        for i, roi in enumerate(supplementary_rois):
-            at = apply_ROI(atoms, roi)
-            df_arrival_times = pd.merge(
-                df_arrival_times,
-                at.groupby("Cycle")
-                .count()["T"]
-                .rename("Number of Atoms in supplementary ROI{}".format(i))
-                .reset_index(),
-                on="Cycle",
+        ## On charge maintenant les parametres de séquence
+        # filename = atom_name.replace(".atoms", ".json")
+        seq_par = get_sequence_parameters(filename.replace(".atoms", ".json"))
+        seq_par["Sequence"] = seq
+        seq_par["Cycle"] = cycle
+        new_df = pd.DataFrame(seq_par, index=[i])
+        df_parameters = pd.concat([df_parameters, new_df])
+
+        ## Fits des temps d'arrivée
+        if find_arrival_times:
+            arrival, failed_status = fit_BEC_arrival_time(
+                raw_data,
+                filename,
+                show_fit=False,
+                histogramm_width=histogramm_width,
+                ROI_for_fit=ROI_for_fit,
+                width_saturation=width_saturation,
+            )
+            arrival["Cycle"] = cycle
+            arrival["Number of Atoms in ROI"] = len(atoms_in_ROI)
+            arrival["dT of atoms in ROI"] = np.std(atoms_in_ROI["T"])
+            for i, roi in enumerate(supplementary_rois):
+                at = apply_ROI(raw_data, roi)
+                arrival["Number of Atoms in supplementary ROI{}"] = len(at)
+
+            df_arrival_times = pd.concat(
+                [df_arrival_times, pd.DataFrame(arrival, index=[i])]
             )
 
-        df_arrival_times = pd.merge(df_arrival_times, df_parameters, on="Cycle")
+    filename_dataset = os.path.join(folder, "dataset.pkl")
+    df_atoms.to_pickle(filename_dataset)
+    filename_parameters = os.path.join(folder, "parameters.pkl")
+    df_parameters.to_pickle(filename_parameters)
+    if find_arrival_times:
         filename = os.path.join(folder, "arrival_times.pkl")
         df_arrival_times.to_pickle(filename)
 
@@ -595,6 +842,27 @@ def gather_HAL_fits(folder):
     return dataframe
 
 
+def get_sequence_parameters(filename):
+    seq_par = {}
+    if os.path.exists(filename):
+        f = open(filename)
+        data = json.load(f)
+
+        for element in data:
+            if element["name"] not in [
+                "sequence",
+                "cycle",
+                "cycle_id",
+                "Sequence",
+                "Cycle",
+            ]:
+                seq_par["{} ({})".format(element["name"], element["unit"])] = element[
+                    "value"
+                ]
+
+    return seq_par
+
+
 def gather_saved_sequence_parameters(folder):
     """Cette fonction récupère tous les paramètres sauvegardés pour chaque cycle de
     la séquence et les mets dans un dataframe avec le numéro du cycle.
@@ -613,30 +881,15 @@ def gather_saved_sequence_parameters(folder):
         ]
     )  # string object
     dataframe = pd.DataFrame()
-    for filename in path_list:
+    for i, filename in enumerate(path_list):
         # filename = atom_name.replace(".atoms", ".json")
         seq, cycle = return_cycle_from_path(filename)
-        column_names = ["Sequence", "Cycle"]
-        column_values = [seq, cycle]
-        if os.path.exists(filename):
-            f = open(filename)
-            data = json.load(f)
-
-            for element in data:
-                if element["name"] not in [
-                    "sequence",
-                    "cycle",
-                    "cycle_id",
-                    "Sequence",
-                    "Cycle",
-                ]:
-                    column_names.append(
-                        "{} ({})".format(element["name"], element["unit"])
-                    )
-                    column_values.append(element["value"])
-        new_df = pd.DataFrame([column_values], columns=column_names)
+        seq_par = get_sequence_parameters(filename)
+        seq_par["Sequence"] = seq
+        seq_par["Cycle"] = cycle
+        new_df = pd.DataFrame(seq_par, index=[i])
         dataframe = pd.concat([dataframe, new_df])
-    dataframe.reset_index(drop=True, inplace=True)
+    print(dataframe)
     filename_parameters = os.path.join(folder, "parameters.pkl")
     dataframe.to_pickle(filename_parameters)
     return dataframe
@@ -650,19 +903,29 @@ if __name__ == "__main__":
     #     find_arrival_times=True,
     #     n_max_cycles=3,
     # )
-    folder = "/mnt/manip_E/2023/07/07/029"
+
+    if False:  # check du fit du BEC
+        folder = "/mnt/manip_E/2023/07/12/030"
+        folder = "/mnt/manip_E/2023/08/16/006"
+        check_BEC_fit(
+            folder,
+            width_saturation=0.3,
+            histogramm_width=0.01,
+            ROI_for_fit={
+                "T": {"min": 305, "max": 310},
+                "X": {"min": -35, "max": -7},
+            },
+        )
+    if False:
+        folder = "/mnt/manip_E/2023/08/16/006"
+        df_parameters = gather_saved_sequence_parameters(folder)
+    if True:
+        folder = "/mnt/manip_E/2023/08/16/006"
+        export_data_set_to_pickle(
+            folder, ROI={"T": [312, 322]}, find_arrival_times=True
+        )
     # folder = "/media/victor/8482-1010/gus_data/2023/05/15/053"
     # folder = "/home/victor/gus_data/2023/05/15/053"
-    check_BEC_fit(
-        folder,
-        width_saturation=0.3,
-        histogramm_width=0.01,
-        ROI_for_fit={
-            "T": {"min": 300, "max": 315},
-            "X": {"min": -35, "max": -7},
-            "Y": {"min": -35, "max": 35},
-        },
-    )
 
     # X, Y, T = load_XYTTraw(folder + "/041_225.atoms")
     # print(
