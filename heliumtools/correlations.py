@@ -1141,7 +1141,9 @@ class Variable:
         self.get_values_caracteristics()
 
     def built_values(self):
-        self.values = np.arange(self.min, self.max, self.step)
+        mini = min(self.min, self.max)
+        maxi = max(self.min, self.max)
+        self.values = np.arange(mini, maxi, self.step)
         self.values = np.round(self.values, self.round_decimal)
 
     def built_name(self, add_box_number=True):
