@@ -13,19 +13,13 @@
 """
 Decription of gaussian_example.py 
 
-
-
-The principle is he following : when the application is run, the model Model is instanciated. 
-Once it is instanciate, the application gets back all parameters of the model from the function self.model.get_parameters_str(). 
-This generates a dictionary from model.__dict__ in which each element is a number/list/string or boolean. 
-From this dictionary, the application built in a scrollable area a list of QLabels and Qlines to updtate parameters of the model. 
-The figure that is shown on the right is defined in the PlotZaxis class. It does not contains a lot but the method update_plot that is called each time the user pushes the button 'Update Plot'.  This function obviously need the model to be rightly updated.
 """
 
 
 import os, logging, sys
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -38,50 +32,13 @@ from PyQt5.QtWidgets import (
     QScrollArea,
     QSplitter,
 )
-from PyQt5.QtGui import QIcon, QPixmap, QImage, QClipboard
-from PyQt5.QtCore import Qt
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
-import pandas as pd
-from heliumtools.correlations import Correlation
-from scipy.optimize import curve_fit
-import seaborn as sns
-from PIL import Image
-from heliumtools.GUIs.base.parameter_model import GlobalModelForParameters
 from heliumtools.GUIs.base.app_base import HeliumAppBase
 from heliumtools.misc.gather_data import apply_ROI
+from model import Model
 
 # Configuration des logs quand le programme est appelé localment
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-class FiguresClass:
-    """This class contains the figure that is shown to the user, on the right of the figure."""
-
-    def __init__(self, fig, canvas):
-        self.figures = fig
-        self.canvas = canvas
-
-    def update_plot(self, model, tab_number):
-        self.Tab1Fig(model, tab_number)
-
-    def Tab1Fig(self, model, i):
-        """Define here the figure of your first tab (i= 0 a priori)."""
-        self.figures[i].clf()
-        ax = self.figures[i].add_subplot(111)
-        x = np.linspace(min(model.x_range), max(model.x_range), 500)
-        y = gaussian(x, model.mean, model.amplitude, model.std)
-        ax.plot(x, y)
-        ax.set_xlabel("My x axis")
-        ax.set_ylabel(r"My Y axis  $\int \partial P dt$")
-        ax.grid(True)
-        ax.set_title(
-            r"Gaussian function with width {:.2f}".format(model.std),
-            fontsize="medium",
-        )
-        self.figures[i].tight_layout()
-        self.canvas[i].draw()
 
 
 class ExampleApplication(HeliumAppBase):
@@ -91,12 +48,8 @@ class ExampleApplication(HeliumAppBase):
         """
         # Define the model
         model = Model(data=data, metadata=metadata, parameters=parameters)
-        tab_names = ["Gaussian Curve", "Sinc Curve", "Test"]
-        super().__init__(model=model, tab_names=tab_names)
-        # Connect the FigureClass to your widget
-        self.figures_class = FiguresClass(
-            self.tabs_fig_widget.figures, self.tabs_fig_widget.canvas
-        )
+        tab_names = ["Gaussian Curve", "Sinc Curve", "Thomas Fermi profile", "Failed"]
+        super().__init__(model=model, tab_names=tab_names, file=__file__)
 
         self.setWindowTitle("Example of an Application.")
         self.setGeometry(100, 100, 1000, 400)
@@ -111,20 +64,14 @@ class ExampleApplication(HeliumAppBase):
         """
         self._setup_UI_left_part()
         self._setup_UI_right_part()
-        # Built the windows Main Layout from left and right parts.
         self._main_widget = QSplitter()
-        self._main_widget.addWidget(self.parameter_widget_wrapper)
+        self._main_widget.addWidget(self.left_widget)
         self._main_widget.addWidget(self.right_widget)
         self.setCentralWidget(self._main_widget)
-        # self.main_layout = QHBoxLayout()
-        # self.main_layout.addLayout(self.layout_left)
-        # self.main_layout.addLayout(self.layout_right)
-
-        # self.setLayout(self.main_layout)
 
     def _setup_UI_left_part(self):
-        """This method sets up the left part of the UI aka the parameter part."""
-        self.left_widget = self.parameter_widget_wrapper
+        """This method sets up the left part of the UI. Do not forget to include the parameter_widget_wrapper"""
+        self.left_widget = self.parameter_widget
 
     def _setup_UI_right_part(self):
         """
