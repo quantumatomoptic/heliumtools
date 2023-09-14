@@ -15,6 +15,15 @@ Decription of hom_database.py
 
 Please document your code ;-).
 """
+import os, glob, re
+import pandas as pd
+from heliumtools.misc.gather_data import apply_ROI
+
+
+def data_filter(data, bec_arrival_times, filters):
+    selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
+    selected_data = data[data["Cycle"].isin(selec_bec_arrival_times["Cycle"])]
+    return selected_data, selec_bec_arrival_times
 
 
 def add_sequence_to_hom_folder(hom_folder, sequence_folder, do_export=True):

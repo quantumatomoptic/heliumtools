@@ -16,7 +16,7 @@ Decription of gaussian_example.py
 
 
 The principle is he following : when the application is run, the model Model is instanciated. 
-Once it is instanciate, the application gets back all parameters of the model from the function self.model.get_parameters(). 
+Once it is instanciate, the application gets back all parameters of the model from the function self.model.get_parameters_str(). 
 This generates a dictionary from model.__dict__ in which each element is a number/list/string or boolean. 
 From this dictionary, the application built in a scrollable area a list of QLabels and Qlines to updtate parameters of the model. 
 The figure that is shown on the right is defined in the PlotZaxis class. It does not contains a lot but the method update_plot that is called each time the user pushes the button 'Update Plot'.  This function obviously need the model to be rightly updated.
@@ -46,7 +46,7 @@ from heliumtools.correlations import Correlation
 from scipy.optimize import curve_fit
 import seaborn as sns
 from PIL import Image
-from heliumtools.misc.parameter_model import GlobalModelForParameters
+from heliumtools.GUIs.base.parameter_model import GlobalModelForParameters
 from heliumtools.misc.gather_data import apply_ROI
 from heliumtools.misc.gather_data import (
     export_data_set_to_pickle,
@@ -233,7 +233,7 @@ class CorrelationApp(QWidget):
         self.labels_of_parameters = []  # liste contenant les QLabel des paramètres
         self.values_of_parameters = []  # liste contenant les QLine edits des paramètres
         # on parourt la liste des paramètres du modèle
-        for name, value in self.model.get_parameters().items():
+        for name, value in self.model.get_parameters_str().items():
             self.labels_of_parameters.append(QLabel(name))
             self.values_of_parameters.append(QLineEdit())
             # set the default value in it

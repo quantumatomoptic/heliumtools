@@ -16,12 +16,11 @@ Decription of gaussian_example.py
 
 
 The principle is he following : when the application is run, the model Model is instanciated. 
-Once it is instanciate, the application gets back all parameters of the model from the function self.model.get_parameters(). 
+Once it is instanciate, the application gets back all parameters of the model from the function self.model.get_parameters_str(). 
 This generates a dictionary from model.__dict__ in which each element is a number/list/string or boolean. 
 From this dictionary, the application built in a scrollable area a list of QLabels and Qlines to updtate parameters of the model. 
 The figure that is shown on the right is defined in the PlotZaxis class. It does not contains a lot but the method update_plot that is called each time the user pushes the button 'Update Plot'.  This function obviously need the model to be rightly updated.
 """
-
 
 import os, logging, sys
 import numpy as np
@@ -46,14 +45,21 @@ from heliumtools.correlations import Correlation
 from scipy.optimize import curve_fit
 import seaborn as sns
 from PIL import Image
-from heliumtools.misc.parameter_model import GlobalModelForParameters
+from heliumtools.GUIs.base.parameter_model import GlobalModelForParameters
 from heliumtools.misc.gather_data import apply_ROI
 from heliumtools.misc.gather_data import (
     export_data_set_to_pickle,
     apply_ROI,
+    apply_ROD,
     load_atoms,
 )
 from heliumtools.correlations import Correlation
+from heliumtools.misc.hom_database import (
+    get_all_BS_delay,
+    load_data_BS_delay,
+    data_filter,
+)
+from math import ceil, sqrt
 
 # Configuration des logs quand le programme est appelé localment
 logging.basicConfig(level=logging.INFO)
@@ -67,8 +73,10 @@ class Model(GlobalModelForParameters):
 
     def __init__(self, hom_folder, parameters={}):
         self.hom_folder = hom_folder
+        self.all_delay = get_all_BS_delay(self.hom_folder)
+        self.view = "1D"
         self.arrival_time = 307.5
-        self.inertial_frame = [0, 0, 93]
+        self.inertial_frame = [0, 0, 94]
         self.boxZsize = 1
         self.boxXsize = 15
         self.boxYsize = 15
@@ -83,6 +91,9 @@ class Model(GlobalModelForParameters):
         self.Xpos2 = 0
         self.Ypos1 = 0
         self.Ypos2 = 0
+        self.oneD_frame_gap = 0.8
+        self.oneD_bragg_gap = 1
+        self.oneD_plotby = "Bragg"
         self.filters = {
             "BEC Arrival Time": [307.25, 307.75],
             "Number of Atoms in ROIfit": [800, 1500],
@@ -118,58 +129,141 @@ class Model(GlobalModelForParameters):
             "Vy": self.inertial_frame[1],
             "Vz": self.inertial_frame[2],
         }
-        self.corr = Correlation(
-            atoms,
-            ROI=ROI,
-            boxes=boxes,
-            bec_arrival_time=self.arrival_time,
-            ref_frame_speed=ref_frame,
-        )
-        self.corr.define_variable1(
-            box="1",
-            axe="Vz",
-            type="position",
-            name="Vz1",
-            min=self.var_min,
-            max=self.var_max,
-            step=self.var_step,
-        )
-        self.corr.define_variable2(
-            box="2",
-            axe="Vz",
-            type="position",
-            name="Vz2",
-            min=-self.var_max,
-            max=-self.var_min,
-            step=self.var_step,
-        )
-        self.corr.compute_correlations()
+        self.result = []
+        for i, delay in enumerate(self.all_delay):
+            atoms, bec_arrival_times = load_data_BS_delay(self.hom_folder, delay)
+            atoms, bec_arrival_times = data_filter(
+                atoms, bec_arrival_times, self.filters
+            )
+
+            corr = Correlation(
+                atoms,
+                ROI=ROI,
+                boxes=boxes,
+                bec_arrival_time=self.arrival_time,
+                ref_frame_speed=ref_frame,
+            )
+            corr.define_variable1(
+                box="1",
+                axe="Vz",
+                type="position",
+                name="Vz1",
+                min=self.var_min,
+                max=self.var_max,
+                step=self.var_step,
+            )
+            corr.define_variable2(
+                box="2",
+                axe="Vz",
+                type="position",
+                name="Vz2",
+                min=-self.var_max,
+                max=-self.var_min,
+                step=self.var_step,
+            )
+            corr.compute_correlations()
+            corr.result["Beam splitter delay (us)"] = delay
+            self.result.append(corr.result)
         logging.info("Computation done.")
 
 
 class PlottingClasse:
     """This class contains the figure that is shown to the user, on the right of the figure."""
 
-    def __init__(self, fig, ax, canvas):
+    def __init__(self, fig, canvas):
         self.fig = fig
-        self.ax = ax
         self.canvas = canvas
+        self.availableplots = ["1d plot one dimensional", "2d plot two dimensional"]
 
     def update_plot(self, model):
-        self.ax.clear()
-        self.fig.clf()
-        self.ax = self.fig.add_subplot(111)
+        if model.view.lower() in self.availableplots[0]:
+            self.one_dim_plot(model)
+        elif model.view.lower() in self.availableplots[1]:
+            self.two_dim_plot(model)
+        else:
+            logging.warning(
+                "The view asked does not exists. Please chose an option in the foloowing list : {}".format(
+                    self.availableplots
+                )
+            )
+            self.two_dim_plot(model)
 
-        sns.heatmap(
-            model.corr.result.pivot(
-                index="Vz1", columns="Vz2", values=model.value_to_plot
-            ),
-            cmap=model.cmap,
-            ax=self.ax,
-            vmin=model.fig_vmin,
-            vmax=model.fig_vmax,
+    def one_dim_plot(self, model):
+        self.fig.clf()
+        bragg_speed = 49.589
+
+        df = pd.concat(model.result)
+        df = apply_ROD(df, {"Beam splitter delay (us)": [-1, 1]})
+        df["BraggSpeed"] = np.abs(df["Vz1-Vz2"])
+        print(len(df))
+        df = apply_ROI(
+            df,
+            {
+                "Vz1+Vz2": [-model.oneD_frame_gap, model.oneD_frame_gap],
+                "BraggSpeed": [
+                    bragg_speed - model.oneD_bragg_gap,
+                    bragg_speed + model.oneD_bragg_gap,
+                ],
+            },
         )
-        self.ax.invert_yaxis()
+
+        if model.oneD_plotby.lower() in "bragg":
+            hue = "(Vz1+Vz2)/2"
+            plot_by_title = "Bragg Coupling"
+            plot_by = "Vz1-Vz2"
+        else:
+            plot_by = "(Vz1+Vz2)/2"
+            plot_by_title = "Inertial speed"
+            hue = "Vz1-Vz2"
+        n_plots = len(df[plot_by].unique())
+        ncols = round(sqrt(n_plots))
+        nrows = ceil(n_plots / ncols)
+        for i, vz in enumerate(df[plot_by].unique()):
+            ax = self.fig.add_subplot(nrows, ncols, i + 1)
+            data = df[df[plot_by] == vz]
+            sns.lineplot(
+                data=data,
+                x="Beam splitter delay (us)",
+                y=model.value_to_plot,
+                palette="Dark2",
+                hue=hue,
+                style=hue,
+                ax=ax,
+            )
+            ax.set_title(r"{} : {} mm/s".format(plot_by_title, vz), fontsize="medium")
+        title = self.get_title(model)
+        self.fig.suptitle(
+            title,
+            fontsize="medium",
+        )
+        self.fig.tight_layout()
+        self.canvas.draw()
+
+    def two_dim_plot(self, model):
+        self.fig.clf()
+        self.ncols = 3
+        self.nrows = ceil(len(model.all_delay) / self.ncols)
+        for i, delay in enumerate(model.all_delay):
+            ax = self.fig.add_subplot(self.nrows, self.ncols, i + 1)
+            data = model.result[i]
+            sns.heatmap(
+                data.pivot(index="Vz1", columns="Vz2", values=model.value_to_plot),
+                cmap=model.cmap,
+                ax=ax,
+                vmin=model.fig_vmin,
+                vmax=model.fig_vmax,
+            )
+            ax.invert_yaxis()
+            ax.set_title("Delay : {} us".format(delay), fontsize="medium")
+        title = self.get_title(model)
+        self.fig.suptitle(
+            title,
+            fontsize="medium",
+        )
+        self.fig.tight_layout()
+        self.canvas.draw()
+
+    def get_title(selt, model):
         title = (
             r"Correlations with $T_{{BEC}}$ = {} ms and $V_{{ref}}$={} mm/s. ".format(
                 model.arrival_time, model.inertial_frame
@@ -179,34 +273,28 @@ class PlottingClasse:
         title += r"$\Delta V_z =$ {} mm/s ; $\Delta V_x $= {} mm/s,  $\Delta V_y $= {} mm/s".format(
             model.boxZsize, model.boxXsize, model.boxYsize
         )
-        self.ax.set_title(
-            title,
-            fontsize="medium",
-        )
-        self.fig.tight_layout()
-        self.canvas.draw()
+        return title
 
 
 class HOMApp(QWidget):
-    def __init__(self, data=[], metadata={}, parameters={}):
-        self.model = Model(data=data, metadata=metadata, parameters=parameters)
+    def __init__(self, hom_folder, parameters={}):
+        self.model = Model(hom_folder, parameters=parameters)
         self.figure = Figure()
         self.canvas = FigureCanvas(self.figure)
-        self.ax = self.figure.add_subplot(111)
-        self.plot = PlottingClasse(self.figure, self.ax, self.canvas)
+        self.plot = PlottingClasse(self.figure, self.canvas)
         super().__init__()
         self.initUI()
 
     def initUI(self):
-        self.setWindowTitle("Correlation Visualizer.")
+        self.setWindowTitle("HOM Dip Researcher.")
         self.setGeometry(100, 100, 1000, 700)
         try:
             self.setWindowIcon(
-                QIcon(os.path.join("icons", "gauss.jpeg"))
+                QIcon(os.path.join("icons", "atoms.png"))
             )  # Remplacez 'chemin_vers_votre_icone.ico' par le chemin de votre icône
         except:
             logger.warning(
-                "WARNING : Our dear Gauss is missing. Please find him as fast as possible !!"
+                "WARNING : Our dear image is missing. Please find him as fast as possible !!"
             )
         self._setup_UI_left_part()
         self._setup_UI_right_part()
@@ -214,6 +302,12 @@ class HOMApp(QWidget):
         self.main_layout = QHBoxLayout()
         self.main_layout.addLayout(self.layout_left)
         self.main_layout.addLayout(self.layout_right)
+        self.main_layout.setStretchFactor(
+            self.layout_left, 1
+        )  # 1/4 de l'espace pour la boîte à gauche
+        self.main_layout.setStretchFactor(
+            self.layout_right, 3
+        )  # 3/4 de l'espace pour la figure
 
         self.setLayout(self.main_layout)
         self.compute_correlations_callback()
@@ -234,7 +328,7 @@ class HOMApp(QWidget):
         self.labels_of_parameters = []  # liste contenant les QLabel des paramètres
         self.values_of_parameters = []  # liste contenant les QLine edits des paramètres
         # on parourt la liste des paramètres du modèle
-        for name, value in self.model.get_parameters().items():
+        for name, value in self.model.get_parameters_str_str().items():
             self.labels_of_parameters.append(QLabel(name))
             self.values_of_parameters.append(QLineEdit())
             # set the default value in it
@@ -318,10 +412,10 @@ class HOMApp(QWidget):
         # os.remove(temp_file)
 
 
-def main(data, metadata, parameters):
+def main(hom_folder, parameters):
     # launch app
     app = QApplication(sys.argv)
-    density_app = HOMApp(data=data, metadata=metadata, parameters=parameters)
+    density_app = HOMApp(hom_folder, parameters=parameters)
     density_app.show()
     sys.exit(app.exec_())
 
