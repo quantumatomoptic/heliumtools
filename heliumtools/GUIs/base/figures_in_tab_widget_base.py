@@ -6,13 +6,17 @@ from PyQt5.QtWidgets import (
     QSizePolicy,
     QTabWidget,
 )
+import logging
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
+from PyQt5.QtCore import pyqtSignal
 
 
 class TabsFigureBase(QTabWidget):
+    update_fig_signal = pyqtSignal(int)
+
     def __init__(self, tab_names=["Gaussian Curve"]):
         super().__init__()
         self.tab_names = tab_names
@@ -67,5 +71,5 @@ class TabsFigureBase(QTabWidget):
         plt.show()
 
     def signal_to_update_fig_callback(self, tab_number):
-        """ """
-        pass
+        logging.debug(f"Button pushed on tab {tab_number}")
+        self.update_fig_signal.emit(tab_number)

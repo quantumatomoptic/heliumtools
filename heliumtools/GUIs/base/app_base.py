@@ -32,6 +32,9 @@ class HeliumAppBase(QMainWindow):
         self.tabs_fig_widget = TabsFigureBase(tab_names=tab_names)
         # -- Import figures
         self.import_and_connect_user_figures()
+        # Now we must connect the signal that is emmitted each time
+        # the button 'Update figure' is pressed
+        self.tabs_fig_widget.update_fig_signal.connect(self.update_plot)
 
     def import_and_connect_user_figures(self):
         self.figure_models = []  # liste des FigureClass importées
@@ -73,5 +76,10 @@ class HeliumAppBase(QMainWindow):
         if os.path.exists(default_icon):
             self.setWindowIcon(QIcon(default_icon))
 
+    def update_all_plots(self):
+        for i in range(len(self.tab_names)):
+            self.update_plot(i)
+
     def update_plot(self, tab_number):
-        self.figure_class.update_plot(self.model, tab_number)
+        """ """
+        self.figure_models[tab_number].update_plot(self.model)
