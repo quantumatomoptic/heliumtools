@@ -9,8 +9,6 @@
 #  Copyright (C) 2011 -- 2016 Christoph Gohle, Christian Gross
 #  Copyright (C) 2016 -- 2019 Christoph Gohle, Christian Gross, Sebastian Blatt
 #
-#  This file is part of qcontrol3 -- The MPQ-developed, python3-based
-#  experiment control program.
 #
 #  License:
 #
@@ -46,7 +44,7 @@ The default directory for storing the JSON files is
 where the tilde is expanded using $HOME on the windows platform
 as well and the leading dot is removed. If $HOME is undefined
 under windows, the tilde is expanded to "C:". Under windows, the
-other qcontrol3 directories are *NOT* put in separate directories
+other heliumtools directories are *NOT* put in separate directories
 under HOME, but are placed underneath the qc3 directory for
 better compatibility with windows conventions.
 
@@ -59,15 +57,14 @@ import textwrap
 import json
 
 from . import exceptions
-#from qcontrol3.tools import json
 
 
 # String identifiers for supported platforms
 CONFIG_SUPPORTED_PLATFORMS = ("linux", "osx", "windows")
 
-CONFIG_DIRECTORY_BASENAME = "qc3"
+CONFIG_DIRECTORY_BASENAME = ".heliumtools_configuration"
 
-CONFIG_QC3_CONFIG_FILE = "qc3conf"
+CONFIG_QC3_CONFIG_FILE = "heliumtoolsconf"
 
 
 # Try to do highly visible logging via sys.stderr and sys.stdout since
@@ -95,7 +92,7 @@ def _message_footer():
     return ("-" * dim.columns) + "\n"
 
 
-def _message(msg, header="qcontrol3 initial configuration message"):
+def _message(msg, header="Heliumtools initial configuration message"):
     """Wrap message `msg` using _message_header() and _message_footer()
     and print to sys.stdout."""
     print(_message_header(header) + msg + "\n" + _message_footer(), file=sys.stdout)
@@ -159,23 +156,19 @@ def get_config_directory_path():
     """
     p = get_platform()
     path = CONFIG_DIRECTORY_PLATFORM_NAMES[p]
+    print(path)
     if (p == "windows") and (os.getenv("HOME") is not None):
         path = get_absolute_path(os.getenv("HOME"), CONFIG_DIRECTORY_BASENAME)
-
     return path
 
 
 def get_config_file_path(filename):
     """Return an absolute path for `filename` assuming it represents a
-    filename (without file extension) in the qcontrol3 configuration
+    filename (without file extension) in the heliumtools configuration
     directory.
-
     Example:
-
       get_config_file_path('myclient') -> '/home/myuser/.qc3/myclient.json'
-
     Raises a ConfigFileException if the filename is specified with an extension.
-
     """
     root, ext = os.path.splitext(filename)
     if ext != "":
@@ -183,6 +176,7 @@ def get_config_file_path(filename):
             "Configuration filenames must be specified without "
             'file extension, i.e. "myfile" instead of "myfile.json"'
         )
+    
 
     cdir = get_config_directory_path()
     p = get_absolute_path(cdir, filename + ".json")
@@ -191,7 +185,7 @@ def get_config_file_path(filename):
 
 def check_config_file_permissions(filename):
     """Check that `filename` is a readable and writeable regular file
-    within the qcontrol3 configuration directory or raise a
+    within the heliumtools configuration directory or raise a
     ConfigFileException.
     """
     p = get_config_file_path(filename)
@@ -262,7 +256,7 @@ def make_directory_path(*args, **kwargs):
 
 
 class ConfigFile(object):
-    """Base class for a JSON configuration file in the qcontrol3
+    """Base class for a JSON configuration file in the heliumtools
     configuration directory with default values and comments. Since
     JSON does not support a comment syntax, we auto-generate special
     string variables by appending '_comment' to each regular
@@ -291,7 +285,7 @@ class ConfigFile(object):
     #
     _messages = {
         "file_not_found_error": """
-        I did not find the qcontrol3 configuration file under "{filename}".
+        I did not find the heliumtools configuration file under "{filename}".
         'I will create it using default values, but you must modify these
         'according to your setup. See the documentation under "doc/configuration"
         'on how to do this.""",
@@ -508,165 +502,6 @@ class ConfigFile(object):
             )
         s[option] = value
 
-
-class Qc3ConfigFile(ConfigFile):
-    """Represents the main qc3control configuration file in the
-    configuration directory. Use the `_content` structure as an
-    example of how to define other configuration file objects by
-    deriving them from ConfigFile.
-    """
-
-    # The filename of the configuration file. MUST be specified
-    # WITHOUT the .json extension.
-    _filename = CONFIG_QC3_CONFIG_FILE
-
-    # The contents of the configuration file, including default values
-    # and comments.
-    _content = [
-        (
-            "pyro",  # section name
-            "Configures the PYRO system.",  # section comment
-            [
-                (
-                    "ns_host",  # option name
-                    "localhost",  # option default value
-                    "Hostname or ip of the pyro name server.",  # option comment
-                ),
-                ("ns_port", 9090, "Port of the pyro name server."),
-                ("host", "localhost", "Hostname or ip of the qcontrol3 server."),
-                ("qc3servername", "qc3server", "qcontrol3 server name for Pyro."),
-            ],
-        ),
-        (
-            "server",
-            "Configures the qcontrol3 timing server.",
-            [
-                (
-                    "rootdir",
-                    "~/qc3scripts"
-                    if get_platform() != "windows"
-                    else get_absolute_path(get_config_directory_path(), "qc3scripts"),
-                    (
-                        "The root directory for timing script .pys files. "
-                        + "It must contain the config subdirectory."
-                    ),
-                ),
-                (
-                    "datadir",
-                    "~/qc3data"
-                    if get_platform != "windows"
-                    else get_absolute_path(get_config_directory_path(), "qc3data"),
-                    "The root directory for data files saved by qcontrol3.",
-                ),
-                (
-                    "datalayout",
-                    ["%Y", "%m", "%d"],
-                    (
-                        "time.strftime format for saving qcontrol3 data files. "
-                        + "Each array member corresponds to a new subdirectory."
-                    ),
-                ),
-                (
-                    "save_experiment_config",
-                    "True",
-                    (
-                        "Whether to save an extra hdf5 file per experiment. "
-                        + "The file contains the hardware tree with the channel data. "
-                        + "This must be true to be able to plot the sequence later, "
-                        + "but writing the tree to disk takes long (several seconds)"
-                    ),
-                ),
-                (
-                    "is_dummy",
-                    "False",
-                    (
-                        "Run with real hardware or in dummy mode. "
-                        + "In the former case we load config/hardware.py,  "
-                        + "In the latter case we load config/hardware_dummy.py,  "
-                    ),
-                ),
-            ],
-        ),
-        (
-            "logging",
-            "Configures the logging system.",
-            [
-                (
-                    "logdir",
-                    "~/qc3log"
-                    if get_platform() != "windows"
-                    else get_absolute_path(get_config_directory_path(), "qc3log"),
-                    "In addition to the console, the log messages are saved here.",
-                ),
-                (
-                    "usecolor",
-                    "False",
-                    "If True, console log will be colored (requires a compatible terminal and the colorlog package).",
-                ),
-                (
-                    "consoleloglevel",
-                    "DEBUG",
-                    "Determines which messages are shown on the console.",
-                ),
-                (
-                    "fileloglevel",
-                    "DEBUG",
-                    "Determines which messages are saved in the log files in logdir.",
-                ),
-                (
-                    "serverloglevel",
-                    "DEBUG",
-                    "Determines which messages are emitted by serverlogger.",
-                ),
-                (
-                    "toolsloglevel",
-                    "DEBUG",
-                    "Determines which messages are emitted by toolslogger.",
-                ),
-                (
-                    "driverloglevel",
-                    "DEBUG",
-                    "Determines which messages are emitted by driverlogger.",
-                ),
-                (
-                    "clientloglevel",
-                    "DEBUG",
-                    "Determines which messages are emitted by clientlogger.",
-                ),
-                (
-                    "profilingloglevel",
-                    "DEBUG",
-                    "Determines which messages are emitted by profilinglogger.",
-                ),
-            ],
-        ),
-        (
-            "remotes",
-            "Remote software remote controller settings.",
-            [
-                (
-                    "remotenames",
-                    ["REMOTE0"],
-                    "Name of the remote controller. It must be started using this line"
-                    + "as command line argument. The name will also be the Pyro"
-                    + "name of the remote server.",
-                ),
-                (
-                    "configfolders",
-                    ["~/qc3remotecontroller0"],
-                    "Configuration directories containing config.py on the "
-                    + "remote machine. This folder is created on the first "
-                    + "run of the remote server if it does not exist yet."
-                    + "The order must match the order of the remote server names.",
-                ),
-            ],
-        ),
-    ]
-
-    def __init__(self):
-        super(Qc3ConfigFile, self).__init__()
-
-
 def ensure_config_directory_exists():
     """Ensure that the configuration directory returned by
     get_config_directory_path() exists and that we have read and write
@@ -676,51 +511,12 @@ def ensure_config_directory_exists():
     configuration directory, this function is called whenever the
     module is loaded. See bottom of config.py for how this is done.
     """
+    print()
     make_directory_path(get_config_directory_path(), read=True, write=True)
-
-
-def ensure_server_directories_exist():
-    """Ensure that the required directories defined in Qc3ConfigFile exist
-    and that we have the correct access permissions. To this end, the
-    configuration file is loaded here (and fixed if there are issues),
-    and then written back to disk.
-
-    We want to ensure that this happens on startup: This function is
-    called whenever the module is loaded. See bottom of config.py for
-    how this is done.
-
-    """
-    config = Qc3ConfigFile()
-
-    # do not need write access to root directory
-    rootdir = config.get("server", "rootdir")
-    make_directory_path(rootdir, read=True, write=False)
-
-    # need read and write access to data directory
-    datadir = config.get("server", "datadir")
-    make_directory_path(datadir, read=True, write=True)
-
-    # do not need read access to log directory
-    logdir = config.get("logging", "logdir")
-    make_directory_path(logdir, read=False, write=True)
-
-    config.write()
-
-
-def getitem(section, option, boolean=False):
-    """Convenience function to access the main qcontrol3 configuration
-    file represented by Qc3ConfigFile.
-    """
-    config = Qc3ConfigFile()
-    if not boolean:
-        return config.get(section, option)
-    else:
-        return config.getboolean(section, option)
 
 
 # Stuff that happens on import of this module.
 ensure_config_directory_exists()
-ensure_server_directories_exist()
 
 if __name__ == "__main__":
     pass

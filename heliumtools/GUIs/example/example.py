@@ -33,7 +33,6 @@ from PyQt5.QtWidgets import (
     QSplitter,
 )
 from heliumtools.GUIs.base.app_base import HeliumAppBase
-from heliumtools.misc.gather_data import apply_ROI
 from model import Model
 
 # Configuration des logs quand le programme est appelé localment
@@ -53,32 +52,35 @@ class ExampleApplication(HeliumAppBase):
 
         self.setWindowTitle("Example of an Application.")
         self.setGeometry(100, 100, 1000, 400)
-        self.set_icon("mon_image.png")
+        self.set_icon("gauss.jpeg")
 
-        self.initUI()
-        # connect the FiguresClass
+        
+        
+    def setup_user_buttons(self):
+        """
+        Customize this method to create buttons related to custom callback functions. 
+        To do so :
+            1. Create your button (or widget),
+            2. Link it to a callback function that calls a function from your model
+            3. Add this button to the 'button pannel' using the add_user_button(button) method
+        """
+        button = QPushButton('Update My Model')
+        button.clicked.connect(self.update_parameters_callback)
+        self.add_user_widget(button)
+        
+        button1 = QPushButton('Update model but only Sinc')
+        button1.clicked.connect(self.update_parameters_model_but_only_sinc_callback)
+        self.add_user_widget(button1)
 
-    def initUI(self):
-        """
-        Main function that creates the User Interface.
-        """
-        self._setup_UI_left_part()
-        self._setup_UI_right_part()
-        self._main_widget = QSplitter()
-        self._main_widget.addWidget(self.left_widget)
-        self._main_widget.addWidget(self.right_widget)
-        self.setCentralWidget(self._main_widget)
-
-    def _setup_UI_left_part(self):
-        """This method sets up the left part of the UI. Do not forget to include the parameter_widget_wrapper"""
-        self.left_widget = self.parameter_widget
-
-    def _setup_UI_right_part(self):
-        """
-        sets up the right pannel of your GUI
-        """
-        # Right part of the windows
-        self.right_widget = self.tabs_fig_widget
+    def update_parameters_callback(self):
+       self.update_model_with_user_parameters()
+       # self.model.compute_stuffs()
+       self.update_all_plots()
+    
+    def update_parameters_model_but_only_sinc_callback(self):
+        self.update_model_with_user_parameters()
+        self.update_plot(1)
+       
 
 
 def main(data, metadata, parameters):

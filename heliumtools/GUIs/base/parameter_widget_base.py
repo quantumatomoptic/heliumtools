@@ -9,7 +9,6 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 
-import snoop
 
 
 class ParameterBaseWidget(QWidget):

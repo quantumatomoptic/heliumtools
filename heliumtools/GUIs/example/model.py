@@ -17,6 +17,9 @@ class Model(GlobalModelForParameters):
         self.std = 4
         self.amplitude = 3
         self.x_range = [-20, 20]
+        self.salut = 7
         # The parameter dictionary given in the initialisation will overwrite
         # other parameters
         super().__init__(parameters=parameters, file=__file__)
+        
+    
