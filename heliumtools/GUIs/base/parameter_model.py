@@ -50,8 +50,12 @@ class GlobalModelForParameters:
         for key, value in self.__dict__.items():
             if key[0] == "_":
                 continue  # les variables commencant par _ sont réservées.
-            if type(value) in AUTHORIZED_TYPES:
+            if type(value) == list:
+                if type(value[0]) == int or type(value[0]) == float:
+                    parameters[key] = value
+            elif type(value) in AUTHORIZED_TYPES:
                 parameters[key] = value
+
         return parameters
 
     def update_parameter(self, key, str_val):
@@ -116,9 +120,10 @@ class GlobalModelForParameters:
             try:
                 with open(self._parameter_filename, "w") as file:
                     json.dump(params, file, indent=4)
+                logging.info(f"Parameters saved in {self._parameter_filename}")
             except Exception as err:
                 logging.error(
-                    f" something went wrong trying to save parameters in {self._parameter_filename}"
+                    f" something went wrong trying to save parameters in {self._parameter_filename} : {err}"
                 )
 
     def _set_parameter_directory(self):
