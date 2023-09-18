@@ -1,3 +1,11 @@
+
+"""
+This class is designd to be the master class of your App. It dialogs with the
+model you defined, the later being a attribut of your app class and with the
+FigureClasses you defined in your file figure0, figure1 etc....
+"""
+
+
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -29,7 +37,8 @@ class HeliumAppBase(QMainWindow):
         self._app_file = file
         self._app_dir = os.path.dirname(self._app_file)
         self._set_default_UI_parameters()
-        self.initUI()# use this method to create the User interface
+        #- Use this method to create the User interface
+        self.initUI()
         
     
     def initUI(self):
@@ -40,13 +49,15 @@ class HeliumAppBase(QMainWindow):
         self._setup_UI_left_part()
         self._setup_UI_right_part()
         # -- Create the Central Widget of the App : a splitter containing 
-        # left and right widgets.
+        #    left and right widgets.
         self._main_widget = QSplitter()
         self._main_widget.addWidget(self.left_widget)
         self._main_widget.addWidget(self.right_widget)
         self.setCentralWidget(self._main_widget)
             
-    ## ---- METHODS THAT ARE WRITTEN TO BE USED BY THE CHILD CLASS ----
+    ##########################################################################
+    ## ------ METHODS THAT ARE WRITTEN TO BE USED BY THE CHILD CLASS ------ ##
+    ##########################################################################
     
     def add_user_widget(self, widget):
         """
@@ -65,7 +76,19 @@ class HeliumAppBase(QMainWindow):
         """ 
         Method to be used by the user to update a given plot.
         """
-        self.figure_models[tab_number].update_plot(self.model)
+        if type(tab_number) != int:
+            logging.error(f"Tab number {tab_number} does not exist. ")
+            return
+        #if tab_number > len(self.figure_classes_imported) or tab_number<0:
+         #   logging.error(f"The tab number should be an integer bewteen O and {len(self.figure_classes_imported) -1}")
+        #    return
+        try: 
+            self.figure_classes_imported[tab_number].update_plot(self.model)
+        except Exception as e:
+            msg = f"Updating plot number {tab_number} failed.\n"
+            msg += e
+            logging.error(msg)
+            
         
     def update_model_with_user_parameters(self):
         """
@@ -98,8 +121,10 @@ class HeliumAppBase(QMainWindow):
             f" Did not found the {icon} you required. Trying to set the default icon. "
         )
         
-    ## ---- METHODS THAT ARE WRITTEN TO CONSTRUCT THE GUI ----
-
+    ##########################################################################
+    ## ---------- METHODS THAT ARE WRITTEN TO CONSTRUCT THE GUI ----------  ##
+    ##########################################################################
+    
     def _setup_UI_left_part(self):
         """
         This method sets up the left part of the UI. It is composed of two 
@@ -148,18 +173,22 @@ class HeliumAppBase(QMainWindow):
         # -- Import figures
         self.import_and_connect_user_figures()
         # Now we must connect the signal that is emmitted each time
-        # the button 'Update figure' is pressed
+        # the button 'Update figure' is pressed in a tab
         self.tabs_fig_widget.update_fig_signal.connect(self.update_plot)
-        # Right part of the windows
+        # Define those widgets as the right part of the windows
         self.right_widget = self.tabs_fig_widget
 
     def import_and_connect_user_figures(self):
         """
-        Method that  tries to import the figure defined in the child app and 
-        connect them to the figures shown in the tabs_fig_widget widget.
+        Method that snoops into the folder of the app to find module named
+        figureX.py, X ranging from 0 to the number of tab.
+        If the methode find such a file, it instanciate the FigureCLass in it
+        and adds it to the figure_classes_imported list. Each element of this
+        list being the figure shown in the corresponding tab of the 
+        tabs_fig_widget widget.
         """
         # liste des FigureClass importées des fichiers figureX.py
-        self.figure_models = []  
+        self.figure_classes_imported = []  
         # on ajoute le chemin relatif du fichier (en fait pas nécessaire
         # mais je le laisse là au cas où)
         # sys.path.append(self._app_dir)
@@ -169,34 +198,35 @@ class HeliumAppBase(QMainWindow):
                 module_name = f"figure{i}"
                 mon_module = importlib.import_module(module_name)
                 FigureClass = getattr(mon_module, "FigureClass")
-                self.figure_models.append(
+                self.figure_classes_imported.append(
                     FigureClass(
-                        self.tabs_fig_widget.figures[i], self.tabs_fig_widget.canvas[i]
+                        self.tabs_fig_widget.figures[i], 
+                        self.tabs_fig_widget.canvas[i]
                     )
                 )
             except:
                 # if we fail to import the module, we show the default figure.
-                logging.error(
-                    f" Failed to load the FigureClass from the figure{i}.py file in  {os.path.dirname(self._app_file)}. Please make sure you defined it well."
-                )
-                self.figure_models.append(
+                msg = f"Failed to load the FigureClass from the figure{i}.py"
+                msg += f" file in {os.path.dirname(self._app_file)}. Please "
+                msg += f"make sure you defined it well."
+                logging.error(msg)
+                self.figure_classes_imported.append(
                     DefaultFigureClass(
-                        self.tabs_fig_widget.figures[i], self.tabs_fig_widget.canvas[i]
+                        self.tabs_fig_widget.figures[i], 
+                        self.tabs_fig_widget.canvas[i]
                     )
                 )
-            self.figure_models[i].update_plot(
+            self.figure_classes_imported[i].update_plot(
                 self.model,
             )
 
-    
-        # if os.path.exists(self.default_icon ):
-        #     self.setWindowIcon(QIcon(self.default_icon ))
-
     def _set_default_UI_parameters(self):
         self.default_icon = os.path.join(os.path.dirname(__file__), "icons", "atom.png")
-        self.setWindowIcon(QIcon(self.default_icon ))
+        self.setWindowIcon(QIcon(self.default_icon))
     
-    
+    ##########################################################################
+    ## -------------------- A PRIORI USELESS FUNCTIONS -------------------- ##
+    ##########################################################################
         
     ### A priori useless functions that are here only so the App is self contained.
     def setup_user_buttons(self):

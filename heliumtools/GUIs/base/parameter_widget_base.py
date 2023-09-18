@@ -37,7 +37,7 @@ class ParameterBaseWidget(QWidget):
             self.values_of_parameters.append(QLineEdit())
             # set the default value in it
             self.values_of_parameters[-1].setText(str(value))
-            # creat a horizontal layout foqvalue.text()r the name and the value of the parameter
+            # create a horizontal layout for the name and the value of the parameter
             small_layout = QHBoxLayout()
             small_layout.addWidget(self.labels_of_parameters[-1])
             small_layout.addWidget(self.values_of_parameters[-1])
@@ -48,6 +48,20 @@ class ParameterBaseWidget(QWidget):
         parameter_widget_layout.addWidget(self.scroll_area)
 
     def get_parameters_values(self, model):
+        """
+        Update the model given the 
+
+        Parameters
+        ----------
+        model : Model
+            The model of your app.
+
+        Returns
+        -------
+        model : Model
+            The model of your app updated with the new calues of the parameters.
+
+        """
         for qlabel, qvalue in zip(self.labels_of_parameters, self.values_of_parameters):
             model_value = model.update_parameter(qlabel.text(), qvalue.text())
             qvalue.setText(model_value)

@@ -11,14 +11,37 @@
 # ------------------------------------
 #
 """
-Decription of gaussian_example.py 
+Decription of example.py 
 
+Example of a heliumtools application. This application use 3 classes : 
+    * The HeliumAppBase which is QtWindows whose central widget contains three
+    parts. The right one contains tabs with figure, the left top widgets are 
+    parameters of the model and the left bottom contains custom buttons 
+    defined in the code just above.
+    * The model should be defined in a different file, for example here in the
+    model.py file. It inherits from the GlobalModelForParameter class that 
+    ables the App to get all attributs of the model to show them as parameter.
+    * figures that should be shown on the tab widgets inherit from the 
+    ClassFigure  class. 
+
+    
+Useful method of the HeliumAppBase :     
+    * self.add_user_widget(widget)
+        add a widget to the left-bottom widget of the app. Give this method 
+        any custom button you want to add to your app.
+    * self.update_all_plots()
+        Use this function to update all the app plots
+    * self.update_plot(tab_number)
+        To update only one plot defined by its tab_number
+    * self.update_model_with_user_parameters()
+        This method updates the model with the parameters given by the user
+    * self.set_icon(icons = "path_to_your_icon")
+        use this method to define your favourite icon as the app icon
 """
 
 
 import os, logging, sys
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from PyQt5.QtWidgets import (
     QApplication,
@@ -35,9 +58,9 @@ from PyQt5.QtWidgets import (
 from heliumtools.GUIs.base.app_base import HeliumAppBase
 from model import Model
 
-# Configuration des logs quand le programme est appelé localment
+# Configuration des logs quand le programme est appelé localement
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # 
 
 
 class ExampleApplication(HeliumAppBase):
@@ -49,7 +72,7 @@ class ExampleApplication(HeliumAppBase):
         model = Model(data=data, metadata=metadata, parameters=parameters)
         tab_names = ["Gaussian Curve", "Sinc Curve", "Thomas Fermi profile", "Failed"]
         super().__init__(model=model, tab_names=tab_names, file=__file__)
-
+        # Custom your app
         self.setWindowTitle("Example of an Application.")
         self.setGeometry(100, 100, 1000, 400)
         self.set_icon("gauss.jpeg")
@@ -72,6 +95,11 @@ class ExampleApplication(HeliumAppBase):
         button1.clicked.connect(self.update_parameters_model_but_only_sinc_callback)
         self.add_user_widget(button1)
 
+
+    ################################################################
+    ## ---- Define yere your callbcaks
+    ################################################################
+    
     def update_parameters_callback(self):
        self.update_model_with_user_parameters()
        # self.model.compute_stuffs()
@@ -79,7 +107,7 @@ class ExampleApplication(HeliumAppBase):
     
     def update_parameters_model_but_only_sinc_callback(self):
         self.update_model_with_user_parameters()
-        self.update_plot(1)
+        self.update_plot(-1)
        
 
 
