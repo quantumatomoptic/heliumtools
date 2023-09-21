@@ -576,8 +576,15 @@ class Correlation(DataBuilder):
         self.result["g^2"] = self.result["N_1*N_2"] / (
             self.result["N_1"] * self.result["N_2"]
         )
+        # ---------------
+        # Calculs de g^2
+        # ---------------
+        self.result[":N_1**2:"] = self.result["N_1**2"] - self.result["N_1"]
+        self.result[":N_2**2:"] = self.result["N_2**2"] - self.result["N_2"]
 
-        # Cauchy Schwarz
+        # ---------------
+        # Cuachy-Schwarz
+        # ---------------
         self.result["C-S"] = self.result["N_1*N_2"] / (
             np.sqrt(
                 (self.result["N_1**2"] - self.result["N_1"])

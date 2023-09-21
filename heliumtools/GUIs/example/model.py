@@ -21,5 +21,3 @@ class Model(GlobalModelForParameters):
         # The parameter dictionary given in the initialisation will overwrite
         # other parameters
         super().__init__(parameters=parameters, file=__file__)
-        
-    

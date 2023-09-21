@@ -41,6 +41,7 @@ from heliumtools.GUIs.base.figures_in_tab_widget_base import TabsFigureBase
 from heliumtools.GUIs.base.default_figure import DefaultFigureClass
 
 logger = logging.getLogger(__name__)
+import traceback
 
 
 class HeliumAppBase(QMainWindow):
@@ -105,6 +106,7 @@ class HeliumAppBase(QMainWindow):
         except Exception as e:
             msg = f"Updating plot number {tab_number} failed. Error type : {e}"
             logging.error(msg)
+            traceback.print_exc()
 
     def update_model_with_user_parameters(self):
         """
