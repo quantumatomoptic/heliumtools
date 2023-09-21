@@ -17,7 +17,7 @@ import matplotlib.pyplot as plt
 from math import ceil
 import seaborn as sns
 import numpy as np
-
+from heliumtools.misc.gather_data import apply_ROI
 
 def histogram_plots_with_inset(df, X1, X2, Y, X1_label="", X2_label="", title=""):
     """_summary_
@@ -95,8 +95,7 @@ def stability_of_sequence(
     ncols = 2
     nrows = ceil(len(columns_to_plot) / ncols)
     fig, axes = plt.subplots(ncols=ncols, figsize=(11, 3 * nrows), nrows=nrows)
-    if selec_bec_arrival_times is None:
-        selec_bec_arrival_times = bec_arrival_times
+    selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
     for i, column in enumerate(columns_to_plot):
         ax = axes.flatten()[i]
         sns.lineplot(
