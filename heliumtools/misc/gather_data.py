@@ -19,6 +19,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def gaussian_function(x, mean, amplitude, standard_deviation, offset):
@@ -757,15 +760,26 @@ def export_data_set_to_pickle(
     ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
     width_saturation=0,
     supplementary_rois=[],
+    metadata=[],
 ):
-    """Exporte le dataset folder comme pickle.
+    """exporte dans un .pkl tout un dossier contenant des .atoms.
 
-    Parameters
-    ----------
-    folder : path like
-        chemin vers le dossier contenant tous les .atoms
-    ROI : dictionnaire
-     Exemple : {"T": {"min": 300, "max": 350}}
+    Args:
+        folder (str): folder path
+        ROI (dict): ROI type dictionary that will be applied on loaded atoms.
+        ROD (dict, optional): ROI type dictionary givin regions to exclude. Defaults to {"T": [10, 20]}.
+        find_arrival_times (bool, optional): if the program should fit arrival times.
+        Can be long. Defaults to False.
+        n_max_cycles (int, optional): number of maximum file you want to load. Defaults to 1e8.
+        histogramm_width (float, optional): histogram width used to bin (in time, ms) to fit the BEC. Defaults to 0.01.
+        ROI_for_fit (dict, optional): Roi applied for the fit of the BEC. Defaults to {"T": {"min": 306.2, "max": 309.7}}.
+        width_saturation (int, optional): time during which the BEC saturates the detector.
+        This parameter is given to the function that fit the BEC. Defaults to 0.
+        supplementary_rois (list, optional): ROIs in which the program will return the number of atoms. Defaults to [].
+        metadata (list, optional): list of metadata you want to load. Defaults to [].
+
+    Returns:
+        str: name of the dataset created.
     """
     ### STEP 1 : gather data and save it
     selected_files = select_atoms_in_folder(folder)
@@ -779,6 +793,7 @@ def export_data_set_to_pickle(
     df_parameters = pd.DataFrame()
     df_arrival_times = pd.DataFrame()
     for i, filename in tqdm(enumerate(selected_files)):
+        cycle_prefix = filename.replace(".atoms", "")
         X, Y, T = load_XYTTraw(filename)
         seq, cycle = return_cycle_from_path(filename)
         raw_data = pd.DataFrame({"X": X, "Y": Y, "T": T})
@@ -788,8 +803,10 @@ def export_data_set_to_pickle(
         df_atoms = pd.concat([df_atoms, atoms_in_ROI])
 
         ## On charge maintenant les parametres de séquence
-        # filename = atom_name.replace(".atoms", ".json")
-        seq_par = get_sequence_parameters(filename.replace(".atoms", ".json"))
+        seq_par = load_metadata(cycle_prefix, "parameters")
+
+        for meta in metadata:
+            seq_par.update(load_metadata(cycle_prefix, meta))
         seq_par["Sequence"] = seq
         seq_par["Cycle"] = cycle
         new_df = pd.DataFrame(seq_par, index=[i])
@@ -810,7 +827,7 @@ def export_data_set_to_pickle(
             arrival["dT of atoms in ROI"] = np.std(atoms_in_ROI["T"])
             for i, roi in enumerate(supplementary_rois):
                 at = apply_ROI(raw_data, roi)
-                arrival["Number of Atoms in supplementary ROI{}"] = len(at)
+                arrival[f"Number of Atoms in supplementary ROI{i}"] = len(at)
 
             df_arrival_times = pd.concat(
                 [df_arrival_times, pd.DataFrame(arrival, index=[i])]
@@ -879,9 +896,11 @@ def get_sequence_parameters(filename):
                 "Sequence",
                 "Cycle",
             ]:
-                seq_par["{} ({})".format(element["name"], element["unit"])] = element[
-                    "value"
-                ]
+                key = element["name"]
+                if element["unit"] != "":
+                    key += "  ({})".format(element["unit"])
+                value = element["value"]
+                seq_par[key] = value
 
     return seq_par
 
@@ -918,6 +937,60 @@ def gather_saved_sequence_parameters(folder):
     return dataframe
 
 
+def load_metadata(cycle_prefix, metadata):
+    """load a metadat dictionary
+
+    Parameters
+    ----------
+    cycle_prefix : _type_
+        _description_
+    metadata : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    if metadata.lower() in "json parameters ":
+        return load_hal_type_metadata(cycle_prefix + ".json")
+    if metadata.lower() in "picoscope_treated":
+        return load_hal_type_metadata(cycle_prefix + ".picoscope_treated")
+    elif metadata.lower() in "HAL fit camera ":
+        log.warning("HAL metadata type HAL fit is not yet implemented.")
+        return {}
+    return {}
+
+
+def load_hal_type_metadata(file) -> dict:
+    """Load HAL type of metadat i.e. a list of dictionary with
+    entries name, value, unit, error etc...
+
+    Args:
+        file (str or pathli.Path): path to the metadata file
+
+    Returns:
+        dict: dictionary containing all HAL metadata of the file.
+    """
+    try:
+        dico = {}
+        if os.path.exists(file):
+            f = open(file)
+            data = json.load(f)
+
+            for element in data:
+                key = element["name"]
+                if element["unit"] != "":
+                    key += " ({})".format(element["unit"])
+                dico[key] = element["value"]
+        return dico
+    except Exception as e:
+        msg = f"Loading HAL type file {file} failed. Are you sure "
+        msg += f"the file you want to load is a HAL file ? Error is {e}."
+        log.error(msg)
+        return {}
+
+
 if __name__ == "__main__":
     # folder = Path("/mnt/manip_E/2022/11/18/083")
     # export_data_set_to_pickle(
@@ -927,7 +1000,7 @@ if __name__ == "__main__":
     #     n_max_cycles=3,
     # )
 
-    if True:  # check du fit du BEC
+    if False:  # check du fit du BEC
         folder = "/mnt/manip_E/2023/07/12/030"
         folder = "/mnt/manip_E/2023/08/15/006"
         check_BEC_fit(
@@ -943,10 +1016,19 @@ if __name__ == "__main__":
         folder = "/mnt/manip_E/2023/08/16/006"
         df_parameters = gather_saved_sequence_parameters(folder)
     if False:
-        folder = "/mnt/manip_E/2023/08/16/006"
+        folder = "/mnt/manip_E/2023/09/22/060"
         export_data_set_to_pickle(
-            folder, ROI={"T": [312, 322]}, find_arrival_times=True
+            folder,
+            ROI={"T": [312, 322]},
+            find_arrival_times=False,
+            metadata=["picoscope"],
         )
+        data = pd.read_pickle("/mnt/manip_E/2023/09/22/060/parameters.pkl")
+        print(data.columns)
+        import matplotlib.pyplot as plt
+
+        plt.plot(data["Cycle"], data["Bragg fit error"])
+        plt.show()
     # folder = "/media/victor/8482-1010/gus_data/2023/05/15/053"
     # folder = "/home/victor/gus_data/2023/05/15/053"
 

@@ -18,6 +18,10 @@ Please document your code ;-).
 import os, glob, re
 import pandas as pd
 from heliumtools.misc.gather_data import apply_ROI
+import logging
+import math
+
+log = logging.getLogger(__name__)  #
 
 
 def data_filter(data, bec_arrival_times, filters):
@@ -26,7 +30,7 @@ def data_filter(data, bec_arrival_times, filters):
     return selected_data, selec_bec_arrival_times
 
 
-def add_sequence_to_hom_folder(hom_folder, sequence_folder, do_export=True):
+def add_sequence_to_hom_folder(hom_folder, sequence_folder, do_export=False):
     """
     Function that add a sequence to the HOM folder database.  It contains pkl file with names
     atoms_BSdelay_{DELAY}_us.pkl containing all atoms with the corresponding BS DELAY
@@ -44,11 +48,18 @@ def add_sequence_to_hom_folder(hom_folder, sequence_folder, do_export=True):
             ROI={"T": {"min": 312, "max": 322}},
             ROI_for_fit={"T": {"min": 305, "max": 310}},
             supplementary_rois=[{"T": [450, 475]}],
+            metadata=["picoscope"],
         )
-    atoms = pd.read_pickle(os.path.join(sequence_folder, "dataset.pkl"))
-    bec_arrival_times = pd.read_pickle(
-        os.path.join(sequence_folder, "arrival_times.pkl")
-    )
+    try:
+        atoms = pd.read_pickle(os.path.join(sequence_folder, "dataset.pkl"))
+        bec_arrival_times = pd.read_pickle(
+            os.path.join(sequence_folder, "arrival_times.pkl")
+        )
+    except Exception as err:
+        msg = f"Atoms and arrival time loading failed from folder {sequence_folder}. "
+        msg += f"Please make sure they do exist. Error descirption : {err}"
+        log.error(msg)
+        return
     sequence_id = sequence_folder
     bec_arrival_times["Sequence Id"] = sequence_id
     sequence_timings = bec_arrival_times["Beam splitter delay (ms)"].unique()
