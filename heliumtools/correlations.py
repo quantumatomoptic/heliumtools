@@ -28,6 +28,7 @@ import matplotlib.colors as colors
 import time
 import logging
 from .data_builder import DataBuilder
+from .misc.gather_data import apply_ROI, apply_ROD
 
 
 class Correlation(DataBuilder):
@@ -830,6 +831,57 @@ class Correlation(DataBuilder):
     ############### FONCTION D'AFFICHAGE  #####################
     ###########################################################
 
+    def show_densities(self, cmap="Blues", bins=100, **kwargs):
+        speeds = [("Vx", "Vy"), ("Vx", "Vy"), ("Vx", "Vz"), ("Vy", "Vz")]
+        fig, axes = plt.subplots(figsize=(16, 4), ncols=4)
+
+        def draw_box(ax, cX, σX, cY, σY, color="orange", label="box"):
+            ax.plot(
+                [cX - σX, cX + σX, cX + σX, cX - σX, cX - σX],
+                [cY - σY, cY - σY, cY + σY, cY + σY, cY - σY],
+                color,
+                label=label,
+            )
+
+        for i, (nameX, nameY) in enumerate(speeds):
+            ax = axes.flatten()[i]
+            if i == 0:
+                at = self.atoms[self.atoms["Vz"] < 0]
+                ax.set_title("Vz < 0")
+            elif i == 1:
+                at = self.atoms[self.atoms["Vz"] > 0]
+                ax.set_title("Vz > 0")
+            else:
+                at = self.atoms
+            X_list = at[nameX].to_numpy()
+            Y_list = at[nameY].to_numpy()
+            heatmap = ax.hist2d(X_list, Y_list, bins=bins, cmap=cmap, **kwargs)
+            for box_num in ["1", "2"]:
+                posX = self.boxes[box_num][nameX]["position"]
+                sizeX = self.boxes[box_num][nameX]["size"]
+                posY = self.boxes[box_num][nameY]["position"]
+                sizeY = self.boxes[box_num][nameY]["size"]
+                draw_box(
+                    ax, posX, sizeX / 2, posY, sizeY / 2, color="orange", label="box"
+                )
+                draw_box(
+                    ax,
+                    posX,
+                    3 * sizeX / 2,
+                    posY,
+                    3 * sizeY / 2,
+                    color="darkred",
+                    label="3*box",
+                )
+            # ax.legend()
+            ax.set_xlabel(nameX)
+            ax.set_ylabel(nameY)
+            colorbar = plt.colorbar(
+                heatmap[3], ax=ax
+            )  # Utilisez la quatrième valeur de retour de hist2d
+        plt.tight_layout()
+        plt.show()
+
     def show_density(
         self,
         nameX="Vy",
@@ -900,19 +952,6 @@ class Correlation(DataBuilder):
             draw_box(
                 posX, 3 * sizeX / 2, posY, 3 * sizeY / 2, color="darkred", label="3*box"
             )
-
-            ### On affiche 3x les boites
-            # on affiche la boite 1
-            posX = self.boxes["1"][nameX]["position"]
-            sizeX = 3 * self.boxes["1"][nameX]["size"]
-            posY = self.boxes["1"][nameY]["position"]
-            sizeY = 3 * self.boxes["1"][nameY]["size"]
-
-            # et le boite 2
-            posX = self.boxes["2"][nameX]["position"]
-            sizeX = 3 * self.boxes["2"][nameX]["size"]
-            posY = self.boxes["2"][nameY]["position"]
-            sizeY = 3 * self.boxes["2"][nameY]["size"]
         # ax.colorbar()
         ax.legend()
         ax.set_title(title)
@@ -1340,7 +1379,6 @@ if __name__ == "__main__":
         ref_frame_speed={"Vx": -2, "Vy": -5, "Vz": 94},
         remove_shot_noise=False,
     )
-    print(corr.remove_shot_noise)
     corr.define_variable1(
         box="1", axe="Vx", type="position", name="Vx1", min=-20, max=11, step=10
     )
