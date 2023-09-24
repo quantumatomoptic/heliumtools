@@ -34,6 +34,7 @@ class GlobalModelForParameters:
         )
         self._set_parameter_directory()
         default_parameters = self._load_default_parameters()
+        self.__dict__.update(default_parameters)
         self.__dict__.update(parameters)
         self._save_parameters()
 
@@ -50,8 +51,12 @@ class GlobalModelForParameters:
         for key, value in self.__dict__.items():
             if key[0] == "_":
                 continue  # les variables commencant par _ sont réservées.
-            if type(value) in AUTHORIZED_TYPES:
+            if type(value) == list:
+                if type(value[0]) == int or type(value[0]) == float:
+                    parameters[key] = value
+            elif type(value) in AUTHORIZED_TYPES:
                 parameters[key] = value
+
         return parameters
 
     def update_parameter(self, key, str_val):
@@ -116,42 +121,42 @@ class GlobalModelForParameters:
             try:
                 with open(self._parameter_filename, "w") as file:
                     json.dump(params, file, indent=4)
+                logging.info(f"Parameters saved in {self._parameter_filename}")
             except Exception as err:
                 logging.error(
-                    f" something went wrong trying to save parameters in {self._parameter_filename}"
+                    f" something went wrong trying to save parameters in {self._parameter_filename} : {err}"
                 )
 
     def _set_parameter_directory(self):
-        current_file_path = os.path.dirname(__file__)
-        self._parameter_folder = os.path.join(current_file_path, "parameters")
+        source_code_path = os.path.dirname(self._child_file)
+        self._parameter_folder = os.path.join(source_code_path, "parameters")
+        self.create_parameter_folder()
         if self._child_file == __file__:
             logger.warning(
-                "WARNING: the file was not given when you instanciate your model. Please do not forget to give file = __file__ in your super().__init__"
+                "WARNING: the file was not given when you instanciated your model. Please do not forget to give file = __file__ in your super().__init__"
             )
             self._parameter_filename = False
         else:
             # split the child file name as a list
-            # par exemple ['', 'home', 'victor', 'heliumtools', 'heliumtools', 'GUIs', 'gaussian_example.py']
+            # par exemple ['', 'home', 'victor', 'heliumtools', 'heliumtools', 'GUIs', 'example', 'model.py']
             child_file_splitted = os.path.abspath(self._child_file).split(os.sep)
             # we built the name of the default parameter file
             # as GUIs_gaussian_example.json
             self._parameter_filename = ""
-            while child_file_splitted:
-                prefix = child_file_splitted[-1]
-                if prefix in "home heliumtools":
-                    break
-                self._parameter_filename = prefix + "_" + self._parameter_filename
-                child_file_splitted.pop(-1)
+            if len(child_file_splitted) > 1:
+                self._parameter_filename = (
+                    child_file_splitted[-2] + "_" + child_file_splitted[-1]
+                )
+            else:
+                self._parameter_filename
             # - supprime l'extension pour mettre la bonne extension
             self._parameter_filename = (
                 re.sub(r"\..*", "", self._parameter_filename)
                 + self._default_parameters_extension
             )
             self._parameter_filename = os.path.join(
-                self._default_parameter_folder, self._parameter_filename
+                self._parameter_folder, self._parameter_filename
             )
-
-        # file_location = inspect.getfile(my_function)
 
     def _load_default_parameters(self):
         try:
@@ -169,3 +174,10 @@ class GlobalModelForParameters:
                 f" Error when trying to load parameters from {self._parameter_filename}.  {err}"
             )
             return {}
+
+    def create_parameter_folder(self):
+        if not os.path.exists(self._parameter_folder):
+            try:
+                os.makedirs(self._parameter_folder)
+            except Exception as e:
+                logging.error(f"Parameter direcory creation failed. {e}")
