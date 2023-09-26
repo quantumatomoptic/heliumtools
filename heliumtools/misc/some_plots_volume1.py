@@ -356,7 +356,7 @@ def show_2D_density_XY_with_fit(corr):
 
 
 def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]):
-    """Trace la densité 1D des paires selon z. 
+    """Trace la densité 1D des paires selon z.
 
     Parameters
     ----------

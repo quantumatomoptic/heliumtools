@@ -971,6 +971,8 @@ class Correlation(DataBuilder):
 
         return (hist_values, X_values, Y_values)
 
+    
+
     def get_atoms_distribution(
         self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
     ):
