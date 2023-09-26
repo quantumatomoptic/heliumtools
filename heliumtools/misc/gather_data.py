@@ -19,6 +19,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
+import logging
+
+log = logging.getLogger(__name__)
 
 
 def gaussian_function(x, mean, amplitude, standard_deviation, offset):
@@ -216,8 +219,8 @@ def load_raw_time(times_path):
 
 
 def data_filter(data, bec_arrival_times, filters):
-    data = data.reset_index(drop = True)
-    bec_arrival_times = bec_arrival_times.reset_index(drop = True)
+    data = data.reset_index(drop=True)
+    bec_arrival_times = bec_arrival_times.reset_index(drop=True)
     selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
 
     selected_data = data[data["Cycle"].isin(selec_bec_arrival_times["Cycle"])]
@@ -330,10 +333,11 @@ def get_roi_size(roi, axis):
     (minimum, maximum) = get_roi_min_max(roi, axis)
     return maximum - minimum
 
+
 def get_roi_center(roi, axis):
-	"""Returns the center of a ROI like dictionary along a given axis."""
-	(minimum, maximum) = get_roi_min_max(roi, axis)
-	return (maximum + minimum)/2
+    """Returns the center of a ROI like dictionary along a given axis."""
+    (minimum, maximum) = get_roi_min_max(roi, axis)
+    return (maximum + minimum) / 2
 
 
 def check_roi_for_fit(roi):
@@ -374,17 +378,17 @@ def fit_BEC_arrival_time(
     Parameters
     ----------
     data : pandas dataframe
-    	dataframe pandas avec 3 colonnes X, Y, T les données à fitter
+        dataframe pandas avec 3 colonnes X, Y, T les données à fitter
     filename : string,
-    	nom du fichier duquel vient les données. Ce nom sera utilisé pour aller chercher les .times correspondant à ce cycle,
+        nom du fichier duquel vient les données. Ce nom sera utilisé pour aller chercher les .times correspondant à ce cycle,
     ROI_for_fit : dictionary
-    	dictionnaire avec la ROI pouur faire le fit. Cette ROI est appliqué pour tous les axes (X, Y, T et .times)
+        dictionnaire avec la ROI pouur faire le fit. Cette ROI est appliqué pour tous les axes (X, Y, T et .times)
     histogramm_width : float,
-    	en ms, largeur des bins de l'histogramme pour faire le fit selon T et .times
+        en ms, largeur des bins de l'histogramme pour faire le fit selon T et .times
     width_saturation : float,
-    	largeur de saturation pendant laquelle il n'y a aucun signal à cause de la saturation du TDC. Les points de l'histogramme entre tmax, temps tel que le signal est maximal et tmax + dt son supprimés et non pris en compte dans le fit,
-	show_fit : boolean
-		est ce que on veut voir le fit sur une figure (ne pas mettre vrai si on fait plein de fit). Pensez à utiliser la fonction check_BEC_fit si vous voulez vérifier vos fits. 
+        largeur de saturation pendant laquelle il n'y a aucun signal à cause de la saturation du TDC. Les points de l'histogramme entre tmax, temps tel que le signal est maximal et tmax + dt son supprimés et non pris en compte dans le fit,
+        show_fit : boolean
+                est ce que on veut voir le fit sur une figure (ne pas mettre vrai si on fait plein de fit). Pensez à utiliser la fonction check_BEC_fit si vous voulez vérifier vos fits.
     """
     ans = {"Number of Atoms": len(data)}
     ROI_for_fit = check_roi_for_fit(ROI_for_fit)
@@ -446,7 +450,12 @@ def fit_BEC_arrival_time(
             ax.plot(
                 bin_centers, gaussian_function(bin_centers, *p0), "--", label="guess"
             )
-            ax.axvspan(bin_centers[max_index], bin_centers[max_index] + n_hole * histogramm_width,  alpha=0.2, color='red')
+            ax.axvspan(
+                bin_centers[max_index],
+                bin_centers[max_index] + n_hole * histogramm_width,
+                alpha=0.2,
+                color="red",
+            )
             ax.set_title("Mean : {:.3f} ms".format(popt[0]))
             ax.set_xlabel("Arrival time of reconstructed atoms (ms)")
     ##### FIT in X and Y
@@ -556,7 +565,12 @@ def fit_BEC_arrival_time(
                     "--",
                     label="guess",
                 )
-                ax.axvspan(bin_centers[max_index], bin_centers[max_index] + n_hole * histogramm_width,  alpha=0.2, color='red')
+                ax.axvspan(
+                    bin_centers[max_index],
+                    bin_centers[max_index] + n_hole * histogramm_width,
+                    alpha=0.2,
+                    color="red",
+                )
                 ax.set_title("Mean : {:.3f} ms".format(popt[0]))
                 ax.set_xlabel("Unreconstructed signal " + xj)
         ans["Mean Arrival Time (fit .times)"] = (
@@ -636,28 +650,35 @@ def export_data_set_to_pickle(
     ROI_for_fit={"T": {"min": 306.2, "max": 309.7}},
     width_saturation=0,
     supplementary_rois=[],
+    metadata=[],
 ):
-    """Exporte le dataset folder en tant que pickle. Cette fonction génère trois fichiers dans le folder. folder/dataset.pkl contient l'ensemble des atomes du dossier dans la ROI. Cette fonction crée également folder/parameters.pkl qui contient l'ensemble des paramètres de la séquence ainsi que folder/arrival_times.pkl qui contient les temps d'arrivée fittés (+ les paramètres) de la séquence. 
+    """Exporte le dataset folder en tant que pickle. Cette fonction génère trois
+     fichiers dans le folder.Ainsi le dataframefolder/dataset.pkl contient
+     l'ensemble des atomes du dossier dans la ROI. Cette fonction crée également
+     folder/parameters.pkl qui contient l'ensemble des paramètres de la séquence
+     ainsi que folder/arrival_times.pkl qui contient les temps d'arrivée fittés
+     (+ les paramètres) de la séquence.
 
     Parameters
     ----------
     folder : path like
         chemin vers le dossier contenant tous les .atoms
     ROI : dictionnaire
-    	Région d'intérêt : on ne va sélectionner tous les atomes qui sont dans cette ROI. Celle-ci peut être vide et dans ce cas, on garde tous les atomes (et pas aucun). Exemple : {"T": {"min": 300, "max": 350}}. Le format de ce dictionnaire doit matcher le format officiel d'une ROI (voir la fonction apply_ROI pour plus de détails). 
+        Région d'intérêt : on ne va sélectionner tous les atomes qui sont dans cette ROI. Celle-ci peut être vide et dans ce cas, on garde tous les atomes (et pas aucun). Exemple : {"T": {"min": 300, "max": 350}}. Le format de ce dictionnaire doit matcher le format officiel d'une ROI (voir la fonction apply_ROI pour plus de détails).
     ROD : dictionnaire
-    	Région de désintérêt : on exclue tous les atomes qui sont dans cette région. ATTENTION : cette fonction agit axe par axe pour l'instant malheureusement. 
+        Région de désintérêt : on exclue tous les atomes qui sont dans cette région. ATTENTION : cette fonction agit axe par axe pour l'instant malheureusement.
     find_arrival_times : boolean
-    	si True, on fit le temps d'arrivée du BEC. Si False, on ne le fait pas. 
+        si True, on fit le temps d'arrivée du BEC. Si False, on ne le fait pas.
     n_max_cycles : int
-    	nombre maximal de cycle qu'on veut sélectionner. Pas souvent utile.
+        nombre maximal de cycle qu'on veut sélectionner. Pas souvent utile.
     histogramm_width : float,
-    	en ms, largeur des bins de l'histogramme pour faire le fit selon T et .times
+        en ms, largeur des bins de l'histogramme pour faire le fit selon T et .times
     width_saturation : float,
-    	largeur de saturation pendant laquelle il n'y a aucun signal à cause de la saturation du TDC. Les points de l'histogramme entre tmax, temps tel que le signal est maximal et tmax + dt son supprimés et non pris en compte dans le fit,
+        largeur de saturation pendant laquelle il n'y a aucun signal à cause de la saturation du TDC. Les points de l'histogramme entre tmax, temps tel que le signal est maximal et tmax + dt son supprimés et non pris en compte dans le fit,
     supplementary_rois : list of ROIs
-    	ROIS supplémentaires dans lesquelles on veut compter les atomes (pour appliquer des filtres durant l'analyse d'une séquence par exemple). Les données issus de ces ROIs seront ajoutées au datafbec arrival_times. 
-     
+        ROIS supplémentaires dans lesquelles on veut compter les atomes (pour appliquer des filtres durant l'analyse d'une séquence par exemple). Les données issus de ces ROIs seront ajoutées au datafbec arrival_times.
+    metadata : list of string
+        liste des métadonnées à charger avec les paramètres de séquence.
     """
     ### STEP 1 : gather data and save it
     selected_files = select_atoms_in_folder(folder)
@@ -671,6 +692,7 @@ def export_data_set_to_pickle(
     df_parameters = pd.DataFrame()
     df_arrival_times = pd.DataFrame()
     for i, filename in tqdm(enumerate(selected_files)):
+        cycle_prefix = filename.replace(".atoms", "")
         X, Y, T = load_XYTTraw(filename)
         seq, cycle = return_cycle_from_path(filename)
         raw_data = pd.DataFrame({"X": X, "Y": Y, "T": T})
@@ -680,8 +702,10 @@ def export_data_set_to_pickle(
         df_atoms = pd.concat([df_atoms, atoms_in_ROI])
 
         ## On charge maintenant les parametres de séquence
-        # filename = atom_name.replace(".atoms", ".json")
-        seq_par = get_sequence_parameters(filename.replace(".atoms", ".json"))
+        seq_par = load_metadata(cycle_prefix, "parameters")
+
+        for meta in metadata:
+            seq_par.update(load_metadata(cycle_prefix, meta))
         seq_par["Sequence"] = seq
         seq_par["Cycle"] = cycle
         new_df = pd.DataFrame(seq_par, index=[i])
@@ -702,7 +726,7 @@ def export_data_set_to_pickle(
             arrival["dT of atoms in ROI"] = np.std(atoms_in_ROI["T"])
             for i, roi in enumerate(supplementary_rois):
                 at = apply_ROI(raw_data, roi)
-                arrival["Number of Atoms in supplementary ROI{}"] = len(at)
+                arrival[f"Number of Atoms in supplementary ROI{i}"] = len(at)
 
             df_arrival_times = pd.concat(
                 [df_arrival_times, pd.DataFrame(arrival, index=[i])]
@@ -771,9 +795,11 @@ def get_sequence_parameters(filename):
                 "Sequence",
                 "Cycle",
             ]:
-                seq_par["{} ({})".format(element["name"], element["unit"])] = element[
-                    "value"
-                ]
+                key = element["name"]
+                if element["unit"] != "":
+                    key += "  ({})".format(element["unit"])
+                value = element["value"]
+                seq_par[key] = value
 
     return seq_par
 
@@ -810,6 +836,60 @@ def gather_saved_sequence_parameters(folder):
     return dataframe
 
 
+def load_metadata(cycle_prefix, metadata):
+    """load a metadat dictionary
+
+    Parameters
+    ----------
+    cycle_prefix : _type_
+        _description_
+    metadata : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    if metadata.lower() in "json parameters ":
+        return load_hal_type_metadata(cycle_prefix + ".json")
+    if metadata.lower() in "picoscope_treated":
+        return load_hal_type_metadata(cycle_prefix + ".picoscope_treated")
+    elif metadata.lower() in "HAL fit camera ":
+        log.warning("HAL metadata type HAL fit is not yet implemented.")
+        return {}
+    return {}
+
+
+def load_hal_type_metadata(file) -> dict:
+    """Load HAL type of metadat i.e. a list of dictionary with
+    entries name, value, unit, error etc...
+
+    Args:
+        file (str or pathli.Path): path to the metadata file
+
+    Returns:
+        dict: dictionary containing all HAL metadata of the file.
+    """
+    try:
+        dico = {}
+        if os.path.exists(file):
+            f = open(file)
+            data = json.load(f)
+
+            for element in data:
+                key = element["name"]
+                if element["unit"] != "":
+                    key += " ({})".format(element["unit"])
+                dico[key] = element["value"]
+        return dico
+    except Exception as e:
+        msg = f"Loading HAL type file {file} failed. Are you sure "
+        msg += f"the file you want to load is a HAL file ? Error is {e}."
+        log.error(msg)
+        return {}
+
+
 if __name__ == "__main__":
     # folder = Path("/mnt/manip_E/2022/11/18/083")
     # export_data_set_to_pickle(
@@ -819,7 +899,7 @@ if __name__ == "__main__":
     #     n_max_cycles=3,
     # )
 
-    if True:  # check du fit du BEC
+    if False:  # check du fit du BEC
         folder = "/mnt/manip_E/2023/07/12/030"
         folder = "/mnt/manip_E/2023/08/15/006"
         check_BEC_fit(
@@ -835,10 +915,19 @@ if __name__ == "__main__":
         folder = "/mnt/manip_E/2023/08/16/006"
         df_parameters = gather_saved_sequence_parameters(folder)
     if False:
-        folder = "/mnt/manip_E/2023/08/16/006"
+        folder = "/mnt/manip_E/2023/09/22/060"
         export_data_set_to_pickle(
-            folder, ROI={"T": [312, 322]}, find_arrival_times=True
+            folder,
+            ROI={"T": [312, 322]},
+            find_arrival_times=False,
+            metadata=["picoscope"],
         )
+        data = pd.read_pickle("/mnt/manip_E/2023/09/22/060/parameters.pkl")
+        print(data.columns)
+        import matplotlib.pyplot as plt
+
+        plt.plot(data["Cycle"], data["Bragg fit error"])
+        plt.show()
     # folder = "/media/victor/8482-1010/gus_data/2023/05/15/053"
     # folder = "/home/victor/gus_data/2023/05/15/053"
 
