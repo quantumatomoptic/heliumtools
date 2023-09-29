@@ -19,9 +19,9 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
-import logging
+from heliumtools.misc import logger
 
-log = logging.getLogger(__name__)
+log = logger.getLogger(__name__)
 
 
 def gaussian_function(x, mean, amplitude, standard_deviation, offset):
@@ -75,6 +75,11 @@ def return_cycle_from_path(path):
             json_path = path.replace(".atoms", ".json")
         elif ".json" in path:
             json_path = path
+        elif "." in path:
+            a, b = path.split(".")
+            json_path = a + ".json"
+        else:
+            json_path = path + ".json"
         with open(json_path) as f:
             list_of_metadatas = json.load(f)
         for element in list_of_metadatas:
@@ -85,7 +90,8 @@ def return_cycle_from_path(path):
                 run_id = element["value"]
         return seq, cycle
     except:
-        pass
+        msg = f"Failed to find the cycle of path {path}"
+        log(msg)
     pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][.]"
     result = re.findall(pattern, path)
     if len(result) == 0:
@@ -744,6 +750,39 @@ def export_data_set_to_pickle(
     return filename_dataset
 
 
+def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame():
+    """Export all metadatas of a folder to a pickle file. Return a dataframe with
+    all metadatas in the metadata_list.
+
+    Parameters
+    ----------
+    folder : str
+        path of the folder from wichi you want to load metadatas.
+    metadata_list : list, optional
+        list of string with metadatas you want to load. By default ["json"]
+
+    Returns
+    -------
+    pdDataFrame
+        _description_
+    """
+    all_cycles = glob.glob(os.path.join(folder, "*.sequence_parameters"))
+    df = pd.DataFrame()
+    for i, cycle in tqdm(enumerate(all_cycles)):
+        cycle_prefix = cycle.replace(".sequence_parameters", "")
+        seq, cycle = return_cycle_from_path(cycle_prefix)
+        seq_par = {}
+        for metadata in metadata_list:
+            seq_par.update(load_metadata(cycle_prefix, metadata))
+        seq_par["Sequence"] = seq
+        seq_par["Cycle"] = cycle
+        new_df = pd.DataFrame(seq_par, index=[i])
+        df = pd.concat([df, new_df])
+    df = df.reset_index(drop=True)
+    df.to_pickle(os.path.join(folder, "metadata.pkl"))
+    return df
+
+
 def gather_HAL_fits(folder):
     folder = Path(folder + "/.HAL_fits")
     ext = [".json"]
@@ -850,9 +889,9 @@ def load_metadata(cycle_prefix, metadata):
     _type_
         _description_
     """
-    if metadata.lower() in "json parameters ":
+    if metadata.lower() in ".json parameters ":
         return load_hal_type_metadata(cycle_prefix + ".json")
-    if metadata.lower() in "picoscope_treated":
+    if metadata.lower() in ".picoscope_treated":
         return load_hal_type_metadata(cycle_prefix + ".picoscope_treated")
     elif metadata.lower() in "HAL fit camera ":
         log.warning("HAL metadata type HAL fit is not yet implemented.")
@@ -897,7 +936,22 @@ if __name__ == "__main__":
     #     find_arrival_times=True,
     #     n_max_cycles=3,
     # )
-
+    if True:
+        folder = "/mnt/manip_E/2023/09/29/025"
+        all_seq = [
+            "2023/09/12/037",
+            "2023/09/12/039",
+            "2023/09/12/040",
+            "2023/09/13/013",
+            "2023/09/18/018",
+            "2023/09/20/015",
+            "2023/09/20/023",
+            "2023/09/22/059",
+            "2023/09/22/062",
+        ]
+        for seq in all_seq:
+            folder = os.path.join("/mnt/manip_E", seq)
+            export_metadatas_to_pickle(folder, metadata_list=["pico"])
     if False:  # check du fit du BEC
         folder = "/mnt/manip_E/2023/07/12/030"
         folder = "/mnt/manip_E/2023/08/15/006"
