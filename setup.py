@@ -25,6 +25,7 @@ requirements = [
     "cython",
     "pytest",
     "odeintw",
+    "qdarkstyle",
 ]
 
 test_requirements = []
