@@ -870,7 +870,6 @@ def get_sequence_parameters(filename):
     if os.path.exists(filename):
         f = open(filename)
         data = json.load(f)
-
         for element in data:
             if element["name"] not in [
                 "sequence",
