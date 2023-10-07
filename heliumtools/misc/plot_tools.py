@@ -107,3 +107,11 @@ cmap_iogs_rgb = create_linear_colormap(
     pivot=True,
     name="IOGS_RGB",
 )
+cmap_iogs_rgb2 = create_linear_colormap(
+    RGB1=blue_iogs_rgb,
+    RGB2=white,
+    RGB3=red_iogs_rgb,
+    n_points=300,
+    pivot=False,
+    name="IOGS_RGB",
+)

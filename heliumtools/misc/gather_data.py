@@ -936,7 +936,11 @@ if __name__ == "__main__":
     #     find_arrival_times=True,
     #     n_max_cycles=3,
     # )
+
     if True:
+        print("Hello")
+        from heliumtools.units import u
+    if False:
         folder = "/mnt/manip_E/2023/09/29/025"
         all_seq = [
             "2023/09/12/037",
