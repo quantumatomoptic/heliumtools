@@ -4,7 +4,7 @@
 """The setup script."""
 
 from setuptools import setup, find_packages
-
+from Cython.Build import cythonize
 with open("README.rst") as readme_file:
     readme = readme_file.read()
 
@@ -26,6 +26,7 @@ requirements = [
     "pytest",
     "odeintw",
     "qdarkstyle",
+    "colorlog",
 ]
 
 test_requirements = []
@@ -39,10 +40,6 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Natural Language :: English",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
     ],
     description="Some tools for the Helium1 team @LCF",
@@ -63,4 +60,5 @@ setup(
     url="https://github.com/quantumatomoptic/heliumtools",
     version="0.1.0",
     zip_safe=False,
+    ext_modules=cythonize("heliumtools/qunits/*.pyx"),
 )
