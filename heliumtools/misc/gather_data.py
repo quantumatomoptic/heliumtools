@@ -20,6 +20,7 @@ import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
 from heliumtools.misc import logger
+from flatten_dict import flatten, unflatten, reducers, splitters
 
 log = logger.getLogger(__name__)
 
@@ -875,7 +876,7 @@ def gather_saved_sequence_parameters(folder):
 
 
 def load_metadata(cycle_prefix, metadata):
-    """load a metadat dictionary
+    """load a metadata dictionary. Depending on the type of metadata one
 
     Parameters
     ----------
@@ -896,6 +897,8 @@ def load_metadata(cycle_prefix, metadata):
     elif metadata.lower() in "HAL fit camera ":
         log.warning("HAL metadata type HAL fit is not yet implemented.")
         return {}
+    if metadata.lower() in "all parameters every parameters":
+        loat_dictionary_metadata(cycle_prefix + ".sequence_parameters")
     return {}
 
 
@@ -911,21 +914,53 @@ def load_hal_type_metadata(file) -> dict:
     """
     try:
         dico = {}
-        if os.path.exists(file):
-            f = open(file)
-            data = json.load(f)
 
-            for element in data:
-                key = element["name"]
-                if element["unit"] != "":
-                    key += " ({})".format(element["unit"])
-                dico[key] = element["value"]
+        f = open(file)
+        data = json.load(f)
+
+        for element in data:
+            key = element["name"]
+            if element["unit"] != "":
+                key += " ({})".format(element["unit"])
+            dico[key] = element["value"]
         return dico
     except Exception as e:
-        msg = f"Loading HAL type file {file} failed. Are you sure "
+        msg = f"{__file__}"
+        msg += " \n     from load_hal_type_metadata \n "
+        msg += f"Loading HAL type file {file} failed. Are you sure "
         msg += f"the file you want to load is a HAL file ? Error is {e}."
         log.error(msg)
         return {}
+
+
+def loat_dictionary_metadata(file, key_separator=" | ") -> dict:
+    """load a dictionary from file, flatten it with separator and returns
+
+    Parameters
+    ----------
+    file : string or pathlib path
+        path to the file you want to load
+    key_separator : str, optional
+        _description_, by default " | "
+
+    Returns
+    -------
+    dict
+        flatten dictionary from file
+    """
+    try:
+        f = open(file)
+        data = json.load(f)
+        reducer = reducers.make_reducer(delimiter=key_separator)
+        data = flatten(data, reducer=reducer)
+        return data
+    except Exception as e:
+        msg = f"{__file__}"
+        msg += " \n     from loat_dictionary_metadata \n "
+        msg += f"Loading dictionary from {file} failed. Are you sure "
+        msg += f"the file you want to load is a dictionnary-like file ? Error is {e}."
+        log.error(msg)
+    return {}
 
 
 if __name__ == "__main__":
@@ -937,25 +972,17 @@ if __name__ == "__main__":
     #     n_max_cycles=3,
     # )
 
-    if True:
-        print("Hello")
-        from heliumtools.units import u
     if False:
         folder = "/mnt/manip_E/2023/09/29/025"
         all_seq = [
-            "2023/09/12/037",
-            "2023/09/12/039",
-            "2023/09/12/040",
-            "2023/09/13/013",
-            "2023/09/18/018",
-            "2023/09/20/015",
-            "2023/09/20/023",
-            "2023/09/22/059",
-            "2023/09/22/062",
+            "2023/10/07/017",
+            "2023/10/07/019",
+            "2023/10/07/021",
+            "2023/10/08/001",
         ]
         for seq in all_seq:
             folder = os.path.join("/mnt/manip_E", seq)
-            export_metadatas_to_pickle(folder, metadata_list=["pico"])
+            export_metadatas_to_pickle(folder, metadata_list=["pico", "all parameters"])
     if False:  # check du fit du BEC
         folder = "/mnt/manip_E/2023/07/12/030"
         folder = "/mnt/manip_E/2023/08/15/006"
