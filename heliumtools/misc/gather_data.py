@@ -13,7 +13,7 @@ Content of gather_data.py
 In this file are defined some functions to gather data.
 """
 from scipy.optimize import curve_fit
-import glob, os, re, json, random
+import glob, os, re, json, random, platform
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -715,6 +715,7 @@ def export_data_set_to_pickle(
             seq_par.update(load_metadata(cycle_prefix, meta))
         seq_par["Sequence"] = seq
         seq_par["Cycle"] = cycle
+        seq_par["Cycle time"] = get_creation_time(filename)
         new_df = pd.DataFrame(seq_par, index=[i])
         df_parameters = pd.concat([df_parameters, new_df])
 
@@ -769,14 +770,15 @@ def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame()
     """
     all_cycles = glob.glob(os.path.join(folder, "*.sequence_parameters"))
     df = pd.DataFrame()
-    for i, cycle in tqdm(enumerate(all_cycles)):
-        cycle_prefix = cycle.replace(".sequence_parameters", "")
+    for i, cycle_path in tqdm(enumerate(all_cycles)):
+        cycle_prefix = cycle_path.replace(".sequence_parameters", "")
         seq, cycle = return_cycle_from_path(cycle_prefix)
         seq_par = {}
         for metadata in metadata_list:
             seq_par.update(load_metadata(cycle_prefix, metadata))
         seq_par["Sequence"] = seq
         seq_par["Cycle"] = cycle
+        seq_par["Cycle time"] = get_creation_time(cycle_path)
         new_df = pd.DataFrame(seq_par, index=[i])
         df = pd.concat([df, new_df])
     df = df.reset_index(drop=True)
@@ -869,37 +871,48 @@ def gather_saved_sequence_parameters(folder):
         seq_par["Cycle"] = cycle
         new_df = pd.DataFrame(seq_par, index=[i])
         dataframe = pd.concat([dataframe, new_df])
-    print(dataframe)
     filename_parameters = os.path.join(folder, "parameters.pkl")
     dataframe.to_pickle(filename_parameters)
     return dataframe
 
 
 def load_metadata(cycle_prefix, metadata):
-    """load a metadata dictionary. Depending on the type of metadata one
+    """load the metadata dictionary associated to the cycle prefix.
 
     Parameters
     ----------
-    cycle_prefix : _type_
-        _description_
-    metadata : _type_
-        _description_
+    cycle_prefix : string
+        prefix of the cycle. For example /mnt/...../002_005
+    metadata : string
+        type of metadata to load.
+        For example 'fit' for HAL fit or 'pico' for picoscope files.
 
     Returns
     -------
-    _type_
-        _description_
+    dict
+        dictionary with associated metadatas
     """
-    if metadata.lower() in ".json parameters ":
+    if metadata.lower() in ".json parameters params":
         return load_hal_type_metadata(cycle_prefix + ".json")
     if metadata.lower() in ".picoscope_treated":
         return load_hal_type_metadata(cycle_prefix + ".picoscope_treated")
-    elif metadata.lower() in "HAL fit camera ":
+    if metadata.lower() in "HAL fits camera .HAL_fits":
         log.warning("HAL metadata type HAL fit is not yet implemented.")
-        return {}
+        directory, file_name = os.path.split(cycle_prefix)
+        file_name = file_name + ".json"
+        file_name = os.path.join(directory, ".HAL_fits", file_name)
+        return load_hal_type_metadata(file_name)
     if metadata.lower() in "all parameters every parameters":
-        loat_dictionary_metadata(cycle_prefix + ".sequence_parameters")
+        return load_dictionary_metadata(cycle_prefix + ".sequence_parameters")
+    if metadata.lower() in ".mcp stats .mcp_stats":
+        directory, file_name = os.path.split(cycle_prefix)
+        file_name = file_name + ".json"
+        file_name = os.path.join(directory, ".MCPstats", file_name)
+        return load_hal_type_metadata(file_name)
     return {}
+
+
+import os
 
 
 def load_hal_type_metadata(file) -> dict:
@@ -933,7 +946,7 @@ def load_hal_type_metadata(file) -> dict:
         return {}
 
 
-def loat_dictionary_metadata(file, key_separator=" | ") -> dict:
+def load_dictionary_metadata(file, key_separator=" | ") -> dict:
     """load a dictionary from file, flatten it with separator and returns
 
     Parameters
@@ -956,11 +969,26 @@ def loat_dictionary_metadata(file, key_separator=" | ") -> dict:
         return data
     except Exception as e:
         msg = f"{__file__}"
-        msg += " \n     from loat_dictionary_metadata \n "
+        msg += " \n     from load_dictionary_metadata \n "
         msg += f"Loading dictionary from {file} failed. Are you sure "
         msg += f"the file you want to load is a dictionnary-like file ? Error is {e}."
         log.error(msg)
     return {}
+
+
+def get_creation_time(file_path):
+    # Obtient les métadonnées du fichier
+    file_stat = os.stat(file_path)
+
+    # Choisis la bonne index pour l'heure de création en fonction du système d'exploitation
+    if platform.system() == "Windows":
+        creation_time = file_stat.st_ctime
+    else:
+        # Sur les systèmes Unix, st_birthtime est l'heure de création (si disponible)
+        # Sinon, utilise st_mtime (dernière modification)
+        creation_time = getattr(file_stat, "st_birthtime", file_stat.st_mtime)
+
+    return creation_time
 
 
 if __name__ == "__main__":
@@ -971,18 +999,32 @@ if __name__ == "__main__":
     #     find_arrival_times=True,
     #     n_max_cycles=3,
     # )
-
     if False:
-        folder = "/mnt/manip_E/2023/09/29/025"
+        cycle_prefix = "/mnt/manip_E/2023/10/09/003/003_005"
+        dico = load_metadata(cycle_prefix, "mcp")
+        print(dico)
+
+    if True:
+        root = "/mnt/manip_E/2023/10"
         all_seq = [
-            "2023/10/07/017",
-            "2023/10/07/019",
-            "2023/10/07/021",
-            "2023/10/08/001",
+            "05/007",
+            "05/011",
+            "05/013",
+            "05/016",
+            "05/017",
+            "06/009",
+            "06/013",
+            "07/017",
+            "07/019",
+            "07/021",
+            "07/025",
+            "08/001",
+            "08/004",
         ]
+        all_seq = ["08/011", "09/001"]
         for seq in all_seq:
-            folder = os.path.join("/mnt/manip_E", seq)
-            export_metadatas_to_pickle(folder, metadata_list=["pico", "all parameters"])
+            folder = os.path.join(root, seq)
+            export_metadatas_to_pickle(folder, ["pico", "all parameters"])
     if False:  # check du fit du BEC
         folder = "/mnt/manip_E/2023/07/12/030"
         folder = "/mnt/manip_E/2023/08/15/006"
