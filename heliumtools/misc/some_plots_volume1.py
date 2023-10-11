@@ -97,7 +97,13 @@ def stability_of_sequence(
     ncols = 2
     nrows = ceil(len(columns_to_plot) / ncols)
     fig, axes = plt.subplots(ncols=ncols, figsize=(11, 3 * nrows), nrows=nrows)
+    bec_arrival_times = bec_arrival_times.sort_values(by="Cycle").reset_index(drop=True)
+    hue = "Sequence"
+    if "Date" in bec_arrival_times.columns:
+        bec_arrival_times["Day"] = bec_arrival_times["Date"].dt.strftime("%A, %d")
+        hue = "Day"
     selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
+
     for i, column in enumerate(columns_to_plot):
         ax = axes.flatten()[i]
         sns.lineplot(
@@ -105,7 +111,7 @@ def stability_of_sequence(
             x=bec_arrival_times.index,
             y=column,
             ax=ax,
-            hue="Sequence",
+            hue=hue,
             palette="Dark2",
         )
         ax.fill_between(

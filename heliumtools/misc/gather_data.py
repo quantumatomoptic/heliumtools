@@ -129,7 +129,7 @@ def load_atoms(folder, n_max_cycles=1e8):
     N_files = min([len(selected_files), n_max_cycles])
     Xc, Yc, Tc, Cyclec = [], [], [], []
     selected_files = selected_files[0:N_files]
-    print("Starting to gather atoms")
+    print(f"Starting to gather atoms from {folder}")
     for i in tqdm(range(N_files)):
         path = selected_files[i]
         X, Y, T = load_XYTTraw(path)
@@ -694,7 +694,7 @@ def export_data_set_to_pickle(
     # on va remplir les listes suivantes avec l'ensemble des atomes.
     Xc, Yc, Tc, Cyclec = [], [], [], []
     selected_files = selected_files[0:N_files]
-    print("Starting to gather atoms")
+    print(f"Starting to gather atoms from {folder}")
     df_atoms = pd.DataFrame()
     df_parameters = pd.DataFrame()
     df_arrival_times = pd.DataFrame()
