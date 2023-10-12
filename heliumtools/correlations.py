@@ -838,7 +838,7 @@ class Correlation(DataBuilder):
     ############### FONCTION D'AFFICHAGE  #####################
     ###########################################################
 
-    def show_densities(self, cmap="Blues", bins=100, **kwargs):
+    def show_densities(self, cmap="Blues", bins=100, return_fig=False, **kwargs):
         speeds = [("Vx", "Vy"), ("Vx", "Vy"), ("Vx", "Vz"), ("Vy", "Vz")]
         fig, axes = plt.subplots(figsize=(16, 4), ncols=4)
 
@@ -886,7 +886,10 @@ class Correlation(DataBuilder):
             colorbar = plt.colorbar(
                 heatmap[3], ax=ax
             )  # Utilisez la quatrième valeur de retour de hist2d
+
         plt.tight_layout()
+        if return_fig:
+            return fig
         plt.show()
 
     def show_density(
@@ -970,8 +973,6 @@ class Correlation(DataBuilder):
             plt.show()
 
         return (hist_values, X_values, Y_values)
-
-    
 
     def get_atoms_distribution(
         self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
