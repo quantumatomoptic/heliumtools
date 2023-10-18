@@ -84,7 +84,7 @@ class AbstractFit(object):
         """
         if params is None:
             params = self.popt
-        if params != []:
+        if len(params) > 0:
             return self._fitfunc(x, *params)
         else:
             return []
@@ -158,7 +158,7 @@ class Abstract2DFit(AbstractFit):
         (scipy.optimize.curve_fit)"""
 
         # -- check that the data and coordinates were provided
-        if self.z == [] or self.x == []:
+        if len(self.z) == 0 or len(self.x) == 0:
             return
 
         # -- prepare data
@@ -413,7 +413,7 @@ class Abstract1DFit(AbstractFit):
         (scipy.optimize.curve_fit)"""
 
         # -- check that the data and coordinates were provided
-        if self.z == [] or self.x == []:
+        if len(self.z) == 0 or len(self.x) == 0:
             return
 
         # -- prepare data

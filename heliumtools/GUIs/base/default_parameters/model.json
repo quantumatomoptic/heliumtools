@@ -1,0 +1,51 @@
+{
+    "all_delay": [
+        0,
+        2100,
+        2600,
+        2700,
+        2800,
+        2900,
+        3000,
+        3300
+    ],
+    "arrival_time": 307.5,
+    "inertial_frame": [
+        0,
+        0,
+        94
+    ],
+    "bragg_speed": 49.6,
+    "boxZsize": 1,
+    "boxXsize": 15,
+    "boxYsize": 15,
+    "var_min": 20,
+    "var_max": 30,
+    "var_step": 0.25,
+    "fig_vmax": 1.5,
+    "fig_vmin": 0.8,
+    "cmap": "viridis",
+    "value_to_plot": "g^2",
+    "Xpos1": 0,
+    "Xpos2": 0,
+    "Ypos1": 0,
+    "Ypos2": 0,
+    "oneD_frame_gap": 5,
+    "oneD_curves_per_plot": 4,
+    "filter_bec_arrival_time": [
+        307.25,
+        307.75
+    ],
+    "filter_num_of_atoms": [
+        3300,
+        5500
+    ],
+    "filter_num_of_atoms_in_ROI": [
+        100,
+        280
+    ],
+    "filter_m1_atoms": [
+        0,
+        1000
+    ]
+}

@@ -53,6 +53,7 @@ struct paramstruct // reconstruction parameters
     bool use_offset_map = true;
     bool keep_all_potential_atoms = true;
     int offset_resolution = 5;
+    int offset_resolution_min = -5;
 };
 
 typedef std::vector<std::string> stringvec;
@@ -513,11 +514,14 @@ bool reconstruction3(list<timedata> &X1_p,
                         int S = TX1 + TX2 - TY1 - TY2;
                         int X = 708 - TX1 + TX2;
                         int Y = 708 - TY1 + TY2;
-
-                        if (AbsDiff(offset_p[X][Y], S) < params.offset_resolution)
+                        int offset_diff = S - offset_p[X][Y];
+                        if (offset_diff < params.offset_resolution)
                         /*if (AbsDiff(S, 0) < 80)*/
                         {
-                            atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
+                            if (offset_diff > params.offset_resolution_min)
+                            {
+                                atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
+                            }
                         }
                     }
                     ++searchY2;
@@ -979,6 +983,27 @@ bool read_configuration_file(string filepath, paramstruct &parameters_p)
         parameters_p.offset_resolution = stoi(myline);
     }
     if (parameters_p.offset_resolution <= 0)
+    {
+        std::cout << "WWWHHHHHAAAAATTTTTT YOU want a negative offset ReSOluTiOn ?!? " << endl;
+        std::cout << endl
+                  << endl
+                  << "... Are you stupid ? Please read the doc before use me. Go to the LabWiki/Experiment/Reconstruction page !!" << endl;
+    }
+
+    // LIGNE 5 : la valeur minimale d'offset autorisée
+    std::getline(myfile, myline);
+    if (!(myfile))
+    {
+        std::cout << "Error during reading the conf file : no line 4 -->  what is the maximum value you authorize for offset deviation ???" << endl;
+        std::cout << "Maximum offset deviation is set to -5." << endl;
+        parameters_p.offset_resolution_min = -5;
+    }
+    else
+    {
+        std::cout << "The maximum offset deviation is " << myline << "\n";
+        parameters_p.offset_resolution_min = stoi(myline);
+    }
+    if (parameters_p.offset_resolution_min <= 0)
     {
         std::cout << "WWWHHHHHAAAAATTTTTT YOU want a negative offset ReSOluTiOn ?!? " << endl;
         std::cout << endl

@@ -25,6 +25,10 @@ requirements = [
     "cython",
     "pytest",
     "odeintw",
+    "qdarkstyle",
+    "scipy",
+    "colorlog",
+    "flatten-dict",
 ]
 
 test_requirements = []
