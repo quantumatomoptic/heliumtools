@@ -21,6 +21,9 @@ from pathlib import Path
 from tqdm import tqdm
 from heliumtools.misc import logger
 from flatten_dict import flatten, unflatten, reducers, splitters
+import pytz
+from datetime import datetime
+
 
 log = logger.getLogger(__name__)
 
@@ -716,6 +719,8 @@ def export_data_set_to_pickle(
         seq_par["Sequence"] = seq
         seq_par["Cycle"] = cycle
         seq_par["Cycle time"] = get_creation_time(filename)
+        paris_timezone = pytz.timezone('Europe/Paris')
+        seq_par["Date"]=datetime.fromtimestamp(get_creation_time(filename), tz=paris_timezone)
         new_df = pd.DataFrame(seq_par, index=[i])
         df_parameters = pd.concat([df_parameters, new_df])
 
@@ -779,6 +784,8 @@ def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame()
         seq_par["Sequence"] = seq
         seq_par["Cycle"] = cycle
         seq_par["Cycle time"] = get_creation_time(cycle_path)
+        paris_timezone = pytz.timezone('Europe/Paris')
+        seq_par["Date"]=datetime.fromtimestamp(get_creation_time(cycle_path), tz=paris_timezone)
         new_df = pd.DataFrame(seq_par, index=[i])
         df = pd.concat([df, new_df])
     df = df.reset_index(drop=True)
