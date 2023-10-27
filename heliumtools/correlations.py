@@ -521,7 +521,6 @@ class Correlation(DataBuilder):
             "<N_1>*<N_2>" : produit de la moyenne du nombre d'atomes
         """
         total["N_1*N_2"] = total["N_1"] * total["N_2"]
-        column_name = "N_1*N_2"
         total["N_1**2"] = total["N_1"] ** 2
         total["N_2**2"] = total["N_2"] ** 2
         total["N_1-N_2"] = total["N_1"] - total["N_2"]
@@ -535,6 +534,7 @@ class Correlation(DataBuilder):
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
         ).mean()
+        column_name = "N_1*N_2"
         df = self.result[self.result[column_name] < 0]
         if len(df) > 1:
             print("there is an issue !!!!!")
