@@ -61,6 +61,7 @@ class CorrelationHe2Style(DataBuilder):
         self.axis = ["Vx", "Vy", "Vz"]
         self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
         self.voxel_numbers = {"Vx": 11, "Vy": 11, "Vz": 11}
+        self.cross_correlation_sign = {"Vx": 1, "Vy": 1, "Vz": 1}
         self.beams = {
             "A": {
                 "Vx": {"size": 20, "position": 0},
@@ -234,7 +235,10 @@ class CorrelationHe2Style(DataBuilder):
                 if local is True:
                     atXY[axis] = atXY[axis + "_x"] - atXY[axis + "_y"]
                 else:
-                    atXY[axis] = atXY[axis + "_x"] + atXY[axis + "_y"]
+                    atXY[axis] = (
+                        atXY[axis + "_x"]
+                        + self.cross_correlation_sign[axis] * atXY[axis + "_y"]
+                    )
             # STEP 3 : 3D histogram using torch.
             # atXY = atXY.astype(np.float32)
             G2XY, edges = torch.histogramdd(
@@ -685,20 +689,6 @@ class CorrelationHe2StyleBigDenominator(CorrelationHe2Style):
         if self.only_one_beam is False:
             self.result["g2 bb"] = self.result["G2BB"] / self.result["G2BB random"]
             self.result["g2 ab"] = self.result["G2AB"] / self.result["G2AB random"]
-
-
-import seaborn as sns
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-from random import choice, shuffle, randint, sample
-from tqdm import tqdm, trange
-import copy
-import time
-import torch
-from math import ceil
-
-import time
 
 
 class CorrelationHe2StyleBigDenominatorTest:

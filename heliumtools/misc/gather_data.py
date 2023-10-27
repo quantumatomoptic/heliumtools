@@ -92,7 +92,7 @@ def return_cycle_from_path(path):
         return seq, cycle
     except:
         msg = f"Failed to find the cycle of path {path}"
-        log(msg)
+        log.error(msg)
     pattern = "[0-9][0-9][0-9]_[0-9][0-9][0-9][.]"
     result = re.findall(pattern, path)
     if len(result) == 0:
