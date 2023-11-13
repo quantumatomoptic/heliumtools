@@ -19,6 +19,7 @@ import seaborn as sns
 import numpy as np
 from heliumtools.misc.gather_data import apply_ROI
 from scipy.optimize import curve_fit
+import pandas as pd
 
 
 def histogram_plots_with_inset(df, X1, X2, Y, X1_label="", X2_label="", title=""):
@@ -100,7 +101,7 @@ def stability_of_sequence(
     bec_arrival_times = bec_arrival_times.sort_values(by="Cycle").reset_index(drop=True)
     hue = "Sequence"
     if "Date" in bec_arrival_times.columns:
-        bec_arrival_times["Day"] = bec_arrival_times["Date"].dt.strftime("%A, %d")
+        bec_arrival_times["Day"] = pd.to_datetime(bec_arrival_times["Date"]).dt.strftime("%A, %d")
         hue = "Day"
     selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
 

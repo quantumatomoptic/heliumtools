@@ -68,8 +68,8 @@ class DataBuilder:
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
         """
         self.atoms = copy.deepcopy(atoms)
-        self.cycles_array = atoms["Cycle"].unique()
-        self.n_cycles = len(atoms["Cycle"].unique())
+        self.cycles_array = self.atoms["Cycle"].unique()
+        self.n_cycles = len(self.atoms["Cycle"].unique())
         self.bec_arrival_time = 307.763  # temps d'arrivée du BEC, en ms
         self.theoretical_arrival_time = 307.763  # 24/06/2022 & 17/05/2022
         self.raman_kick = 42.5  # mm/s, kick Raman
