@@ -260,7 +260,7 @@ class CorrelationHe2Style(DataBuilder):
                 if local is True:
                     atXY[:, i] = a[:, 0] - a[:, 1]
                 else:
-                    atXY[:, i] = a[:, 0] + a[:, 1]
+                    atXY[:, i] = a[:, 0] + self.cross_correlation_sign[ax] * a[:, 1]
             # STEP 3 : 3D histogram using torch.
             G2XY, edges = torch.histogramdd(
                 atXY, bins=list(self.voxel_map_size), range=r

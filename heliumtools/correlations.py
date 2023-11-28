@@ -522,13 +522,18 @@ class Correlation(DataBuilder):
         """
         total["N_1*N_2"] = total["N_1"] * total["N_2"]
         total["N_1**2"] = total["N_1"] ** 2
+        total[":N_1**2:"] = total["N_1"] ** 2 - total["N_1"]
         total["N_2**2"] = total["N_2"] ** 2
+        total[":N_2**2:"] = total["N_2"] ** 2 - total["N_2"]
         total["N_1-N_2"] = total["N_1"] - total["N_2"]
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
         total["(N_1-N_2)^4"] = (total["N_1"] - total["N_2"]) ** 4
         total["M^2 jasukula"] = total["(N_1-N_2)^2"] / (total["N_1+N_2"])
         total["M jaskula"] = total["N_1-N_2"] / np.sqrt(total["N_1+N_2"])
+        total["[N_1*N_2]**2"] = total["N_1*N_2"] * total["N_1*N_2"]
+        total[":N_1**2:**2"] = total[":N_1**2:"] ** 2
+        total[":N_2**2:**2"] = total[":N_2**2:"] ** 2
         self.total = total
         # on moyenne les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
         self.result = total.groupby(
@@ -680,13 +685,18 @@ class Correlation(DataBuilder):
         # Déviations standards
         # ---------------
 
-        self.result["N_1 std"] = np.sqrt(self.result["N_1"])
-        self.result["N_2 std"] = np.sqrt(self.result["N_2"])
+        self.result["N_1 std"] = np.sqrt(
+            self.result["N_1**2"] - self.result["N_1"] ** 2
+        )
+        self.result["N_2 std"] = np.sqrt(
+            self.result["N_2**2"] - self.result["N_2"] ** 2
+        )
         self.result["N_1 rel"] = self.result["N_1 std"] / self.result["N_1"]
         self.result["N_2 rel"] = self.result["N_2 std"] / self.result["N_2"]
-        self.result["N_1*N_2 std"] = self.result["N_1*N_2"] * np.sqrt(
-            self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
-        )
+        self.result["N_1*N_2 std"] = np.sqrt(
+            self.result["[N_1*N_2]**2"] - self.result["N_1*N_2"] ** 2
+        ) / np.sqrt(self.n_cycles)
+
         self.result["N_1-N_2 std"] = self.result["N_1-N_2"] * np.sqrt(
             self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
         )
@@ -699,12 +709,40 @@ class Correlation(DataBuilder):
         self.result["variance std"] = self.result["variance"] * np.sqrt(
             self.result["N_1 rel"] ** 2 + self.result["N_2 rel"] ** 2
         )
-
+        #### Defining error
         self.result["N_1 error"] = self.result["N_1 std"] / np.sqrt(self.n_cycles)
         self.result["N_2 error"] = self.result["N_2 std"] / np.sqrt(self.n_cycles)
+
+        # g² and cauchy schwarz
         self.result["N_1*N_2 error"] = self.result["N_1*N_2 std"] / np.sqrt(
             self.n_cycles
         )
+
+        self.result["g^2 error"] = np.sqrt(
+            (self.result["N_1 error"] / self.result["N_1"]) ** 2
+            + (self.result["N_2 error"] / self.result["N_2"]) ** 2
+            + (self.result["N_1*N_2 error"] / self.result["N_1"] / self.result["N_2"])
+            ** 2
+        )
+        self.result[":N_1**2: error"] = np.sqrt(
+            (self.result[":N_1**2:**2"] - self.result[":N_1**2:"] ** 2) / self.n_cycles
+        )
+        self.result[":N_2**2: error"] = np.sqrt(
+            (self.result[":N_2**2:**2"] - self.result[":N_2**2:"] ** 2) / self.n_cycles
+        )
+        self.result["C-S error"] = np.sqrt(
+            (self.result["N_1*N_2 error"] / self.result["N_1"] / self.result["N_2"])
+            ** 2
+            + (self.result[":N_1**2: error"] / self.result["N_1"] ** 2) ** 2
+            + (self.result[":N_2**2: error"] / self.result["N_2"] ** 2) ** 2
+        )
+        self.result["C-S difference error"] = np.sqrt(
+            (self.result["N_1*N_2 error"]) ** 2
+            + (self.result[":N_1**2: error"]) ** 2
+            + (self.result[":N_2**2: error"]) ** 2
+        )
+
+        ## Variance
         self.result["N_1-N_2 error"] = self.result["N_1-N_2 std"] / np.sqrt(
             self.n_cycles
         )
