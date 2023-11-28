@@ -460,8 +460,7 @@ class CorrelationHe2Style(DataBuilder):
             )
         )
 
-    def show_density_plots(self):
-        # First Plot : 2D density
+    def show_density_plot_2D(self):
         fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
         for i in range(3):
             x = self.axis[i]
@@ -498,7 +497,7 @@ class CorrelationHe2Style(DataBuilder):
         plt.tight_layout()
         plt.show()
 
-        # Second Plot : every thing in ROI
+    def show_1D_density_ROI(self):
         fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
         for i in range(3):
             x = self.axis[i]
@@ -506,7 +505,8 @@ class CorrelationHe2Style(DataBuilder):
             sns.histplot(data=self.atoms, x=x, ax=ax, color="C" + str(i))
         plt.tight_layout()
         plt.show()
-        # third plot : each beam
+
+    def show_1D_density_beam(self):
         self.update_atoms_in_beams()
 
         fig, axes = plt.subplots(figsize=(12, 4), ncols=3)
@@ -544,6 +544,15 @@ class CorrelationHe2Style(DataBuilder):
         for elem, val in self.beams["B"].items():
             print(elem, val)
         print(self.atomsB.describe())
+
+    def show_density_plots(self):
+        # First Plot : 2D density
+        self.show_density_plot_2D()
+
+        # Second Plot : every thing in ROI
+        self.show_1D_density_ROI()
+        # third plot : each beam
+        self.show_1D_density_beam()
 
 
 class CorrelationHe2StyleBigDenominator(CorrelationHe2Style):
