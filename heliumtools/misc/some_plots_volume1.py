@@ -482,3 +482,81 @@ def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]
     )
     # plt.savefig("densite_selon_z.png")
     plt.show()
+
+
+def heatmap_with_boxes(
+    ax,
+    df,
+    columns: str,
+    index: str,
+    values: str,
+    boxes=[{}],
+    boxes_color=["r"],
+    **kwargs,
+):
+    """function that draws the heatmap of the dataframe onto a given ax. It adds the
+    box on the plot if keys of the box match index and columns.
+    Any additional keyword argument is pass to the imshow
+
+    Parameters
+    ----------
+    ax : matplotlib.axes
+        ax on which we draw the heatmap and the box
+    df : pandas.dataframe
+        dataframe containing data for the heatmap
+    columns : str
+        name of a dataframe column to be plotted on the X axis
+    index : str
+        name of a dataframe column to be plotted on the Y axis
+    values : str
+        z axis of the colormap
+    boxes : dict, optional
+        _description_, by default [{}]
+    boxes_color: list of str or color
+        colors of the boxes
+    Returns
+    -------
+    matplotlib.axes
+        the matplotlib ax modified
+    """
+    try:
+        data = df.pivot(index=index, columns=columns, values=values)
+        xmin = np.min(df[columns])
+        xmax = np.max(df[columns])
+        ymin = np.min(df[index])
+        ymax = np.max(df[index])
+        ax.imshow(data, extent=[xmin, xmax, ymin, ymax], **kwargs)
+        ax.set_xlabel(columns)
+        ax.set_ylabel(index)
+    except Exception as e:
+        msg = f"heatmap_boxes failed to plot index = {index} ; columns = {columns}"
+        msg += f" and values = {values}"
+        msg += f" and values = {values}. Error is : {e}"
+        print(msg)
+        return ax
+    if type(boxes) == dict:
+        boxes = [boxes]
+    if type[boxes_color] != type([]):
+        boxes_color = [boxes_color] * len(boxes)
+    for i, box in enumerate(boxes):
+        if columns in box.keys() and index in box.keys():
+            try:
+                from matplotlib.patches import Rectangle
+                from heliumtools.misc.gather_data import get_roi_min_max
+
+                idxmin, idxmax = get_roi_min_max(box, index)
+                colmin, colmax = get_roi_min_max(box, columns)
+                rectangle = Rectangle(
+                    (colmin, idxmin),
+                    colmax - colmin,
+                    idxmax - idxmin,
+                    linewidth=1,
+                    edgecolor=boxes_color[i],
+                    facecolor="none",
+                )
+                ax.add_patch(rectangle)
+            except Exception as e:
+                msg = f"heatmap_boxes failed to add boxes index = {index} ; columns = {columns}"
+                msg += f" and values = {values}. Box is {box}. Error is : {e}"
+                print(msg)
+    return ax
