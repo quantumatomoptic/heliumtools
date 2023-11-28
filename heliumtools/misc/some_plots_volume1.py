@@ -101,7 +101,9 @@ def stability_of_sequence(
     bec_arrival_times = bec_arrival_times.sort_values(by="Cycle").reset_index(drop=True)
     hue = "Sequence"
     if "Date" in bec_arrival_times.columns:
-        bec_arrival_times["Day"] = pd.to_datetime(bec_arrival_times["Date"]).dt.strftime("%A, %d")
+        bec_arrival_times["Day"] = pd.to_datetime(
+            bec_arrival_times["Date"]
+        ).dt.strftime("%A, %d")
         hue = "Day"
     selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
 
@@ -526,7 +528,8 @@ def heatmap_with_boxes(
         xmax = np.max(df[columns])
         ymin = np.min(df[index])
         ymax = np.max(df[index])
-        ax.imshow(data, extent=[xmin, xmax, ymin, ymax], **kwargs)
+        img = ax.imshow(data, extent=[xmin, xmax, ymin, ymax], **kwargs)
+        cbar = plt.colorbar(img, ax=ax)
         ax.set_xlabel(columns)
         ax.set_ylabel(index)
     except Exception as e:
@@ -537,7 +540,7 @@ def heatmap_with_boxes(
         return ax
     if type(boxes) == dict:
         boxes = [boxes]
-    if type[boxes_color] != type([]):
+    if type(boxes_color) != type([1, 2]):
         boxes_color = [boxes_color] * len(boxes)
     for i, box in enumerate(boxes):
         if columns in box.keys() and index in box.keys():
