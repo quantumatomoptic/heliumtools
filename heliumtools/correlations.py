@@ -849,6 +849,7 @@ class Correlation(DataBuilder):
     def save_copy_of_total(self):
         """Save a copy of the total dataframe. Important to do if one does bottstraping."""
         self.total_dataframe_copy = copy.deepcopy(self.total)
+        self.total_dataframe_copy["Original Cycle"] = self.total_dataframe_copy["Cycle"] 
         self.cycles_array_copy = copy.deepcopy(self.cycles_array)
         self.is_there_a_copy_of_total = True
 
@@ -857,20 +858,28 @@ class Correlation(DataBuilder):
         self.cycles_array = copy.deepcopy(self.cycles_array_copy)
 
     def bootstrap_total(self):
+        """bootstrap the dataframe total in an efficient way. See 03/01/24 for details.
+        We get a matrix from the total dataframe and then we bootstrap it as it is MUCH MORE faster than with pandas.
+        """
         if self.is_there_a_copy_of_total is False:
             self.save_copy_of_total()
             print(
                 "[Warning] : I just saved a copy of the total dataframe because you will destruct your original dataframe."
             )
-        new_total = []
-        for n in range(self.n_cycles):
-            cycle = random.choice(self.cycles_array_copy)
-            df = copy.deepcopy(
-                self.total_dataframe_copy[self.total_dataframe_copy["Cycle"] == cycle]
-            )
-            df["Cycle"] = n * np.ones(len(df))
-            new_total.append(df)
-        self.total = pd.concat(new_total)
+        ordata = self.total_dataframe_copy.set_index(["Cycle", self.total_dataframe_copy.groupby("Cycle").cumcount()])
+        # ordata.index.names = ["Cycle", "My_tmp_index"]
+        original_data_array = ordata.values.reshape((self.n_cycles, -1, len(ordata.columns)))
+        _, n_tmp_index, _ = original_data_array.shape
+        new_indices = np.random.randint(0,self.n_cycles,self.n_cycles)
+        NEW = np.zeros_like(original_data_array)
+        NEW[:] = original_data_array[new_indices]
+        self.total = pd.DataFrame(
+        data=NEW.reshape((-1, len(ordata.columns))),
+            columns=list(ordata.columns)
+        )
+        self.total["Cycle"] = np.repeat(self.cycles_array_copy,n_tmp_index )
+        #self.total["My_tmp_index"] = np.tile(np.arange(n_tmp_index), n_cycles)
+
 
     ###########################################################
     ############### FONCTION D'AFFICHAGE  #####################
