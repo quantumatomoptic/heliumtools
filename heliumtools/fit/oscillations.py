@@ -11,7 +11,7 @@ Comments : implements a 1D Gauss fit
 import numpy as np
 
 # -- local
-from heliumtools.fit import Abstract1DFit
+from heliumtools.fit.abstract import Abstract1DFit
 
 
 # %% FUNCTIONS
@@ -102,11 +102,10 @@ class Oscillation1DFit(Abstract1DFit):
             vector = x[1:-1] - x[0:-2] - deltaX
             # We check if datas are equally spaced, we can guess using fft
             if np.max(np.abs(vector)) < 0.0001:
-                print("Entering")
                 ft = np.fft.fft(z)
                 N = len(z)
                 T = N * deltaX
-                argu = np.argmax(np.abs(ft[0 : int(N / 2)]))
+                argu = np.argmax(np.abs(ft[1 : int(N / 2)]))+1
                 freq_guess = argu / T
 
         phase_guess = 0

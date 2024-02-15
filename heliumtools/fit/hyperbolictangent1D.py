@@ -13,7 +13,7 @@ Comments : implements a 1D hypetrangent fit
 import numpy as np
 
 # -- local
-from tools.fit.abstract import Abstract1DFit
+from heliumtools.fit.abstract import Abstract1DFit
 
 
 # %% FUNCTIONS

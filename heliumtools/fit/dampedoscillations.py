@@ -109,7 +109,7 @@ class DampedOscillation1DFit(Abstract1DFit):
                 ft = np.fft.fft(z)
                 N = len(z)
                 T = N * deltaX
-                argu = np.argmax(np.abs(ft[0 : int(N / 2)]))
+                argu = np.argmax(np.abs(ft[1 : int(N / 2)]))+1
                 freq_guess = argu / T
         phase_guess = 0
         tau_guess = xmax - xmin
