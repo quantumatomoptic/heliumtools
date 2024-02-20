@@ -43,10 +43,9 @@ class Dataset:
             path to the dataset folder. It might not be the sequence directory.
         """
         self.name = name
-        self.my_variable = 1
         self.sequences = []
         self.ROI = {"T": [312, 328], "X": [-30, 0], "Y": [-15, 15]}
-        self.find_arrival_times = False
+
         self.ROD = {}
         self.metadata_to_gather = ["picoscope", "bec", "param"]
         self.supplementary_rois = []
@@ -57,6 +56,7 @@ class Dataset:
             "X": [-30, 0],
             "Y": [-15, 15],
         }
+        self.fit_arrival_times = False
         self.fit_histogram_width = 0.01
         self.fit_width_saturation = 0  # saturation for the fit of the BEC
         self._check_dataset_location()
@@ -69,12 +69,15 @@ class Dataset:
 
     def remove(self, *args):
         for arg in args:
-            if arg in self.__dict__ and (arg != "sequences"):
+            if arg in self.__dict__ and (arg not in ["sequences", "name"]):
+                if arg == "filters":
+                    self.filters = {}
                 self.__dict__.pop(arg)
+        self.save_parameters()
 
     def add_filter(self, key, val):
-        if key not in self.filters:
-            self.filters[key] = val
+        self.filters[key] = val
+        self.save_parameters()
 
     def load_parameters(self):
         """method that load the properties of the dataset store in the yaml file."""
@@ -147,9 +150,7 @@ class Dataset:
             except Exception:
                 print(msg + ": output failed.")
 
-    def add_sequence_to_dataset(
-        self, seq_dir, find_arrival_time=False, force_update=False
-    ) -> None:
+    def add_sequence_to_dataset(self, seq_dir, force_update=False) -> None:
         """function that add a sequence to the dataset
 
         Parameters
@@ -177,7 +178,7 @@ class Dataset:
             folder=seq_dir,
             ROI=self.ROI,
             ROD=self.ROD,
-            find_arrival_times=find_arrival_time,
+            find_arrival_times=self.fit_arrival_times,
             n_max_cycles=1e8,
             histogramm_width=self.fit_histogram_width,
             ROI_for_fit=self.fit_roi,
@@ -188,14 +189,11 @@ class Dataset:
         new_atoms = pd.read_pickle(os.path.join(seq_dir, "dataset.pkl"))
         old_atoms = self.load_data()
         self._save_data(pd.concat([old_atoms, new_atoms]))
-        new_metadata = pd.read_pickle(os.path.join(seq_dir, "parameters.pkl"))
         if bec_arr:
-            new_metadata = pd.merge(
-                new_metadata,
-                pd.read_pickle(os.path.join(seq_dir, "arrival_time.pkl")),
-                on="Cycle",
-                how="left",
-            )
+            new_metadata = pd.read_pickle(os.path.join(seq_dir, "arrival_times.pkl"))
+        else:
+            new_metadata = pd.read_pickle(os.path.join(seq_dir, "parameters.pkl"))
+
         old_meta = self.load_metadata()
         self._save_metadata(pd.concat([old_meta, new_metadata]))
         self.sequences.append(seq_dir)

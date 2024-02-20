@@ -108,6 +108,8 @@ def stability_of_sequence(
     selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
 
     for i, column in enumerate(columns_to_plot):
+        if column not in bec_arrival_times.columns:
+            continue
         ax = axes.flatten()[i]
         sns.lineplot(
             data=bec_arrival_times,
