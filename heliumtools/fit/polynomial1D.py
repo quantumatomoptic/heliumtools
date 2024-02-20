@@ -13,7 +13,7 @@ Comments : implements a 1D linear fit
 import numpy as np
 
 # -- local
-from tools.fit.abstract import Abstract1DFit
+from heliumtools.fit.abstract import Abstract1DFit
 
 
 # %% POLYNOMIAL FIT GENERATOR

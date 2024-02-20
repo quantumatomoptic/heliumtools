@@ -13,7 +13,7 @@ Comments : implements a 2D Thomas Fermi fit
 import numpy as np
 
 # -- local
-from tools.fit.abstract import Abstract2DBellShaped
+from heliumtools.fit.abstract import Abstract2DBellShaped
 
 
 # %% FUNCTIONS

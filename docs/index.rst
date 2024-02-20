@@ -9,6 +9,7 @@ Welcome to heliumtools's documentation!
    installation
    usage
    modules
+   dataset
    contributing
    authors
    history

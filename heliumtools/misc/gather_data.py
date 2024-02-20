@@ -36,9 +36,7 @@ log = logger.getLogger(__name__)
 
 
 def gaussian_function(x, mean, amplitude, standard_deviation, offset):
-    return offset + amplitude * np.exp(
-        -((x - mean) ** 2) / (2 * standard_deviation**2)
-    )
+    return offset + amplitude * np.exp(-((x - mean) ** 2) / (2 * standard_deviation**2))
 
 
 def apply_roi(df, roi):
@@ -600,7 +598,7 @@ def export_data_set_to_pickle(
         seq_par = load_metadata(cycle_prefix, "parameters")
 
         for meta in metadata:
-            seq_par.update(load_metadata(cycle_prefix, meta))
+            seq_par.update(load_metadata(cycle_prefix, meta, show_error=False))
         seq_par["Sequence"] = seq
         seq_par["Cycle"] = cycle
         seq_par["Cycle time"] = get_creation_time(filename)
@@ -608,6 +606,12 @@ def export_data_set_to_pickle(
         seq_par["Date"] = datetime.fromtimestamp(
             get_creation_time(filename), tz=paris_timezone
         )
+        # add ROI nuumber of atoms and so on
+        seq_par["Number of Atoms in ROI"] = len(atoms_in_ROI)
+        seq_par["dT of atoms in ROI"] = np.std(atoms_in_ROI["T"])
+        for i, roi in enumerate(supplementary_rois):
+            at = apply_ROI(raw_data, roi)
+            seq_par[f"Number of Atoms in supplementary ROI{i}"] = len(at)
         new_df = pd.DataFrame(seq_par, index=[i])
         df_parameters = pd.concat([df_parameters, new_df])
 
@@ -622,29 +626,23 @@ def export_data_set_to_pickle(
                 width_saturation=width_saturation,
             )
             arrival["Cycle"] = cycle
-            arrival["Number of Atoms in ROI"] = len(atoms_in_ROI)
-            arrival["dT of atoms in ROI"] = np.std(atoms_in_ROI["T"])
-            for i, roi in enumerate(supplementary_rois):
-                at = apply_ROI(raw_data, roi)
-                arrival[f"Number of Atoms in supplementary ROI{i}"] = len(at)
-
             df_arrival_times = pd.concat(
                 [df_arrival_times, pd.DataFrame(arrival, index=[i])]
             )
-
     filename_dataset = os.path.join(folder, "dataset.pkl")
     df_atoms.to_pickle(filename_dataset)
     filename_parameters = os.path.join(folder, "parameters.pkl")
     df_parameters.to_pickle(filename_parameters)
     if find_arrival_times:
-        filename = os.path.join(folder, "arrival_times.pkl")
+        filename_arrival_time = os.path.join(folder, "arrival_times.pkl")
         df_arrival_times = df_arrival_times.merge(df_parameters, on="Cycle")
-        df_arrival_times.to_pickle(filename)
+        df_arrival_times.to_pickle(filename_arrival_time)
+        return [filename_dataset, filename_parameters, filename_arrival_time]
 
-    return filename_dataset
+    return [filename_dataset, filename_parameters, None]
 
 
-def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame():
+def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame:
     """Export all metadatas of a folder to a pickle file. Return a dataframe with
     all metadatas in the metadata_list.
 
@@ -772,7 +770,7 @@ def gather_saved_sequence_parameters(folder):
     return dataframe
 
 
-def load_metadata(cycle_prefix, metadata):
+def load_metadata(cycle_prefix, metadata, show_error=True):
     """load the metadata dictionary associated to the cycle prefix.
 
     Parameters
@@ -789,34 +787,44 @@ def load_metadata(cycle_prefix, metadata):
         dictionary with associated metadatas
     """
     if metadata.lower() in ".json parameters params":
-        return load_hal_type_metadata(cycle_prefix + ".json")
+        return load_hal_type_metadata(cycle_prefix + ".json", show_error=show_error)
     if metadata.lower() in ".picoscope_treated":
-        return load_hal_type_metadata(cycle_prefix + ".picoscope_treated")
+        return load_hal_type_metadata(
+            cycle_prefix + ".picoscope_treated", show_error=show_error
+        )
+    if metadata.lower() in ".picoscope_treated2 arrival time bec arrival time":
+        return load_hal_type_metadata(
+            cycle_prefix + ".picoscope2000_treated", show_error=show_error
+        )
     if metadata.lower() in "HAL fits camera .HAL_fits":
-        log.warning("HAL metadata type HAL fit is not yet implemented.")
         directory, file_name = os.path.split(cycle_prefix)
         file_name = file_name + ".json"
-        file_name = os.path.join(directory, ".HAL_fits", file_name)
-        return load_hal_type_metadata(file_name)
+        file_name = os.path.join(
+            directory, ".HAL_fits", file_name, show_error=show_error
+        )
+        return load_hal_type_metadata(file_name, show_error=show_error)
     if metadata.lower() in "all parameters every parameters":
-        return load_dictionary_metadata(cycle_prefix + ".sequence_parameters")
+        return load_dictionary_metadata(
+            cycle_prefix + ".sequence_parameters", show_error=show_error
+        )
     if metadata.lower() in ".mcp stats .mcp_stats":
         directory, file_name = os.path.split(cycle_prefix)
         file_name = file_name + ".json"
         file_name = os.path.join(directory, ".MCPstats", file_name)
-        return load_hal_type_metadata(file_name)
+        return load_hal_type_metadata(file_name, show_error=show_error)
     return {}
 
 
 import os
 
 
-def load_hal_type_metadata(file) -> dict:
+def load_hal_type_metadata(file, show_error=True) -> dict:
     """Load HAL type of metadat i.e. a list of dictionary with
     entries name, value, unit, error etc...
 
     Args:
-        file (str or pathli.Path): path to the metadata file
+        file (str or pathlib.Path): path to the metadata file
+        show_error (boolean): if we show the log
 
     Returns:
         dict: dictionary containing all HAL metadata of the file.
@@ -838,7 +846,8 @@ def load_hal_type_metadata(file) -> dict:
         msg += " \n     from load_hal_type_metadata \n "
         msg += f"Loading HAL type file {file} failed. Are you sure "
         msg += f"the file you want to load is a HAL file ? Error is {e}."
-        log.error(msg)
+        if show_error:
+            log.error(msg)
         return {}
 
 

@@ -5,6 +5,7 @@ import logging
 def configure_logger():
     logger = colorlog.getLogger()
     logger.setLevel(logging.INFO)
+    
 
     formatter = colorlog.ColoredFormatter(
         "%(log_color)s%(levelname)s:%(message)s%(reset)s",

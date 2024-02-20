@@ -1,17 +1,5 @@
-#!/usr/bin/env python
-# -*- mode:Python; coding: utf-8 -*-
-
-"""
-@Author: victor
-@Date:   14 February 2022 @ 22:58
-@Last modified by:   victor
-@Last modified time: 11 March 2022 @ 15:04
-
-Comment :
-"""
-
-
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
+# -*- mode: Python; coding: utf-8 -*-
 """
 Author   : alex
 Created  : 2020-10-13 17:25:42
