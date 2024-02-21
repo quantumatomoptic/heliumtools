@@ -398,6 +398,27 @@ class CorrelationHe2Style(DataBuilder):
                     self.result[X + " squared"] - self.result[X + " mean"] ** 2
                 )
 
+    def get_g2(self, axis, ROI):
+        data = self.result.copy()
+        data = apply_ROI(data, ROI)
+        if "G2AA std" in data.columns:
+            for G2 in ["G2AA", "G2BB", "G2AB"]:
+                data[G2 + " mean squared"] = data[G2 + " mean"] ** 2
+                data[G2 + " variance"] = data[G2 + " std"] ** 2
+        data = data.groupby(axis).sum().reset_index()
+        data_err = data.groupby(axis).mean().reset_index()
+        for G2, g2 in zip(["G2AA", "G2BB", "G2AB"], ["g2 aa", "g2 bb", "g2 ab"]):
+            data[g2] = data[G2] / data[G2 + " denominator"]
+            if G2 + " std" in data.columns:
+                data[g2 + " error"] = (
+                    np.sqrt(data_err[G2 + " squared"] - data_err[G2 + " mean squared"])
+                    / data[G2 + " denominator"]
+                )
+                data[g2 + " error bis"] = (
+                    np.sqrt(data_err[G2 + " variance"]) / data[G2 + " denominator"]
+                )
+        return data
+
     ################################################
     ## VISUALISATION FUNCTIONS CALLED BY THE USER ##
     ################################################
