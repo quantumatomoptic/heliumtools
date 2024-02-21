@@ -533,6 +533,38 @@ def obtain_arrival_times(atom_files, **kwargs):
     return df_arrival_time
 
 
+def get_sequence_id_from_seq_dir(seq_dir: str) -> str:
+    """returns the sequence id string from the sequence directory folder
+
+    Parameters
+    ----------
+    seq_dir : str
+        sequence directory string
+
+    Returns
+    -------
+    str
+        sequence id string
+    """
+    try:
+        seq_dir = str(seq_dir)
+        seq_id = seq_dir.replace("/", "-").replace("\\", "-")
+        match = re.search(r"\b\d{4}-\d{2}-\d{2}-\d{3}\b", seq_id)
+
+        # Vérification si une correspondance a été trouvée
+        if match:
+            seq_id = match.group(0)
+            return seq_id
+        else:
+            msg = f"The sequence ID was not recognized from {seq_id}"
+            log.error(msg)
+            return seq_dir
+    except:
+        msg = f"The sequence ID was not recognized from {seq_dir}"
+        log.warning(msg)
+        return seq_dir
+
+
 def export_data_set_to_pickle(
     folder,
     ROI,
@@ -656,7 +688,7 @@ def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame:
     Returns
     -------
     pdDataFrame
-        _description_
+        dataframe containg all metadatas from the metadata_list
     """
     all_cycles = glob.glob(os.path.join(folder, "*.sequence_parameters"))
     df = pd.DataFrame()
@@ -675,6 +707,8 @@ def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame:
         )
         new_df = pd.DataFrame(seq_par, index=[i])
         df = pd.concat([df, new_df])
+    seq_id = get_sequence_id_from_seq_dir(folder)
+    df["Sequence ID"] = seq_id
     df = df.reset_index(drop=True)
     df.to_pickle(os.path.join(folder, "metadata.pkl"))
     return df

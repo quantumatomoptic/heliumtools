@@ -43,9 +43,9 @@ class Dataset:
         """
         self.name = name
         self.sequences = []
-        self.ROI = {"T": [312, 328], "X": [-30, 0], "Y": [-15, 15]}
+        self.raw_ROI = {"T": [312, 328], "X": [-30, 0], "Y": [-15, 15]}
 
-        self.ROD = {}
+        self.raw_ROD = {}
         self.metadata_to_gather = ["picoscope", "bec", "param"]
         self.supplementary_rois = []
         self.filters = {}
@@ -66,13 +66,16 @@ class Dataset:
         self.__dict__.update(**kwargs)
         self.save_parameters()
 
-    def remove(self, *args):
+    def remove(self, *args) -> None:
+        """remove an element from the parameters"""
+        self.save_parameters()
         for arg in args:
             if arg in self.__dict__ and (arg not in ["sequences", "name"]):
                 if arg == "filters":
                     self.filters = {}
+
                 self.__dict__.pop(arg)
-        self.save_parameters()
+        self.save_parameters(load_file_before_dump=False)
 
     def add_filter(self, key, val):
         self.filters[key] = val
@@ -114,9 +117,33 @@ class Dataset:
         log.info(msg)
         log.info("The saved sequences are the following : {}".format(self.sequences))
 
-    def save_parameters(self) -> None:
-        """save parameters to the propertie.yml file."""
+    def save_parameters(self, load_file_before_dump=True) -> None:
+        """Save the parameters of the class into the properties.yml file.
+        This method makes sure that a parameter was not manually added or that an other
+        file added a parameter. This can be ingored using the load_file_before_dump
+        argument.
+
+        Parameters
+        ----------
+        load_file_before_dump : bool, optional
+            if we check the file before saving, by default True
+        """
         file_path = os.path.join(self.name, "properties.yml")
+        if load_file_before_dump:
+            try:
+                with open(file_path, "r") as file:
+                    data = yaml.safe_load(file)
+                for key, val in data.items():
+                    if key not in self.__dict__.keys():
+                        self.__dict__[key] = val
+                        log.info(
+                            f"{key} was in the configuration file and not in your dataset properties. Adding it."
+                        )
+            except:
+                msg = "Loading the previsou properties file "
+                msg += "to check variables before write failed."
+                msg += f"I will overwrite the file anyway.Error is {e}"
+                log.warn(msg)
         try:
             with open(file_path, "w") as file:
                 yaml.dump(self.__dict__, file, default_flow_style=False)
@@ -149,7 +176,20 @@ class Dataset:
             except Exception:
                 print(msg + ": output failed.")
 
-    def get_sequence_id_from_seq_dir(self, seq_dir):
+    def get_sequence_id_from_seq_dir(self, seq_dir: str) -> str:
+        """returns the sequence id string from the sequence
+
+        Parameters
+        ----------
+        seq_dir : str
+            sequence directory string
+
+        Returns
+        -------
+        str
+            _description_
+        """
+        seq_dir = str(seq_dir)
         seq_id = seq_dir.replace("/", "-").replace("\\", "-")
         match = re.search(r"\b\d{4}-\d{2}-\d{2}-\d{3}\b", seq_id)
 
@@ -186,7 +226,7 @@ class Dataset:
             log.error(msg)
             return
         if seq_id in self.sequences:
-            msg = f"Sequence {seq_dir} is already in the database. "
+            msg = f"Sequence {seq_dir} is already in the database (registered under {seq_id})."
             if not force_update:
                 log.warning(msg)
                 return
@@ -198,8 +238,8 @@ class Dataset:
 
         [atoms, params, bec_arr] = export_data_set_to_pickle(
             folder=seq_dir,
-            ROI=self.ROI,
-            ROD=self.ROD,
+            ROI=self.raw_ROI,
+            ROD=self.raw_ROD,
             find_arrival_times=self.fit_arrival_times,
             n_max_cycles=1e8,
             histogramm_width=self.fit_histogram_width,
@@ -218,7 +258,7 @@ class Dataset:
 
         old_meta = self.load_metadata()
         self._save_metadata(pd.concat([old_meta, new_metadata]))
-        self.sequences.append(seq_dir)
+        self.sequences.append(seq_id)
         self.save_parameters()
         log.info(f"Sequence {seq_dir} was succesfully added to the dataset.")
         #     return
