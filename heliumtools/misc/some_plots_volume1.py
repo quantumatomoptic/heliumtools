@@ -366,7 +366,9 @@ def show_2D_density_XY_with_fit(corr):
     plt.show()
 
 
-def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]):
+def oneD_density_fitted_plot(
+    corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30], mode_volume=1 * 10 * 10
+):
     """Trace la densité 1D des paires selon z.
 
     Parameters
@@ -378,11 +380,14 @@ def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]
         vitesse maximale pour le fit de la position de la paire, by default 35
     vperp_list : list, optional
         liste des vitesses transverses pour l'affichage, by default [10, 20, 30]
-
+    mode_volume : volume of a mode in (mm/s)^3
     Returns
     -------
     rien
     """
+    miniVz = 18
+    maxiVz = 35
+
     peak1 = [-maxiVz, -miniVz]
     peak2 = [miniVz, maxiVz]
     boxZsize = corr.boxes["1"]["Vz"]["size"]
@@ -397,31 +402,36 @@ def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]
     )
     fig, ax = plt.subplots(figsize=(4.3, 3.9), dpi=110)
     for i, vperp_max in enumerate(vperp_list):
+        box_volume = vperp_max * vperp_max * np.pi * boxZsize / mode_volume
         my_box = {"Vperp": {"minimum": -1, "maximum": vperp_max}}
         atoms = corr.get_atoms_in_box(corr.atoms, my_box)
         hist, bins = np.histogram(atoms["Vz"], bins=np.arange(-40, 40, boxZsize))
         x = (bins[0:-1] + bins[1:]) / 2
-        plt.scatter(
+        ax.scatter(
             x,
-            hist / corr.n_cycles,
+            hist / corr.n_cycles / box_volume,
             alpha=0.3,
             label=r"$\Delta V_z={:.1f}, \, \Delta V_\perp={:.0f}$ mm/s ".format(
                 boxZsize, vperp_max
             ),
         )
+        if i == 0:
+            lim_x = ax.get_xlim()
+            lim_y = ax.get_ylim()
 
         ###### Fits de la paire 1
         try:
             hist1, bins1 = np.histogram(
                 atoms["Vz"], bins=np.arange(peak1[0], peak1[1], boxZsize)
             )
-            hist1 = hist1 / corr.n_cycles
+            hist1 = hist1 / corr.n_cycles / box_volume
             bin_centers1 = np.array(bins1[:-1] + np.diff(bins1) / 2)
             max_index = np.argmax(hist1)
             p0 = [
                 bin_centers1[max_index],
                 np.max(hist1),
-                np.mean(hist1 * (bin_centers1 - bin_centers1[max_index])),
+                np.mean(hist1 * (bin_centers1 - bin_centers1[max_index]) ** 2)
+                / np.mean(hist1),
             ]
             popt, pcov_paire_1 = curve_fit(gaussian, bin_centers1, hist1, p0=p0)
             fit_absc = np.linspace(np.min(bin_centers1), np.max(bin_centers1), 50)
@@ -436,13 +446,12 @@ def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]
             )
         except Exception as exc:
             print(f"failed to fit pair 1. Error is {exc}")
-
         ###### Fits de la paire 2
         try:
             hist1, bins1 = np.histogram(
                 atoms["Vz"], bins=np.arange(peak2[0], peak2[1], boxZsize)
             )
-            hist1 = hist1 / corr.n_cycles
+            hist1 = hist1 / corr.n_cycles / box_volume
             bin_centers1 = np.array(bins1[:-1] + np.diff(bins1) / 2)
             max_index = np.argmax(hist1)
             # p0 = mean, amplitude, standard_deviation
@@ -450,7 +459,8 @@ def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]
             p0 = [
                 bin_centers1[max_index],
                 np.max(hist1),
-                np.mean(hist1 * (bin_centers1 - bin_centers1[max_index]) ** 2),
+                np.mean(hist1 * (bin_centers1 - bin_centers1[max_index]) ** 2)
+                / np.mean(hist1),
             ]
             popt, pcov_paire_1 = curve_fit(
                 gaussian, bin_centers1, hist1, p0=p0, maxfev=5000
@@ -478,13 +488,14 @@ def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]
         fontsize="medium",
     )
 
-    plt.ylabel("Mean number of atoms")
+    plt.ylabel("Atomic density per mode")
     plt.grid(True)
     plt.xlabel("Velocity along z (mm/s)")
     plt.legend(
         framealpha=0.4,
         fontsize="7",
     )
+    print("The volume of a mode is ", mode_volume, "(mm/s)^3")
     # plt.savefig("densite_selon_z.png")
     plt.show()
 
