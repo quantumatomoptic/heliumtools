@@ -18,8 +18,7 @@ Please document your code ;-).
 
 """
 
-import os
-import logging
+import os, logging, re
 from heliumtools.misc.gather_data import export_data_set_to_pickle
 import pandas as pd
 from heliumtools.misc.logger import getLogger
@@ -150,6 +149,19 @@ class Dataset:
             except Exception:
                 print(msg + ": output failed.")
 
+    def get_sequence_id_from_seq_dir(self, seq_dir):
+        seq_id = seq_dir.replace("/", "-").replace("\\", "-")
+        match = re.search(r"\b\d{4}-\d{2}-\d{2}-\d{3}\b", seq_id)
+
+        # Vérification si une correspondance a été trouvée
+        if match:
+            seq_id = match.group(0)
+        else:
+            msg = f"The sequence ID was not recognized from {seq_id}"
+            log.error(msg)
+            return None
+        return seq_id
+
     def add_sequence_to_dataset(self, seq_dir, force_update=False) -> None:
         """function that add a sequence to the dataset
 
@@ -162,8 +174,18 @@ class Dataset:
         force_update : bool, optionnal
             if the sequence is already in the database, force to update
         """
+
         seq_dir = str(seq_dir)
-        if seq_dir in self.sequences:
+        seq_id = self.get_sequence_id_from_seq_dir(seq_dir)
+        if not seq_id:
+            msg = f"Sequence {seq_dir} was not added to the database"
+            log.warning(msg)
+            return
+        if not os.path.exists(seq_dir):
+            msg = f"The sequence directory {seq_dir} does not exists"
+            log.error(msg)
+            return
+        if seq_id in self.sequences:
             msg = f"Sequence {seq_dir} is already in the database. "
             if not force_update:
                 log.warning(msg)
