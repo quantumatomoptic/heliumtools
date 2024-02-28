@@ -93,9 +93,9 @@ class Dataset:
                 self.__dict__.update(data)
         except FileNotFoundError:
             log.info(
-                "The file parameter do not exist. Creating it with default parameters."
+                "The file parameter does not exist. Creating it with default parameters."
             )
-            self.save_parameters()
+            self.save_parameters(load_file_before_dump=False)
         except Exception as e:
             msg = "An error occured while loading the properties.yml file. Please take a look at it. \n "
             msg += f"[ERROR] --> {e}"
@@ -139,8 +139,8 @@ class Dataset:
                         log.info(
                             f"{key} was in the configuration file and not in your dataset properties. Adding it."
                         )
-            except:
-                msg = "Loading the previsou properties file "
+            except Exception as e:
+                msg = "Loading the previous properties file "
                 msg += "to check variables before write failed."
                 msg += f"I will overwrite the file anyway.Error is {e}"
                 log.warn(msg)

@@ -133,19 +133,22 @@ class Correlation(DataBuilder):
         ----------
         df : dataframe avec les même colonnes dont les atomes sont tous dans la box.
         """
-        for key, value in box.items():
-            # Rappel : key est par ex "Vx" ; value est {"size":10, "position":0}
-            if "range" in value:
-                minimum = np.min(value["range"])
-                maximum = np.max(value["range"])
-            elif "position" in value and "size" in value:
-                minimum = value["position"] - np.abs(value["size"]) / 2
-                maximum = value["position"] + np.abs(value["size"]) / 2
-            elif "minimum" in value and "maximum" in value:
-                minimum = value["minimum"]
-                maximum = value["maximum"]
-            df = df[((df[key] >= minimum) & (df[key] < maximum))]
+        df = apply_ROI(df, box)
         return df
+        # for key, value in box.items():
+        #     # Rappel : key est par ex "Vx" ; value est {"size":10, "position":0}
+        #     if "range" in value:
+        #         minimum = np.min(value["range"])
+        #         maximum = np.max(value["range"])
+        #     elif "position" in value and "size" in value:
+        #         minimum = value["position"] - np.abs(value["size"]) / 2
+        #         maximum = value["position"] + np.abs(value["size"]) / 2
+        #     elif "minimum" in value and "maximum" in value:
+        #         minimum = value["minimum"]
+        #         maximum = value["maximum"]
+        #     df = df[((df[key] >= minimum) & (df[key] < maximum))]
+
+        # return df
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """
@@ -286,9 +289,9 @@ class Correlation(DataBuilder):
         result_var_list = []
         for i in range(self.var1.n_step):
             # We must set the new value for the box which is scanned :
-            self.boxes[self.var1.box][self.var1.axe][
-                self.var1.type
-            ] = self.var1.get_value_i(i)
+            self.boxes[self.var1.box][self.var1.axe][self.var1.type] = (
+                self.var1.get_value_i(i)
+            )
             df = self.counts_atoms_in_boxes_one_variable(
                 self.atoms,
                 self.var2,
@@ -849,7 +852,7 @@ class Correlation(DataBuilder):
     def save_copy_of_total(self):
         """Save a copy of the total dataframe. Important to do if one does bottstraping."""
         self.total_dataframe_copy = copy.deepcopy(self.total)
-        self.total_dataframe_copy["Original Cycle"] = self.total_dataframe_copy["Cycle"] 
+        self.total_dataframe_copy["Original Cycle"] = self.total_dataframe_copy["Cycle"]
         self.cycles_array_copy = copy.deepcopy(self.cycles_array)
         self.is_there_a_copy_of_total = True
 
@@ -866,20 +869,22 @@ class Correlation(DataBuilder):
             print(
                 "[Warning] : I just saved a copy of the total dataframe because you will destruct your original dataframe."
             )
-        ordata = self.total_dataframe_copy.set_index(["Cycle", self.total_dataframe_copy.groupby("Cycle").cumcount()])
+        ordata = self.total_dataframe_copy.set_index(
+            ["Cycle", self.total_dataframe_copy.groupby("Cycle").cumcount()]
+        )
         # ordata.index.names = ["Cycle", "My_tmp_index"]
-        original_data_array = ordata.values.reshape((self.n_cycles, -1, len(ordata.columns)))
+        original_data_array = ordata.values.reshape(
+            (self.n_cycles, -1, len(ordata.columns))
+        )
         _, n_tmp_index, _ = original_data_array.shape
-        new_indices = np.random.randint(0,self.n_cycles,self.n_cycles)
+        new_indices = np.random.randint(0, self.n_cycles, self.n_cycles)
         NEW = np.zeros_like(original_data_array)
         NEW[:] = original_data_array[new_indices]
         self.total = pd.DataFrame(
-        data=NEW.reshape((-1, len(ordata.columns))),
-            columns=list(ordata.columns)
+            data=NEW.reshape((-1, len(ordata.columns))), columns=list(ordata.columns)
         )
-        self.total["Cycle"] = np.repeat(self.cycles_array_copy,n_tmp_index )
-        #self.total["My_tmp_index"] = np.tile(np.arange(n_tmp_index), n_cycles)
-
+        self.total["Cycle"] = np.repeat(self.cycles_array_copy, n_tmp_index)
+        # self.total["My_tmp_index"] = np.tile(np.arange(n_tmp_index), n_cycles)
 
     ###########################################################
     ############### FONCTION D'AFFICHAGE  #####################
