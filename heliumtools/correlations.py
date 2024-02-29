@@ -789,36 +789,39 @@ class Correlation(DataBuilder):
         # ---------------
         # On exprime les densités avec des unités
         # ---------------
-        self.result["N_1 (at/(mm/s)^3)"] = self.result["N_1"] / (
-            self.boxes["1"]["Vx"]["size"]
-            * self.boxes["1"]["Vy"]["size"]
-            * self.boxes["1"]["Vz"]["size"]
-        )
-        self.result["N_2 (at/(mm/s)^3)"] = self.result["N_2"] / (
-            self.boxes["2"]["Vx"]["size"]
-            * self.boxes["2"]["Vy"]["size"]
-            * self.boxes["2"]["Vz"]["size"]
-        )
-        self.result["N_1 (at/(mm/s)^3) std"] = self.result["N_1 std"] / (
-            self.boxes["1"]["Vx"]["size"]
-            * self.boxes["1"]["Vy"]["size"]
-            * self.boxes["1"]["Vz"]["size"]
-        )
-        self.result["N_2 (at/(mm/s)^3) std"] = self.result["N_2 std"] / (
-            self.boxes["2"]["Vx"]["size"]
-            * self.boxes["2"]["Vy"]["size"]
-            * self.boxes["2"]["Vz"]["size"]
-        )
-        self.result["N_1 (at/(mm/s)^3) error"] = self.result["N_1 error"] / (
-            self.boxes["1"]["Vx"]["size"]
-            * self.boxes["1"]["Vy"]["size"]
-            * self.boxes["1"]["Vz"]["size"]
-        )
-        self.result["N_2 (at/(mm/s)^3) error"] = self.result["N_2 error"] / (
-            self.boxes["2"]["Vx"]["size"]
-            * self.boxes["2"]["Vy"]["size"]
-            * self.boxes["2"]["Vz"]["size"]
-        )
+        try:
+            self.result["N_1 (at/(mm/s)^3)"] = self.result["N_1"] / (
+                self.boxes["1"]["Vx"]["size"]
+                * self.boxes["1"]["Vy"]["size"]
+                * self.boxes["1"]["Vz"]["size"]
+            )
+            self.result["N_2 (at/(mm/s)^3)"] = self.result["N_2"] / (
+                self.boxes["2"]["Vx"]["size"]
+                * self.boxes["2"]["Vy"]["size"]
+                * self.boxes["2"]["Vz"]["size"]
+            )
+            self.result["N_1 (at/(mm/s)^3) std"] = self.result["N_1 std"] / (
+                self.boxes["1"]["Vx"]["size"]
+                * self.boxes["1"]["Vy"]["size"]
+                * self.boxes["1"]["Vz"]["size"]
+            )
+            self.result["N_2 (at/(mm/s)^3) std"] = self.result["N_2 std"] / (
+                self.boxes["2"]["Vx"]["size"]
+                * self.boxes["2"]["Vy"]["size"]
+                * self.boxes["2"]["Vz"]["size"]
+            )
+            self.result["N_1 (at/(mm/s)^3) error"] = self.result["N_1 error"] / (
+                self.boxes["1"]["Vx"]["size"]
+                * self.boxes["1"]["Vy"]["size"]
+                * self.boxes["1"]["Vz"]["size"]
+            )
+            self.result["N_2 (at/(mm/s)^3) error"] = self.result["N_2 error"] / (
+                self.boxes["2"]["Vx"]["size"]
+                * self.boxes["2"]["Vy"]["size"]
+                * self.boxes["2"]["Vz"]["size"]
+            )
+        except KeyError:
+            pass
         # ---------------
         # On rajoute la différence et la moyenne des var1 et var2
         # ---------------
