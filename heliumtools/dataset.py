@@ -203,7 +203,27 @@ class Dataset:
         return seq_id
 
     def add_sequence_to_dataset(self, seq_dir, force_update=False) -> None:
-        """function that add a sequence to the dataset
+        """function that add a sequence to the dataset. It uses the export_data_set_to_pickle function defined in heliumtools.
+        Hence the class parameters that are relevant. The class parameter that are given to this function are :
+        folder: path
+            Path to the folder containing all the .atoms files.
+        ROI: dictionary
+            Region of Interest: we will only select atoms within this ROI. It can be empty, and in that case, we keep all atoms (and not none). Example: {"T": {"min": 300, "max": 350}}. The format of this dictionary must match the official format of an ROI (see the apply_ROI function for more details).
+        ROD: dictionary
+            Region of Disinterest: we exclude all atoms within this region. WARNING: this function currently acts axis by axis.
+        find_arrival_times: boolean
+            If True, fit the arrival time of the BEC. If False, do not perform the fit.
+        n_max_cycles: int
+            Maximum number of cycles to select. Not often useful.
+        histogram_width: float,
+            In ms, width of the bins in the histogram for fitting according to T and .times.
+        width_saturation: float,
+            Saturation width during which there is no signal due to TDC saturation. Histogram points between tmax, the time at which the signal is maximal, and tmax + dt are removed and not considered in the fit.
+        supplementary_rois: list of ROIs
+            Additional ROIs in which we want to count atoms (to apply filters during sequence analysis, for example). Data from these ROIs will be added to the datafbec arrival_times.
+        metadata: list of string
+            List of metadata to load with the sequence parameters.
+
 
         Parameters
         ----------

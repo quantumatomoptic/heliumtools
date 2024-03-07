@@ -1116,7 +1116,19 @@ class Correlation(DataBuilder):
         plt.show()
 
     def get_joint_atoms_distribution_in_two_boxes(
-        self, nbMax, nbPt, posZ1, posZ2, sizeZ, posX, sizeX, posY, sizeY, show=True
+        self,
+        nbMax,
+        nbPt,
+        posZ1,
+        posZ2,
+        sizeZ,
+        posX,
+        sizeX,
+        posY,
+        sizeY,
+        show=True,
+        sizeZ1=None,
+        sizeZ2=None,
     ):
         """
         Permet de tracer la distribution jointe moyenne du nombre d'atomes sur tous les cycles, dans deux boîtes données.
@@ -1132,18 +1144,34 @@ class Correlation(DataBuilder):
         show = est ce que on montre la 2D map
         """
         n_cycles = self.n_cycles
+        if sizeZ1 == sizeZ2:
+            if type(sizeZ1) == type(None):
+                sizeZ1 = sizeZ
+                sizeZ2 = sizeZ
 
         # fonction auxiliaire pour construire les boîtes
-        def return_boxes(i, posZ1, posZ2, posX, posY, sizeZ, sizeX, sizeY):
+        def return_boxes(
+            i,
+            posZ1,
+            posZ2,
+            posX,
+            posY,
+            sizeZ,
+            sizeX,
+            sizeY,
+            sizeZ1=sizeZ1,
+            sizeZ2=sizeZ2,
+        ):
+
             assert nbPt % 2 == 1
             if i == 0:
                 box1_proba = {
-                    "Vz": {"position": posZ1, "size": sizeZ},
+                    "Vz": {"position": posZ1, "size": sizeZ1},
                     "Vy": {"position": posY, "size": sizeY},
                     "Vx": {"position": posX, "size": sizeX},
                 }
                 box2_proba = {
-                    "Vz": {"position": posZ2, "size": sizeZ},
+                    "Vz": {"position": posZ2, "size": sizeZ1},
                     "Vy": {"position": posY, "size": sizeY},
                     "Vx": {"position": posX, "size": sizeX},
                 }
