@@ -250,6 +250,7 @@ class Correlation(DataBuilder):
                 self.atoms, self.boxes["2"], column_name="N_2"
             )
             total_atoms = self.merge_dataframe_on_cycles(atoms_box1, atoms_box2)
+            self.total = total_atoms
             corr_names = self.quantity_of_interest()
             corr_values = self.quantity_of_interest(total_atoms)
             self.result = pd.DataFrame([corr_values], columns=corr_names)
