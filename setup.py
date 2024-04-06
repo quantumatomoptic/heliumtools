@@ -29,6 +29,7 @@ requirements = [
     "scipy",
     "colorlog",
     "flatten-dict",
+    "torch",
 ]
 
 test_requirements = []
