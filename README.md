@@ -27,8 +27,7 @@ source path.to.your/python/env/bin/activate
 git clone git@gitlab.in2p3.fr:gaz-quantiques-lcf/helium-1/heliumtools.git
 cd heliumtools
 pip install -e .
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-```
+ Wikis provide a place in your repository to lay out the roadmap of your project, show the current status, and document software better, together. ```
 Please go to [the detailed installation procedure](manual_doc/installation.md) for more details.
 <!-- 
 - Create a new environment (heliumenv here for example). We use mkvirtualenv.
