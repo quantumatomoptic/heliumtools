@@ -14,99 +14,6 @@ from math import pi
 import numpy as np
 
 
-# class Heliumqunits:
-#     """
-#     Atomic data & calculations for Helium using qunits.
-#     """
-
-#     def __init__(self, **kwargs):
-#         """
-#         Object initialization, sets parameters
-#         """
-#         # -- initialize default settings
-#         # physical parameters
-#         self.mass = 4.002602 * const.u  # u.kg
-#         self.atomic_wavelength = 1083 * u.nm
-#         self.atomic_width = 2 * np.pi * 1.62 * u.MHz
-#         self.atomic_omega = 2 * np.pi * const.c / self.atomic_wavelength
-#         self.scattering_length = 7.512 * u.nm  # m, s-wave scattering length
-#         self.a_s = self.scattering_length
-#         self.g = 4 * pi * const.hbar**2 * self.a_s / self.mass
-#         self.i_sat = 0.16 * u.mW / (u.cm) ** 2
-#         # magnetic
-#         self.lande_g_factor = 2
-#         self.zeeman_state = -1
-
-#     def get_alpha(self, wavelength=1550 * u.nm):
-#         """
-#         computes the polarizability.
-#         input  : wavelength = laser wavelength (qunits)
-#         output : polarizability (qunits)
-#         """
-#         # parameters
-#         omega_L = 2 * np.pi * const.c / wavelength
-#         omega_0 = self.atomic_omega
-#         Gamma = self.atomic_width
-
-#         # compute
-#         Delta = 1 / (1 / (omega_0 - omega_L) + 1 / (omega_0 + omega_L))
-#         alpha = 3 * np.pi * const.eps0 * const.c**3 * Gamma / omega_0**3 / Delta
-#         return alpha
-
-#     def get_scattering_rate(self, intensity, wavelength=1550 * u.nm):
-#         """
-#         computes the scattering rate at given intensity & detuning
-#         input  : intensity = laser intensity (in qunits)
-#                  wavelength = laser wavelength (in qunits)
-#         output : scattering rate (in qunits)
-#         """
-#         # parameters
-#         omega_L = 2 * np.pi * const.c / wavelength
-#         omega_0 = self.atomic_omega
-#         Gamma = self.atomic_width
-
-#         # compute
-#         Delta = 1 / (1 / (omega_0 - omega_L) + 1 / (omega_0 + omega_L))
-#         Gamma_sc = (
-#             3
-#             * np.pi
-#             * const.c**2
-#             / 2
-#             / const.hbar
-#             / omega_0**3
-#             * (omega_L / omega_0) ** 3
-#             * (Gamma / Delta) ** 2
-#             * intensity
-#         )
-#         return Gamma_sc
-
-#     def speed_to_momentum(self, v):
-#         return self.mass * v / const.hbar
-
-#     def convert_speed_to_lattice_momentum(
-#         self, v, wavelength=1064 * u.nm, theta=166 * 2 * np.pi / 360
-#     ):
-#         """Convert atom speed (mm/s) to momentum in hbar unit (SI)
-
-#         Parameters
-#         ----------
-#         v : float
-#             speed of the atom in qunits
-#         wavelength : float, optional
-#             wavelenght of the lattice (in nanometers), by default 1064
-#         theta : int, optional
-#             angle in degrees beween the two beams, by default 166
-
-#         Returns
-#         -------
-#         relative :float
-#             speed compare to lattice momentum
-#         """
-#         klatt = 2 * np.pi / wavelength * np.sin(theta)
-
-#         return (self.mass * v / (const.hbar * klatt)).to(u.dimensionless)
-
-
 # -- define atom data dictionnary
 class Helium:
     """
@@ -231,11 +138,11 @@ if __name__ == "__main__":
             )
         )
     theta = 166 / 360 * 2 * pi
-    wavelength = 1064*1e-9
-    k = np.sin(theta /2 )* 2 * pi / wavelength
-    detuning = 2*np.pi * 103.5 * 1000
+    wavelength = 1064 * 1e-9
+    k = np.sin(theta / 2) * 2 * pi / wavelength
+    detuning = 2 * np.pi * 103.5 * 1000
     v0 = detuning / 2 / k * 1000
-    vref = 2*(-v0 + he.convert_lattice_momentum_to_speed(1))
+    vref = 2 * (-v0 + he.convert_lattice_momentum_to_speed(1))
     print("Lattice speed is : {} mm/s".format(v0))
     print("Frame is at {} mm/s".format(vref))
     # # polarizability
@@ -246,3 +153,95 @@ if __name__ == "__main__":
     # w = 135e-6  # meters
     # I0 = intensity_gauss(0, 0, w, P)
     # print(he.get_scattering_rate(I0) * u.V / u.cm)
+
+# class Heliumqunits:
+#     """
+#     Atomic data & calculations for Helium using qunits.
+#     """
+
+#     def __init__(self, **kwargs):
+#         """
+#         Object initialization, sets parameters
+#         """
+#         # -- initialize default settings
+#         # physical parameters
+#         self.mass = 4.002602 * const.u  # u.kg
+#         self.atomic_wavelength = 1083 * u.nm
+#         self.atomic_width = 2 * np.pi * 1.62 * u.MHz
+#         self.atomic_omega = 2 * np.pi * const.c / self.atomic_wavelength
+#         self.scattering_length = 7.512 * u.nm  # m, s-wave scattering length
+#         self.a_s = self.scattering_length
+#         self.g = 4 * pi * const.hbar**2 * self.a_s / self.mass
+#         self.i_sat = 0.16 * u.mW / (u.cm) ** 2
+#         # magnetic
+#         self.lande_g_factor = 2
+#         self.zeeman_state = -1
+
+#     def get_alpha(self, wavelength=1550 * u.nm):
+#         """
+#         computes the polarizability.
+#         input  : wavelength = laser wavelength (qunits)
+#         output : polarizability (qunits)
+#         """
+#         # parameters
+#         omega_L = 2 * np.pi * const.c / wavelength
+#         omega_0 = self.atomic_omega
+#         Gamma = self.atomic_width
+
+#         # compute
+#         Delta = 1 / (1 / (omega_0 - omega_L) + 1 / (omega_0 + omega_L))
+#         alpha = 3 * np.pi * const.eps0 * const.c**3 * Gamma / omega_0**3 / Delta
+#         return alpha
+
+#     def get_scattering_rate(self, intensity, wavelength=1550 * u.nm):
+#         """
+#         computes the scattering rate at given intensity & detuning
+#         input  : intensity = laser intensity (in qunits)
+#                  wavelength = laser wavelength (in qunits)
+#         output : scattering rate (in qunits)
+#         """
+#         # parameters
+#         omega_L = 2 * np.pi * const.c / wavelength
+#         omega_0 = self.atomic_omega
+#         Gamma = self.atomic_width
+
+#         # compute
+#         Delta = 1 / (1 / (omega_0 - omega_L) + 1 / (omega_0 + omega_L))
+#         Gamma_sc = (
+#             3
+#             * np.pi
+#             * const.c**2
+#             / 2
+#             / const.hbar
+#             / omega_0**3
+#             * (omega_L / omega_0) ** 3
+#             * (Gamma / Delta) ** 2
+#             * intensity
+#         )
+#         return Gamma_sc
+
+#     def speed_to_momentum(self, v):
+#         return self.mass * v / const.hbar
+
+#     def convert_speed_to_lattice_momentum(
+#         self, v, wavelength=1064 * u.nm, theta=166 * 2 * np.pi / 360
+#     ):
+#         """Convert atom speed (mm/s) to momentum in hbar unit (SI)
+
+#         Parameters
+#         ----------
+#         v : float
+#             speed of the atom in qunits
+#         wavelength : float, optional
+#             wavelenght of the lattice (in nanometers), by default 1064
+#         theta : int, optional
+#             angle in degrees beween the two beams, by default 166
+
+#         Returns
+#         -------
+#         relative :float
+#             speed compare to lattice momentum
+#         """
+#         klatt = 2 * np.pi / wavelength * np.sin(theta)
+
+#         return (self.mass * v / (const.hbar * klatt)).to(u.dimensionless)
