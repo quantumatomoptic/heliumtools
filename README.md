@@ -27,22 +27,10 @@ source path.to.your/python/env/bin/activate
 git clone git@gitlab.in2p3.fr:gaz-quantiques-lcf/helium-1/heliumtools.git
 cd heliumtools
 pip install -e .
- Wikis provide a place in your repository to lay out the roadmap of your project, show the current status, and document software better, together. ```
+ Wikis provide a place in your repository to lay out the roadmap of your project, show the current status, and document software better, together. 
+```
 Please go to [the detailed installation procedure](manual_doc/installation.md) for more details.
-<!-- 
-- Create a new environment (heliumenv here for example). We use mkvirtualenv.
 
-    - `mkvirtualenv -p /usr/bin/python3.9 heliumenv`
-    - If it is not done, add this shortcut to your path bashrc: `gedit ~/.bashrc` and paste:
-
-        ```bash
-        export WORKON_HOME=$HOME/.virtualenvs
-        export PROJECT_HOME=$HOME/Devel
-        source /usr/share/virtualenvwrapper/virtualenvwrapper.sh
-        ```
-
-- Clone the heliumtools repository and pip install it `cd /your/path/heliumtools && pip install -e .`
-- Since March 2023, we use PyTorch to compute correlations. We add trouble to install it through pip but one can install it using `pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu` -->
 
 ## Available modules
 ### Tools : the ROI format
