@@ -3,7 +3,7 @@
 ![Python3.9](https://img.shields.io/badge/Python-3.9-green)
 ![Python3.10](https://img.shields.io/badge/Python-3.10-green)
 
-This package is developped by the [Quantum Atom Optics]((https://www.lcf.institutoptique.fr/groupes-de-recherche/gaz-quantiques/experiences/quantum-atom-optics)) group at the  Laboratoire Charles Fabry, [Institut d'Optique Graduate School](https://www.institutoptique.fr/) in Palaiseau (France). 
+This package is developped by the [Quantum Atom Optics]((https://www.lcf.institutoptique.fr/groupes-de-recherche/gaz-quantiques/experiences/quantum-atom-optics)) team at the  Laboratoire Charles Fabry, [Institut d'Optique Graduate School](https://www.institutoptique.fr/) in Palaiseau (France). 
 
 We make use of Bose-Einstein condensates (BEC) of metastable helium atom (He*) to perform interferometry experiments inspired by quantum optics. A remarkable feature of the metastable state of helium is its very large internal energy (20eV), allowing the use of a single-atom resolved detector, based on the electron amplification. This detector is called a microchannel plate (MCP) and provides three-dimensional data in the momentum space of the atoms. This python package gathers code we daily use to analyze our datas. 
 
@@ -17,17 +17,23 @@ We make use of Bose-Einstein condensates (BEC) of metastable helium atom (He*) t
 * [Paul Paquiez](https://github.com/PaquiezPaul)
 
 ## Installation
-This package can be installed on any OS : it was successfully run on Linux and Windows but not not yet tested on Mac (but it should be OK).\
-This package was written in Python 3.9, so we recommend using it with Python 3.9 or newer versions. Of course, we strongly recommand the use of python environnements. 
 
-Clone the project and installing with pip. Install then PyTorch manually. For most computers, the command lines to install the package are the following. 
+This package was written in Python 3.9, so we recommend using it with Python 3.9 or newer versions. Of course, we strongly recommend the use of python environnement. 
+
+*Why should I create a python environment ?*
+
+![](https://imgs.xkcd.com/comics/python_environment.png)
+
+*Image from [xkcd.com](https://xkcd.com/1987/) by Randall Munroe.*
+
+Because you do not want to be able to break your environment without breaking your machine. Or not to know *where* you installed all your stuffs. So, yes, please, do it.
+
+Clone the project and installing with pip. Install then PyTorch manually. For most computers, the command lines to install the package as a developer are the following. 
 
 ```
-source path.to.your/python/env/bin/activate
 git clone git@gitlab.in2p3.fr:gaz-quantiques-lcf/helium-1/heliumtools.git
 cd heliumtools
 pip install -e .
- Wikis provide a place in your repository to lay out the roadmap of your project, show the current status, and document software better, together. 
 ```
 Please go to [the detailed installation procedure](manual_doc/installation.md) for more details.
 

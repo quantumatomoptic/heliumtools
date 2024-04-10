@@ -1,27 +1,46 @@
-# Code de rereconstruction
-Ce code s'utilise avec le fichier de configuration `conf.txt` dans lequel sont remplis les paramètres suivants :
-* ligne 1 : le dossier de séquence que nous voulons re-reconstruire,
-* ligne 2 : le dossier dans lequel on veut créer les .atoms
-* ligne 3 : le numéro du programme que l'on veut utiliser
+# From time signal to atoms : the rereconstruction module
 
-
-In the following we give some explanations about how those codes work. 
-
-
-## Reconstruction 1
-Il s'agit de la reconstruction utilisée depuis la nouvelle électronique du MCP, c'est celui-ci que nous utilisions jusque Juillet 2022.
-The 4 lists X1, X2, Y1, Y2 are ordored times and α, β, γ and δ are respectively elements of each list.
-T is the temporal diameter of the MCP : T = 80 ns (see Q. Marolleau PhD thesis for more details).
+The  [rereconstruction program](../heliumtools/rereconstruction/rereconstruction.cpp) ables one to reconstruct *a posteriori* a sequence if we saved all the raw datas from the experiment. It can be run on a linux computer. In order to launch the program, one must just change directory towards the location of the code, configure the reconstruction parameters (see [below](#choosing-the-rereconstruction-parameters)) and enter :
 ```
+./rereconstruction
+```
+
+
+### Choosing the rereconstruction parameters
+When it is run, the rereconstruction program reads the following files 
+* [Offset.txt](../heliumtools/rereconstruction/Offset.txt) : the offset map of the experiment,
+* [conf.txt](../heliumtools/rereconstruction/conf.txt) : the parameter file for the rereconstruction process.
+
+The configuration file must have the following lines :
+* Line 1: The sequence folder we want to re-reconstruct : for example `/mnt/manip_E/2022/11/23/003`,
+* Line 2: The folder in which we want to create the .atoms files. This folder should not exists.
+* Line 3: The reconstruction program number we want to use. See the available reconstruction program below.
+* Line 4: The maximum deviation allowed for the offset from the offset map.
+* Line 5: The minimum deviation allowed for the reference offset.
+
+
+The available reconstructions are the following
+* Reconstruction 1 : [Ziyad style](#reconstruction1-program)
+* Reconstruction 2 : Ziyad Style with Offset Map (useless reconstruction, here for historical reasons).
+* Reconstruction 3 : Recovering All Potential Atoms taking into account offset maps.
+* Reconstruction 4 : Recovering All Potential Atoms Without Any Offset Filter
+* Reconstruction 5 : Recovering Only Isolated Atoms for very dilute clouds
+
+
+## Reconstruction programs 
+### Reconstruction1 program
+This is the reconstruction used since the new MCP electronics, which is the one we used until July 2022. The offset test was just: is the offset lower than 10. The 4 lists X1, X2, Y1, Y2 are ordered times and α, β, γ, and δ are respectively elements of each list. \
+T is the temporal diameter of the MCP: T = 80 ns (see [Q. Marolleau PhD thesis](https://theses.fr/2022UPASP166) for more details).
+```cython
 type X1, X2, Y1, Y2  = lists of ordered times
 atoms = [] // empty list
 while X1.is_not_empty():
     α = X1.begin()
-    {X2, Y1, Y2}.suppress_all_events_before(α – T); //they will never be used since X1 is time orderd
+    {X2, Y1, Y2}.suppress_all_events_before(α – T); //they will never be used since X1 is time ordered
     selected_events = {[α], X2, Y1, Y2}.select_all_events_before(α+T);
     for each quadruplet Q = {α, β, γ, δ} in selected_events:
 	    test1 = is_the_atom_on_MCP(Q);
-	    test2 = is_offset_zero(Q);
+	    test2 = is_offset_zero(Q); // check the atom offset
         if test1 & test2 :
             atoms.append({α, β, γ, δ});
             X2.remove(β); Y1.remove(γ); Y2.remove(δ);
@@ -52,14 +71,12 @@ while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + gateX) && !atomfou
         while (searchY2 != Y2_p.end() && *searchY2 < (*X1_p.begin() + gateY) && !atomfound)
         {...}}}
 ```
-
-## Reconstruction 2
-Il s'agit de la reconstruction utilisée entre juillet 2022 et février 2023. Celle-ci reprend le même principe que le programme ci-dessus en rajoutant un critère sur la valeur d'offset en utilisant les cartes d'offset réalisées en juillet 2022. Je pense que ce programme n'a pas vraiment d'intérêt et il n'est là que pour ne pas perdre la trace du programme. 
-
-## Reconstruction 3
-Contrairement aux précédentes, cette reconstruction test tous les quadruplets possibles et dès qu'un quadruplet valide le critère d'offset, elle l'ajoute à la liste des atomes.
-```
-type X1, X2, Y1, Y2  = lists of ordered times 
+### Reconstruction2 program
+This is the reconstruction used between July 2022 and February 2023. It follows the same principle as the program above, adding a criterion on the offset value using the offset maps made in July 2022. I think this program doesn't really have any interest and it's only here to keep track of the program. 
+### Reconstruction3 program 
+Unlike the previous ones, this reconstruction *tests all possible quadruplets*, and as soon as a quadruplet meets the offset criterion, it adds it to the list of atoms.
+```cython
+type X1, X2, Y1, Y2  = lists // of ordered times 
 atoms = [] // empty list
 T = 1.3 * MCP_diameter // take a security margin
 while X1.is_not_empty():
@@ -75,9 +92,18 @@ while X1.is_not_empty():
             // break we do not break but keep for looking atoms
     X1.remove(α); 
 ```
-
-
-## Reconstruction 4
+### Reconstruction4 program
 This reconstruction is a copy of the number 3 BUT it does not test the offset so it reconstructs A LOT of atoms. 
+
+### Reconstruction5 program
+This code was added on July, 20th of 2023.
+In this code, we make sure to reconstruct an atom if and only if he is the only candidates. This means that no signal on any channel should have been recorded between the signal time and ±90 ns.
+
+$$
+\forall Z_J \in \{X_1, X_2, Y_1, Y_2\}, \quad \forall \alpha \in Z_J, \left| \alpha - Z_J \right| < 90 \, \text{ns}
+$$
+
+
+This code is usefull to acquire an offset map as we do not mix atoms. 
 
 

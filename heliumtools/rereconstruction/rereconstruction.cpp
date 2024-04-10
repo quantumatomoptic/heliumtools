@@ -216,7 +216,7 @@ int main()
         {
             reconstruction5(X1, X2, Y1, Y2, atoms, params);
         }
-         if (params.reconstruction_number == 6)
+        if (params.reconstruction_number == 6)
         {
             reconstruction6(X1, X2, Y1, Y2, atoms, params);
         }
@@ -939,7 +939,7 @@ bool read_configuration_file(string filepath, paramstruct &parameters_p)
         std::cout << "I  CANNOT OPEN THE CONFIG FILE\n";
         return true;
     }
-    std::cout << "Startign to read the config file " + filepath + "\n";
+    std::cout << "Starting to read the config file " + filepath + "\n";
     std::cout
         << "\n \n === Parameters for the sequence === \n \n";
     std::string myline;
@@ -953,7 +953,7 @@ bool read_configuration_file(string filepath, paramstruct &parameters_p)
     std::getline(myfile, myline);
     if (!(myfile))
     {
-        std::cout << "Error during reading the conf file : no line 2 -->  where do we save atoms ???";
+        std::cout << "Error when reading the conf file : no line 2 -->  where do we save atoms ???";
         return true;
     }
     std::cout << "Saving atoms in " << myline << '\n';
@@ -963,7 +963,7 @@ bool read_configuration_file(string filepath, paramstruct &parameters_p)
     std::getline(myfile, myline);
     if (!(myfile))
     {
-        std::cout << "Error during reading the conf file : no line 3 -->  which program do we want to use ? 1 is default";
+        std::cout << "Error when reading the conf file : no line 3 -->  which program do we want to use ? 1 is default";
         return true;
     }
     std::cout << "The programm number chosen is " << myline << "\n";
@@ -973,7 +973,7 @@ bool read_configuration_file(string filepath, paramstruct &parameters_p)
     std::getline(myfile, myline);
     if (!(myfile))
     {
-        std::cout << "Error during reading the conf file : no line 4 -->  what is the maximum value you authorize for offset deviation ???" << endl;
+        std::cout << "Error when reading the conf file : no line 4 -->  what is the maximum value you autorize for offset deviation ???" << endl;
         std::cout << "Maximum offset deviation is set to 5." << endl;
         parameters_p.offset_resolution = 5;
     }
@@ -982,30 +982,30 @@ bool read_configuration_file(string filepath, paramstruct &parameters_p)
         std::cout << "The maximum offset deviation is " << myline << "\n";
         parameters_p.offset_resolution = stoi(myline);
     }
-    if (parameters_p.offset_resolution <= 0)
-    {
-        std::cout << "WWWHHHHHAAAAATTTTTT YOU want a negative offset ReSOluTiOn ?!? " << endl;
-        std::cout << endl
-                  << endl
-                  << "... Are you stupid ? Please read the doc before use me. Go to the LabWiki/Experiment/Reconstruction page !!" << endl;
-    }
+    // if (parameters_p.offset_resolution <= 0)
+    // {
+    //     std::cout << "WWWHHHHHAAAAATTTTTT YOU want a negative offset ReSOluTiOn ?!? " << endl;
+    //     std::cout << endl
+    //               << endl
+    //               << "... Are you stupid ? Please read the doc before use me. Go to the LabWiki/Experiment/Reconstruction page !!" << endl;
+    // }
 
     // LIGNE 5 : la valeur minimale d'offset autorisée
     std::getline(myfile, myline);
     if (!(myfile))
     {
-        std::cout << "Error during reading the conf file : no line 4 -->  what is the maximum value you authorize for offset deviation ???" << endl;
-        std::cout << "Maximum offset deviation is set to -5." << endl;
+        std::cout << "Error during reading the conf file : no line 4 -->  what is the minimum value you autorize for offset deviation ???" << endl;
+        std::cout << "Minimum offset deviation is set to -5." << endl;
         parameters_p.offset_resolution_min = -5;
     }
     else
     {
-        std::cout << "The maximum offset deviation is " << myline << "\n";
+        std::cout << "The minimum offset deviation is " << myline << "\n";
         parameters_p.offset_resolution_min = stoi(myline);
     }
-    if (parameters_p.offset_resolution_min <= 0)
+    if (parameters_p.offset_resolution_min >= parameters_p.offset_resolution)
     {
-        std::cout << "WWWHHHHHAAAAATTTTTT YOU want a negative offset ReSOluTiOn ?!? " << endl;
+        std::cout << "WWWHHHHHAAAAATTTTTT The minimum offset set is greater than the maximum offsete ?!? " << endl;
         std::cout << endl
                   << endl
                   << "... Are you stupid ? Please read the doc before use me. Go to the LabWiki/Experiment/Reconstruction page !!" << endl;
