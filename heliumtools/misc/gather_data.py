@@ -133,7 +133,7 @@ def return_cycle_from_path(path, show_error=True):
 
 
 def load_atoms(folder, n_max_cycles=1e8):
-    """Charge tous les .atoms.
+    """Load all .atoms files
 
     Parameters
     ----------
@@ -161,7 +161,7 @@ def load_atoms(folder, n_max_cycles=1e8):
 
 
 def load_XYTTraw(path):
-    """Retourne les positions X, Y, T d'un cycle d'une séquence.
+    """Return the X, Y, T positions of a cycle in a sequence
 
     Parameters
     ----------
@@ -277,18 +277,19 @@ def fit_BEC_arrival_time(
 
     Parameters
     ----------
-    data : pandas dataframe
-        dataframe pandas avec 3 colonnes X, Y, T les données à fitter
-    filename : string,
-        nom du fichier duquel vient les données. Ce nom sera utilisé pour aller chercher les .times correspondant à ce cycle,
-    ROI_for_fit : dictionary
-        dictionnaire avec la ROI pouur faire le fit. Cette ROI est appliqué pour tous les axes (X, Y, T et .times)
-    histogramm_width : float,
-        en ms, largeur des bins de l'histogramme pour faire le fit selon T et .times
-    width_saturation : float,
-        largeur de saturation pendant laquelle il n'y a aucun signal à cause de la saturation du TDC. Les points de l'histogramme entre tmax, temps tel que le signal est maximal et tmax + dt son supprimés et non pris en compte dans le fit,
-        show_fit : boolean
-                est ce que on veut voir le fit sur une figure (ne pas mettre vrai si on fait plein de fit). Pensez à utiliser la fonction check_BEC_fit si vous voulez vérifier vos fits.
+    data : pandas DataFrame
+        DataFrame with 3 columns X, Y, T, the data to fit.
+    filename : str
+        Name of the file from which the data comes. This name will be used to retrieve the corresponding .times file for this cycle.
+    ROI_for_fit : dict
+        Dictionary with the ROI for fitting. This ROI is applied to all axes (X, Y, T, and .times).
+    histogramm_width : float
+        Width of the histogram bins for fitting according to T and .times, in ms.
+    width_saturation : float
+        Saturation width during which there is no signal due to TDC saturation. The histogram points between tmax, the time at which the signal is maximal, and tmax + dt are removed and not taken into account in the fit.
+    show_fit : bool
+        Whether to display the fit on a figure (do not set to True if performing multiple fits). Consider using the check_BEC_fit function if you want to verify your fits.
+
     """
     ans = {"Number of Atoms": len(data)}
     ROI_for_fit = check_roi_for_fit(ROI_for_fit)
@@ -496,6 +497,21 @@ def check_BEC_fit(
     },
     width_saturation=0,
 ):
+    """fit function that checks if the BEC fit is correct or not.
+
+    Parameters
+    ----------
+    folder : str or path like
+        folder in which one wats to extract a cycle.
+    histogramm_width : float
+    Width of the histogram bins for fitting according to T and .times, in ms.
+    ROI_for_fit : dict, optional
+        Dictionary with the ROI for fitting. This ROI is applied to all axes (X, Y, T, and .times)., by default { "T": {"min": 305.5, "max": 309.7}, "X": {"min": -35, "max": -7}, "Y": {"min": -20, "max": 20}, }
+    width_saturation : float
+        Saturation width during which there is no signal due to TDC saturation. The histogram points between tmax, the time at which the signal is maximal, and tmax + dt are removed and not taken into account in the fit.
+
+
+    """
     atom_files = select_atoms_in_folder(folder)
     selected_file = atom_files[random.randrange(0, len(atom_files))]
     X, Y, T = load_XYTTraw(selected_file)
@@ -513,8 +529,8 @@ def check_BEC_fit(
 
 
 def obtain_arrival_times(atom_files, **kwargs):
-    """Pour chaque cycle du dataframe atoms, on fait un histogramme des temps d'arrivée des atomes puis on considère que le max de cet histogramme correspond au temps d'arrivé du BEC. Le paramètre histogramm_width permet d'ajuster la largeur des pics de l'histogramme (ms)
-    WARNING : cette fonction est longue et non optimisée.
+    """For each cycle of the 'atoms' dataframe, we create a histogram of atom arrival times, then we consider the maximum of this histogram as the arrival time of the BEC. The 'histogram_width' parameter adjusts the width of the histogram peaks (in ms).
+    WARNING: This function is lengthy and not optimized
 
     Parameters
     ----------
@@ -557,8 +573,6 @@ def get_sequence_id_from_seq_dir(seq_dir: str) -> str:
         seq_dir = str(seq_dir)
         seq_id = seq_dir.replace("/", "-").replace("\\", "-")
         match = re.search(r"\b\d{4}-\d{2}-\d{2}-\d{3}\b", seq_id)
-
-        # Vérification si une correspondance a été trouvée
         if match:
             seq_id = match.group(0)
             return seq_id
@@ -584,33 +598,30 @@ def export_data_set_to_pickle(
     supplementary_rois=[],
     metadata=[],
 ):
-    """Exporte le dataset folder en tant que pickle. Cette fonction génère trois
-     fichiers dans le folder.Ainsi le dataframefolder/dataset.pkl contient
-     l'ensemble des atomes du dossier dans la ROI. Cette fonction crée également
-     folder/parameters.pkl qui contient l'ensemble des paramètres de la séquence
-     ainsi que folder/arrival_times.pkl qui contient les temps d'arrivée fittés
-     (+ les paramètres) de la séquence.
+    """
+    Export the dataset folder as a pickle. This function generates three files in the folder. Thus, the dataframe folder/dataset.pkl contains all the atoms from the folder within the ROI. This function also creates folder/parameters.pkl containing all the sequence parameters, as well as folder/arrival_times.pkl containing the fitted arrival times (plus parameters) of the sequence.
 
     Parameters
     ----------
-    folder : path like
-        chemin vers le dossier contenant tous les .atoms
-    ROI : dictionnaire
-        Région d'intérêt : on ne va sélectionner tous les atomes qui sont dans cette ROI. Celle-ci peut être vide et dans ce cas, on garde tous les atomes (et pas aucun). Exemple : {"T": {"min": 300, "max": 350}}. Le format de ce dictionnaire doit matcher le format officiel d'une ROI (voir la fonction apply_ROI pour plus de détails).
-    ROD : dictionnaire
-        Région de désintérêt : on exclue tous les atomes qui sont dans cette région. ATTENTION : cette fonction agit axe par axe pour l'instant malheureusement.
-    find_arrival_times : boolean
-        si True, on fit le temps d'arrivée du BEC. Si False, on ne le fait pas.
+    folder : path-like
+        Path to the folder containing all the .atoms files.
+    ROI : dict
+        Region of Interest: we will select all atoms that are within this ROI. It can be empty, in which case, we keep all atoms (and not none). Example: {"T": {"min": 300, "max": 350}}. The format of this dictionary must match the official format of an ROI (see the apply_ROI function for more details).
+    ROD : dict
+        Region of Disinterest: we exclude all atoms that are in this region. WARNING: this function acts axis by axis for now, unfortunately.
+    find_arrival_times : bool
+        If True, we fit the arrival time of the BEC. If False, we don't.
     n_max_cycles : int
-        nombre maximal de cycle qu'on veut sélectionner. Pas souvent utile.
-    histogramm_width : float,
-        en ms, largeur des bins de l'histogramme pour faire le fit selon T et .times
-    width_saturation : float,
-        largeur de saturation pendant laquelle il n'y a aucun signal à cause de la saturation du TDC. Les points de l'histogramme entre tmax, temps tel que le signal est maximal et tmax + dt son supprimés et non pris en compte dans le fit,
+        Maximum number of cycles we want to select. Not often useful.
+    histogramm_width : float
+        Width of the histogram bins for fitting according to T and .times, in ms.
+    width_saturation : float
+        Saturation width during which there is no signal due to TDC saturation. The histogram points between tmax, the time at which the signal is maximal, and tmax + dt are removed and not taken into account in the fit.
     supplementary_rois : list of ROIs
-        ROIS supplémentaires dans lesquelles on veut compter les atomes (pour appliquer des filtres durant l'analyse d'une séquence par exemple). Les données issus de ces ROIs seront ajoutées au datafbec arrival_times.
+        Additional ROIs in which we want to count the atoms (to apply filters during sequence analysis, for example). Data from these ROIs will be added to the dataframe BEC arrival_times.
     metadata : list of string
-        liste des métadonnées à charger avec les paramètres de séquence.
+        List of metadata to load with the sequence parameters.
+
     """
     ### STEP 1 : gather data and save it
     selected_files = select_atoms_in_folder(folder)
@@ -781,8 +792,7 @@ def get_sequence_parameters(filename):
 
 
 def gather_saved_sequence_parameters(folder):
-    """Cette fonction récupère tous les paramètres sauvegardés pour chaque cycle de
-    la séquence et les mets dans un dataframe avec le numéro du cycle.
+    """This function retrieves all the parameters saved for each cycle of the sequence and puts them into a dataframe with the cycle number
 
     Parameters
     ----------
@@ -833,7 +843,7 @@ def load_metadata(cycle_prefix, metadata, show_error=True):
         return load_hal_type_metadata(
             cycle_prefix + ".picoscope_treated", show_error=show_error
         )
-    if metadata.lower() in ".picoscope_treated2 arrival time bec arrival time":
+    if metadata.lower() in ".picoscope_treated2000 arrival time bec arrival time":
         return load_hal_type_metadata(
             cycle_prefix + ".picoscope2000_treated", show_error=show_error
         )
@@ -892,7 +902,7 @@ def load_hal_type_metadata(file, show_error=True) -> dict:
         return {}
 
 
-def load_dictionary_metadata(file, key_separator=" | ") -> dict:
+def load_dictionary_metadata(file, key_separator=" | ", show_error=True) -> dict:
     """load a dictionary from file, flatten it with separator and returns
 
     Parameters
@@ -918,7 +928,8 @@ def load_dictionary_metadata(file, key_separator=" | ") -> dict:
         msg += " \n     from load_dictionary_metadata \n "
         msg += f"Loading dictionary from {file} failed. Are you sure "
         msg += f"the file you want to load is a dictionnary-like file ? Error is {e}."
-        log.error(msg)
+        if show_error:
+            log.error(msg)
     return {}
 
 

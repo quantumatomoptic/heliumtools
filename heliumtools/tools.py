@@ -33,6 +33,7 @@ def apply_ROD(df, ROD):
         (minimum, maximum) = get_roi_min_max(ROD, key)
 
         if key in df:
+            
             df = df[~((df[key] >= minimum) & (df[key] < maximum))]
         else:
             print(f"[WARNING] The key {key} of the ROI is not in the other dataframe.")

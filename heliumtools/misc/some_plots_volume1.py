@@ -170,9 +170,9 @@ def stability_of_sequence(
     plt.show()
 
 
-def show_2D_density_XY_with_fit(corr):
-    peak1 = corr.atoms[(corr.atoms["Vz"] < -10) & (corr.atoms["Vz"] > -40)]
-    peak2 = corr.atoms[(corr.atoms["Vz"] < 40) & (corr.atoms["Vz"] > 10)]
+def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 40]}):
+    peak1 = apply_ROI(corr.atoms, roi1)
+    peak2 = apply_ROI(corr.atoms, roi2)
     from heliumtools.fit.gauss2D import Gauss2DFit, Gauss2D
     from heliumtools.fit.gauss1D import Gauss1DFit
     from heliumtools.fit.lorentz2D import Lorentz2DFit
@@ -208,7 +208,9 @@ def show_2D_density_XY_with_fit(corr):
     fit_data_lorentz = l2Dfit.eval(x=(VX, VY))
     popt1 = g2Dfit.popt
     axes[0, 0].set_title(
-        "Peak 1 : -40 < Vz < -10 mm/s\n"
+        "Peak 1 "
+        + str(roi1)
+        + "\n"
         + r"$\sigma_x=${:.0f} mm/s and $\sigma_y$={:.0f} mm/s".format(
             g2Dfit.popt[2], g2Dfit.popt[3]
         )
@@ -295,7 +297,9 @@ def show_2D_density_XY_with_fit(corr):
     g2Dfit.do_fit()
     popt2 = g2Dfit.popt
     axes[1, 0].set_title(
-        "Peak 2 : 10 < Vz < 40 mm/s \n"
+        "Peak 2 "
+        + str(roi2)
+        + "\n"
         + r"$\sigma_x=${:.0f} mm/s and $\sigma_y$={:.0f} mm/s".format(
             g2Dfit.popt[2], g2Dfit.popt[3]
         )
@@ -361,7 +365,10 @@ def show_2D_density_XY_with_fit(corr):
             l1Dfit.popt[2], l1Dfit.popt[3]
         )
     )
-
+    # grid:
+    for i in range(1, 3):
+        axes[0, i].grid(True, alpha=0.7)
+        axes[1, i].grid(True, alpha=0.7)
     plt.tight_layout()
     plt.show()
 
@@ -579,3 +586,5 @@ def heatmap_with_boxes(
                 msg += f" and values = {values}. Box is {box}. Error is : {e}"
                 print(msg)
     return ax
+
+

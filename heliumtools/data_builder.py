@@ -11,7 +11,6 @@
 Content of data_builder.py
 -----------------------------
 
-
 """
 
 import numpy as np
@@ -79,13 +78,17 @@ class DataBuilder:
         self.ROI = {}  # Region Of Interest
         self.ROD = {}  # Region Of Desinterest.
         self.recenter_with_bec_arrival_time = {"Vx": True, "Vy": True, "Vz": True}
+        self.construct_atoms = True
         self.is_there_a_copy_of_atoms = False
         self.bec_arrival_time = copy.deepcopy(self.bec_arrival_time)
         self.id = int(time.time())
         self.__dict__.update(kwargs)
-        self.build_the_atoms_dataframe()
+        if self.construct_atoms:
+            self.build_the_atoms_dataframe()
         self.apply_ROI()  # Keep only atoms in ROI
         self.apply_ROD()  # Take off atoms in Region Of Desinterest.
+        self.cycles_array = self.atoms["Cycle"].unique()
+        self.n_cycles = len(self.atoms["Cycle"].unique())
 
     def build_the_atoms_dataframe(self):
         """
