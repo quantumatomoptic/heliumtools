@@ -216,7 +216,7 @@ class MCP_offset_map:
         self.connect_to_database()  # connexion to database
         new_atoms = pd.DataFrame(
             np.transpose(np.array([deltaX, deltaY, offset], dtype="int64")),
-            columns=["deltaX", "deltaY", "offset", "offsetX", "offsetY"],
+            columns=["deltaX", "deltaY", "offset"],
         )
         new_atoms.to_sql("atoms", self.connexion, index=False, if_exists="append")
         self.connexion.commit()  # il faut commit pour prendre en compte l'ajout
