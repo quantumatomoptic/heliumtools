@@ -167,10 +167,10 @@ class DataBuilder:
                     self.atoms.drop(column, inplace=True, axis=1)
 
         else:
-            pass
-            # logging.error(
-            #    "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
-            # )
+
+            logging.error(
+                "[ERROR] From build_the_atoms_dataframe : the bec_arrival_time instance is not recognized."
+            )
 
         for axis in ["Vx", "Vy", "Vz"]:
             if axis in self.ref_frame_speed:
@@ -223,7 +223,7 @@ class DataBuilder:
         self.compute_cylindrical_coordinates()
 
     def return_dictionary_correlation_property(self) -> dict:
-        """Return a dictionay with all the parameter of the simulation.
+        """Return a dictionary with all the parameter of the simulation.
 
         Returns
         -------
