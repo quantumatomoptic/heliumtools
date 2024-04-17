@@ -133,7 +133,7 @@ class MCP_offset_map:
             self.cursor.execute("CREATE TABLE sequences (name NVARCHAR(50))")
         if ("atoms",) not in listofTables:
             self.cursor.execute(
-                "CREATE TABLE atoms (deltaX INT, deltaY INT, offset INT, offsetX INT, offsetY INT)"
+                "CREATE TABLE atoms (deltaX INT, deltaY INT, offset INT)"
             )
         self.connexion.commit()  # il faut commit pour prendre en compte l'ajout
         self.unconnect()
@@ -191,9 +191,7 @@ class MCP_offset_map:
                 events_list[0] + events_list[1] - events_list[2] - events_list[3],
                 dtype="int64",
             )
-            offsetX = np.array(events_list[0] + events_list[1])
-            offsetY = np.array(events_list[2] + events_list[3])
-            self.update_atom_table(deltaX, deltaY, offset, offsetX, offsetY)
+            self.update_atom_table(deltaX, deltaY, offset)
             del atoms
             del events_list
             del offset
@@ -203,7 +201,7 @@ class MCP_offset_map:
         self.update_sequences_table(normalized_sequence_name)
         print(f"Sequence {normalized_sequence_name} added to the database :-).")
 
-    def update_atom_table(self, deltaX, deltaY, offset, offsetX, offsetY):
+    def update_atom_table(self, deltaX, deltaY, offset):
         """Update the atom tables adding new offset values. We never load the atome table entirely since it is too large. When we add atoms to the sql database, ALWAYS USE if_exists = 'append' so that we never ever forget atoms.
 
         Parameters
@@ -214,10 +212,6 @@ class MCP_offset_map:
             positions sur Y
         offset : numpy array of integers
             offset à la position correspondante
-        offsetX : numpy array of integers
-            offsetX à la position correspondante
-        offsetY : numpy array of integers
-            offsetY à la position correspondante
         """
         self.connect_to_database()  # connexion to database
         new_atoms = pd.DataFrame(
@@ -360,7 +354,7 @@ class MCP_offset_map:
         )  # par ex si compu_abi = 10 ; values = [-707 -697 .....693 703]
         for value in tqdm(values):
             a = pd.read_sql_query(
-                f"SELECT deltaX, deltaY, offset, offsetX, offsetY FROM atoms WHERE deltaX >= {value} AND deltaX< {value + self.computer_ability};",
+                f"SELECT deltaX, deltaY, offset FROM atoms WHERE deltaX >= {value} AND deltaX< {value + self.computer_ability};",
                 self.connexion,
             )
 
@@ -473,7 +467,7 @@ class MCP_offset_map:
 
         start = time.time()
         a = pd.read_sql_query(
-            f"SELECT deltaX, deltaY, offset, offsetX, offsetY FROM atoms WHERE deltaX < {ceil(size/2)} AND deltaX >= {-ceil(size/2)};",
+            f"SELECT deltaX, deltaY, offset FROM atoms WHERE deltaX < {ceil(size/2)} AND deltaX >= {-ceil(size/2)};",
             self.connexion,
         )
         print(a.info(memory_usage="deep"))
@@ -494,11 +488,11 @@ class MCP_offset_map:
         Returns
         -------
         pd.DataFrame
-            the offset distribution.
+            the offset distrubition.
         """
         self.connect_to_database()
         offset = pd.read_sql_query(
-            f"SELECT deltaX, deltaY, offset, offsetX, offsetY FROM atoms WHERE deltaX = {pixelX} AND deltaY = {pixelY};",
+            f"SELECT deltaX, deltaY, offset FROM atoms WHERE deltaX = {pixelX} AND deltaY = {pixelY};",
             self.connexion,
         )
         self.unconnect()
