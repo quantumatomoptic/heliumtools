@@ -686,6 +686,8 @@ def export_data_set_to_pickle(
     seq_id_str, seq_id = get_sequence_id_from_seq_dir(folder)
     df_parameters["Sequence ID"] = seq_id
     df_parameters["Sequence ID str"] = seq_id_str
+    if not find_arrival_times and "center (ms)" in df_parameters.keys():
+        df_parameters["BEC Arrival Time"] = df_parameters["center (ms)"]
     filename_dataset = os.path.join(folder, "dataset.pkl")
     df_atoms.to_pickle(filename_dataset)
     filename_parameters = os.path.join(folder, "parameters.pkl")

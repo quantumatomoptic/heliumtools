@@ -156,18 +156,17 @@ class DataBuilder:
             ## --- Merge dataframe
             # clean before merging
             # drop columns with no more interest (for later calculations)
-            for column in self.bec_arrival_time.columns:
+            bec_arr_times = copy.deepcopy(self.bec_arrival_time)
+            for column in bec_arr_times:
                 if column not in [
                     "BEC X",
                     "BEC Y",
                     "BEC Z",
                     "Cycle",
                 ]:
-                    self.bec_arrival_time.drop(column, inplace=True, axis=1)
+                    bec_arr_times.drop(column, inplace=True, axis=1)
 
-            self.atoms = self.merge_dataframe_on_cycles(
-                self.atoms, self.bec_arrival_time
-            )
+            self.atoms = self.merge_dataframe_on_cycles(self.atoms, bec_arr_times)
             # take off the speed of each BEC : recenter
             for Vj, AX in zip(["Vx", "Vy", "Vz"], ["X", "Y", "Z"]):
                 if self.recenter_with_bec_arrival_time[Vj]:
