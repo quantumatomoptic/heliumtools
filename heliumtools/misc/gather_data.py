@@ -556,8 +556,8 @@ def obtain_arrival_times(atom_files, **kwargs):
     return df_arrival_time
 
 
-def get_sequence_id_from_seq_dir(seq_dir: str) -> str:
-    """returns the sequence id string from the sequence directory folder
+def get_sequence_id_from_seq_dir(seq_dir: str):
+    """returns the sequence id  string and integer from the sequence directory folder
 
     Parameters
     ----------
@@ -568,22 +568,26 @@ def get_sequence_id_from_seq_dir(seq_dir: str) -> str:
     -------
     str
         sequence id string
+    int
+        sequence id number
     """
     try:
         seq_dir = str(seq_dir)
-        seq_id = seq_dir.replace("/", "-").replace("\\", "-")
+        seq_id = seq_dir.replace("/", "-").replace("\\", "-").replace(os.path.sep, "-")
         match = re.search(r"\b\d{4}-\d{2}-\d{2}-\d{3}\b", seq_id)
         if match:
-            seq_id = match.group(0)
-            return seq_id
+            seq_id = match.group(0)  # 2024-08-02-005 for example
+            seq_num = int(seq_id.replace("-", "")[2:])  # 240802005 in this case
+
+            return seq_id, seq_num
         else:
             msg = f"The sequence ID was not recognized from {seq_id}"
             log.error(msg)
-            return seq_dir
+            return seq_dir, 0
     except:
         msg = f"The sequence ID was not recognized from {seq_dir}"
         log.warning(msg)
-        return seq_dir
+        return seq_dir, 0
 
 
 def export_data_set_to_pickle(
@@ -679,6 +683,9 @@ def export_data_set_to_pickle(
             df_arrival_times = pd.concat(
                 [df_arrival_times, pd.DataFrame(arrival, index=[i])]
             )
+    seq_id_str, seq_id = get_sequence_id_from_seq_dir(folder)
+    df_parameters["Sequence ID"] = seq_id
+    df_parameters["Sequence ID str"] = seq_id_str
     filename_dataset = os.path.join(folder, "dataset.pkl")
     df_atoms.to_pickle(filename_dataset)
     filename_parameters = os.path.join(folder, "parameters.pkl")
@@ -725,8 +732,9 @@ def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame:
         )
         new_df = pd.DataFrame(seq_par, index=[i])
         df = pd.concat([df, new_df])
-    seq_id = get_sequence_id_from_seq_dir(folder)
+    seq_id_str, seq_id = get_sequence_id_from_seq_dir(folder)
     df["Sequence ID"] = seq_id
+    df["Sequence ID str"] = seq_id_str
     df = df.reset_index(drop=True)
     df.to_pickle(os.path.join(folder, "metadata.pkl"))
     return df
