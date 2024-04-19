@@ -98,6 +98,7 @@ class DataBuilder:
         for column in self.atoms.columns:
             if column not in ["X", "Y", "T", "Cycle"]:
                 self.atoms.drop(column, inplace=True, axis=1)
+
         if (
             type(self.bec_arrival_time) == int
             or type(self.bec_arrival_time) == float
@@ -151,16 +152,28 @@ class DataBuilder:
                 0.5 * self.gravity * self.bec_arrival_time["BEC Arrival Time"]
                 - l_fall / self.bec_arrival_time["BEC Arrival Time"]
             )
-            # check now if we have perform some Bragg diffraction to fit the BEC
+
+            ## --- Merge dataframe
+            # clean before merging
+            # drop columns with no more interest (for later calculations)
+            for column in self.bec_arrival_time.columns:
+                if column not in [
+                    "BEC X",
+                    "BEC Y",
+                    "BEC Z",
+                    "Cycle",
+                ]:
+                    self.bec_arrival_time.drop(column, inplace=True, axis=1)
+
             self.atoms = self.merge_dataframe_on_cycles(
                 self.atoms, self.bec_arrival_time
             )
-            # take off the speed of each BEC
+            # take off the speed of each BEC : recenter
             for Vj, AX in zip(["Vx", "Vy", "Vz"], ["X", "Y", "Z"]):
                 if self.recenter_with_bec_arrival_time[Vj]:
                     self.atoms[Vj] = self.atoms[Vj] - self.atoms["BEC " + AX]
-            # print(self.bec_arrival_time["BEC Arrival Time"].mean())
-
+                elif Vj == "Vx":  # raman kick to be taken into account
+                    self.atoms[Vj] = self.atoms[Vj] + self.raman_kick
             # drop columns with no more interest (for later calculations)
             for column in self.atoms.columns:
                 if column not in ["Vz", "Vx", "Vy", "Cycle", "Vperp", "theta"]:

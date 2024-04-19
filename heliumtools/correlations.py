@@ -29,6 +29,11 @@ import time
 import logging
 from .data_builder import DataBuilder
 from .misc.gather_data import apply_ROI, apply_ROD
+from heliumtools.misc.logger import getLogger
+
+log = getLogger(__name__)
+# set the desired level of warning : DEBUG / INFO / WARNING
+log.setLevel(logging.INFO)
 
 
 class Correlation(DataBuilder):
@@ -119,6 +124,28 @@ class Correlation(DataBuilder):
 
     def define_variable2(self, **kwargs):
         self.var2 = Variable(**kwargs)
+
+    def set_box_size(self, vz=0, vx = 0, vy=0):
+        """Useful function to set all boxes size in one line.
+
+        Parameters
+        ----------
+        vz : int, optional
+            size of the box along z, in mm/s, by default 0
+        vx : int, optional
+            size of the box along x, in mm/s, by default 0
+        vy : int, optional
+            size of the box along x, in mm/s, by default 0
+        """
+        sizes = {"Vx":vx, "Vy": vy, "Vz":vz}
+        for key, value in sizes.items():
+            if value :# if the value is not zero, we set it foeach box
+                for num in ["1", "2"]:
+                    if "size" in self.boxes[num][key]:
+                        self.boxes[num][key]["size"] = value
+                    else:
+                        log.warning(f"[heliumtools.correlations] Setting box size failed because the box {num} format along {key} does not contain any size.")
+
 
     def get_atoms_in_box(self, df, box):
         """
@@ -236,7 +263,6 @@ class Correlation(DataBuilder):
     ###########################################################
     ######## GESTION DES CAS DE FIGURE AVANT LE CALCUL  #######
     ###########################################################
-
     def compute_correlations(self):
         """
         Cette fonction gère les différents cas de figure de scan.

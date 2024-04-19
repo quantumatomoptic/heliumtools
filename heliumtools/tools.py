@@ -1,5 +1,10 @@
 import pandas as pd
 import logging
+from heliumtools.misc.logger import getLogger
+
+log = getLogger(__name__)
+# set the desired level of warning : DEBUG / INFO / WARNING
+log.setLevel(logging.INFO)
 
 
 def data_filter(data, bec_arrival_times, filters):
@@ -33,7 +38,7 @@ def apply_ROD(df, ROD):
         (minimum, maximum) = get_roi_min_max(ROD, key)
 
         if key in df:
-            
+
             df = df[~((df[key] >= minimum) & (df[key] < maximum))]
         else:
             print(f"[WARNING] The key {key} of the ROI is not in the other dataframe.")
@@ -63,9 +68,10 @@ def apply_ROI(atoms, ROI):
             if key in atoms:
                 atoms = atoms[((atoms[key] <= maximum) & (atoms[key] > minimum))]
             else:
-                print(
-                    f"[WARNING] The key {key} of the ROI is not in the other dataframe."
+                log.warning(
+                    f"[heliumtools.tools.apply_ROI]: the key ({key}) of your ROI is not in the dataframe on which you want to apply ROI."
                 )
+
     return atoms
 
 
