@@ -1,5 +1,34 @@
-/mnt/manip_E/2023/09/04/028
-/mnt/manip_E/2023/09/04/200
-6
+/home/victor/Data/offset_drift_issue/007
+/home/victor/Data/offset_drift_issue/2022_07_15_007
+5
 14
 -5
+
+
+
+====================================================
+================= SHORT REMINDER ===================
+====================================================
+The configuration file must have the following lines :
+* Line 1: The sequence folder we want to re-reconstruct : for example `/mnt/manip_E/2022/11/23/003`,
+* Line 2: The folder in which we want to create the .atoms files. This folder should not exists.
+* Line 3: The reconstruction program number we want to use. See the available reconstruction program below.
+* Line 4: The maximum deviation allowed for the offset from the offset map.
+* Line 5: The minimum deviation allowed for the reference offset.
+
+
+The available reconstructions are the following
+* Reconstruction 1 : [Ziyad style](#reconstruction1-program)
+* Reconstruction 2 : Ziyad Style with Offset Map (useless reconstruction, here for historical reasons).
+* Reconstruction 3 : Recovering All Potential Atoms taking into account offset maps.
+* Reconstruction 4 : Recovering All Potential Atoms Without Any Offset Filter
+* Reconstruction 5 : Recovering Only Isolated Atoms for very dilute clouds
+
+
+====================================================
+==== PLEASE READ README.MD FOR MORE INFORMATION ====
+====================================================
+
+
+
+
