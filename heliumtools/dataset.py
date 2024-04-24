@@ -18,13 +18,13 @@ Please document your code ;-).
 
 """
 ## Usual imports
-import os, logging, re
+import os, re
 import pandas as pd
 from flatten_dict.reducers import make_reducer
 from flatten_dict import flatten
 
 ## heliumtools import
-from heliumtools.misc.logger import getLogger
+from heliumtools.misc.logger import getLogger, logging
 from heliumtools.tools import data_filter
 from heliumtools.misc.gather_data import export_data_set_to_pickle
 
@@ -45,8 +45,9 @@ class Dataset:
         name : path
             path to the dataset folder. It might not be the sequence directory.
         """
-        self.name = name
-        self.sequences = []
+        self.__name__ = name
+        self.__sequences__ = []
+        self.__sequences__ = []
         self.raw_ROI = {"T": [312, 328], "X": [-30, 0], "Y": [-15, 15]}
 
         self.raw_ROD = {}
@@ -74,7 +75,9 @@ class Dataset:
         """remove an element from the parameters"""
         self.save_parameters()
         for arg in args:
-            if arg in self.__dict__ and (arg not in ["sequences", "name"]):
+            if arg in self.__dict__ and (
+                arg not in ["sequences", "name", "__name__", "__sequences__"]
+            ):
                 if arg == "filters":
                     self.filters = {}
 
@@ -87,12 +90,12 @@ class Dataset:
 
     def load_parameters(self):
         """method that load the properties of the dataset store in the yaml file."""
-        file_path = os.path.join(self.name, "properties.yml")
+        file_path = os.path.join(self.__name__, "properties.yml")
         try:
             with open(file_path, "r") as file:
                 data = yaml.safe_load(file)
-                old_name = data.pop("name", None)
-                if old_name != self.name:
+                old_name = data.pop("__name__", None)
+                if old_name != self.__name__:
                     self._raise_path_warning(old_name)
                 self.__dict__.update(data)
         except FileNotFoundError:
@@ -117,12 +120,14 @@ class Dataset:
         old_name : old datset name
             string that is the path that WAS the dataset
         """
-        msg = f"The path registered {old_name} does not match your path {self.name}. "
+        msg = (
+            f"The path registered {old_name} does not match your path {self.__name__}. "
+        )
         msg += "This might be due to windows/unix path compatibility issues. The path to the dataset data is well defined however sequence location might be wrong."
         log.warning(msg)
         msg = "Note that this is not a problem if you do not need to update the atoms nor the metadata stored in the dataset folder. However, it can be an issue if you want to re-export datas to the dataset. If so, I advise you to change the sequences attributs to switch it to the real sequences you are aiming to gather. Good luck !"
         log.info(msg)
-        log.info("The saved sequences are the following : {}".format(self.sequences))
+        log.info("The saved sequences are the following : {}".format(self.__sequences__))
 
     def save_parameters(self, load_file_before_dump=True) -> None:
         """Save the parameters of the class into the properties.yml file.
@@ -135,7 +140,7 @@ class Dataset:
         load_file_before_dump : bool, optional
             if we check the file before saving, by default True
         """
-        file_path = os.path.join(self.name, "properties.yml")
+        file_path = os.path.join(self.__name__, "properties.yml")
         if load_file_before_dump:
             try:
                 with open(file_path, "r") as file:
@@ -165,14 +170,16 @@ class Dataset:
             log.error(msg)
 
     def _check_dataset_location(self):
-        if not os.path.exists(self.name):
+        if not os.path.exists(self.__name__):
             try:
-                os.mkdir(self.name)
-                msg = "Dataset was initialized in folder {}".format(self.name)
+                os.mkdir(self.__name__)
+                msg = "Dataset was initialized in folder {}".format(self.__name__)
                 log.info(msg)
             except Exception as e:
 
-                msg = "Dataset initialization failed in folder {}. ".format(self.name)
+                msg = "Dataset initialization failed in folder {}. ".format(
+                    self.__name__
+                )
                 msg += "Please check the error log. \n " + str(e)
                 log.critical(msg)
                 raise ValueError(msg)
@@ -258,7 +265,7 @@ class Dataset:
             msg = f"The sequence directory {seq_dir} does not exists"
             log.error(msg)
             return
-        if seq_id in self.sequences:
+        if seq_id in self.__sequences__:
             msg = f"Sequence {seq_dir} is already in the database (registered under {seq_id})."
             if not force_update:
                 log.warning(msg)
@@ -291,7 +298,7 @@ class Dataset:
 
         old_meta = self.load_metadata()
         self._save_metadata(pd.concat([old_meta, new_metadata]))
-        self.sequences.append(seq_id)
+        self.__sequences__.append(seq_id)
         self.save_parameters()
         log.info(f"Sequence {seq_dir} was succesfully added to the dataset.")
         #     return
@@ -308,7 +315,7 @@ class Dataset:
         pd.DataFrame
             data loaded from the dataset
         """
-        data_dir = os.path.join(self.name, "data.pkl")
+        data_dir = os.path.join(self.__name__, "data.pkl")
         if os.path.exists(data_dir):
             try:
                 data = pd.read_pickle(data_dir)
@@ -326,7 +333,7 @@ class Dataset:
         data : pd.DataFrame
             pandas dataframe that contains atoms to be saved
         """
-        data.to_pickle(os.path.join(self.name, "data.pkl"))
+        data.to_pickle(os.path.join(self.__name__, "data.pkl"))
 
     def load_metadata(self) -> pd.DataFrame:
         """function that load metadata from the dataset.
@@ -336,7 +343,7 @@ class Dataset:
         pd.DataFrame
             data loaded from the dataset
         """
-        data_dir = os.path.join(self.name, "metadata.pkl")
+        data_dir = os.path.join(self.__name__, "metadata.pkl")
         if os.path.exists(data_dir):
             try:
                 metadata = pd.read_pickle(data_dir)
@@ -354,16 +361,16 @@ class Dataset:
         metadata : pd.DataFrame
             pandas dataframe that contains metadata to be saved
         """
-        metadata.to_pickle(os.path.join(self.name, "metadata.pkl"))
+        metadata.to_pickle(os.path.join(self.__name__, "metadata.pkl"))
 
     def clean_up_dataset(self):
         """function that cleans up the dataset aka supppresses data and metadata and set the sequences empty"""
-        if not self.sequences:
+        if not self.__sequences__:
             return
         try:
-            os.remove(os.path.join(self.name, "metadata.pkl"))
-            os.remove(os.path.join(self.name, "data.pkl"))
-            self.sequences = []
+            os.remove(os.path.join(self.__name__, "metadata.pkl"))
+            os.remove(os.path.join(self.__name__, "data.pkl"))
+            self.__sequences__ = []
             self.save_parameters()
             log.warning("I suppressed all data and metadatas of the dataset.")
         except OSError as e:
