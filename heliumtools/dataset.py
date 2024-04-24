@@ -17,12 +17,16 @@ Content of dataset.py
 Please document your code ;-).
 
 """
-
+## Usual imports
 import os, logging, re
-from heliumtools.misc.gather_data import export_data_set_to_pickle
 import pandas as pd
+from flatten_dict.reducers import make_reducer
+from flatten_dict import flatten
+
+## heliumtools import
 from heliumtools.misc.logger import getLogger
 from heliumtools.tools import data_filter
+from heliumtools.misc.gather_data import export_data_set_to_pickle
 
 log = getLogger(__name__)
 # set the desired level of warning : DEBUG / INFO / WARNING
@@ -102,6 +106,9 @@ class Dataset:
 
             log.warning(msg)
 
+    def set_logger(self, logging_lvl):
+        log.setLevel(logging_lvl)
+
     def _raise_path_warning(self, old_name) -> None:
         """warning function for the user so that he knows that he might have path issues if he tries to use path registered
 
@@ -145,8 +152,14 @@ class Dataset:
                 msg += f"I will overwrite the file anyway.Error is {e}"
                 log.warn(msg)
         try:
+            dic_to_save = {}
+            for key, value in self.__dict__.items():
+                if isinstance(value, (str, float, list, dict, bool, int)):
+                    dic_to_save[key] = value
+                else:
+                    log.debug(f"[dataset] {key} was not saved as it is a {type(value)}")
             with open(file_path, "w") as file:
-                yaml.dump(self.__dict__, file, default_flow_style=False)
+                yaml.dump(dic_to_save, file, default_flow_style=False)
         except Exception as e:
             msg = f"Failed to save parameters in {file_path}. Error is {e}"
             log.error(msg)
@@ -288,7 +301,7 @@ class Dataset:
         #     return
 
     def load_data(self) -> pd.DataFrame:
-        """funcion that load data from the dataset.
+        """function that load data from the dataset.
 
         Returns
         -------
@@ -316,7 +329,7 @@ class Dataset:
         data.to_pickle(os.path.join(self.name, "data.pkl"))
 
     def load_metadata(self) -> pd.DataFrame:
-        """funcion that load metadata from the dataset.
+        """function that load metadata from the dataset.
 
         Returns
         -------
@@ -374,6 +387,17 @@ class Dataset:
         if not filtered:
             return data, metadata
         return data_filter(data, metadata, self.filters)
+
+    def export_as_dictionary(self):
+        dic_to_return = {}
+        for key, value in self.__dict__.items():
+            if isinstance(value, (str, float, list, dict, bool, int)):
+                dic_to_return[key] = value
+            else:
+                print(
+                    f"[dataset] {key} was not returned exported as it is a {type(value)}"
+                )
+        return flatten(dic_to_return, reducer=make_reducer(delimiter="_"))
 
 
 ## %% FOR TEST %%
