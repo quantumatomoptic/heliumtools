@@ -174,7 +174,7 @@ class Dataset:
                 msg += ": {}".format(str_val[0:50])
                 print(msg)
             except Exception:
-                print(msg + ": output failed.")
+                log.error(msg + ": output failed.")
 
     def get_sequence_id_from_seq_dir(self, seq_dir: str) -> str:
         """returns the sequence id string from the sequence
@@ -344,7 +344,9 @@ class Dataset:
         metadata.to_pickle(os.path.join(self.name, "metadata.pkl"))
 
     def clean_up_dataset(self):
-        """function that cleans up the dataset."""
+        """function that cleans up the dataset aka supppresses data and metadata and set the sequences empty"""
+        if not self.sequences:
+            return
         try:
             os.remove(os.path.join(self.name, "metadata.pkl"))
             os.remove(os.path.join(self.name, "data.pkl"))
@@ -352,7 +354,7 @@ class Dataset:
             self.save_parameters()
             log.warning("I suppressed all data and metadatas of the dataset.")
         except OSError as e:
-            print(f"Error while cleaning up the dataset: {e}")
+            log.error(f"Error while cleaning up the dataset: {e}")
 
     def load(self, filtered=True):
         """method that loads data and metadata from the dataset
