@@ -125,7 +125,7 @@ class Correlation(DataBuilder):
     def define_variable2(self, **kwargs):
         self.var2 = Variable(**kwargs)
 
-    def set_box_size(self, vz=0, vx = 0, vy=0):
+    def set_box_size(self, vz=0, vx=0, vy=0):
         """Useful function to set all boxes size in one line.
 
         Parameters
@@ -137,15 +137,16 @@ class Correlation(DataBuilder):
         vy : int, optional
             size of the box along x, in mm/s, by default 0
         """
-        sizes = {"Vx":vx, "Vy": vy, "Vz":vz}
+        sizes = {"Vx": vx, "Vy": vy, "Vz": vz}
         for key, value in sizes.items():
-            if value :# if the value is not zero, we set it foeach box
+            if value:  # if the value is not zero, we set it foeach box
                 for num in ["1", "2"]:
                     if "size" in self.boxes[num][key]:
                         self.boxes[num][key]["size"] = value
                     else:
-                        log.warning(f"[heliumtools.correlations] Setting box size failed because the box {num} format along {key} does not contain any size.")
-
+                        log.warning(
+                            f"[heliumtools.correlations] Setting box size failed because the box {num} format along {key} does not contain any size."
+                        )
 
     def get_atoms_in_box(self, df, box):
         """
@@ -877,6 +878,36 @@ class Correlation(DataBuilder):
             self.round_decimal,
         )
 
+    def add_denis_criterion(self, total):
+        #### Denis's criteria
+        # keep only a small number of columns for memory usage
+        to_keep = total[total["Vz1", "Vz2", "N_1+N_2", "N_1-N_2", "N_1*N_2"]]
+        # choose only shots for which the number of detected atoms is greater than 0
+        post_selec = copy.deepcopy(to_keep[to_keep["N_1+N_2"] > 0])
+        # define sqrt(N-1)*Jz
+        post_selec["Jz fluctu"] = (
+            sqrt(post_selec["N_1+N_2"] - 1) * post_selec["N_1-N_2"]
+        )
+        # compute its square before averaging over realizations
+        post_selec["Jz fluctu^2"] = post_selec["Jz fluctu"] ** 2
+        res = post_selec.groupby(
+            [self.var1.name, self.var2.name], as_index=False
+        ).mean()
+        # get the count also
+        counts = post_selec.groupby(
+            [self.var1.name, self.var2.name], as_index=False
+        ).counts()
+        # compute the quantity of interest
+        res["Denis's criterion"] = (res["Jz fluctu^2"] - res["Jz fluctu"] ** 2) / res[
+            "N_1*N_2"
+        ]
+        res["Gab"] = res["N_1*N_2"]  # change name
+        res["Denis's criterion counts"] = counts["Jz fluctu"]
+
+        res_to_keep = res[
+            ["Vz1", "Vz2", "Gab", "Denis's criterion", "Denis's criterion counts"]
+        ]
+        self.result = pd.merge(self.result, res_to_keep, on=["Vz1", "Vz2"])
         # print("Computation is done.")
 
     def save_copy_of_total(self):

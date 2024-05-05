@@ -20,6 +20,8 @@ import pandas as pd
 from pathlib import Path
 from tqdm import tqdm
 from heliumtools.misc import logger
+import warnings
+from scipy.optimize import OptimizeWarning
 from flatten_dict import flatten, unflatten, reducers, splitters
 import pytz
 from datetime import datetime
@@ -635,9 +637,12 @@ def export_data_set_to_pickle(
     Xc, Yc, Tc, Cyclec = [], [], [], []
     selected_files = selected_files[0:N_files]
     print(f"Starting to gather atoms from {folder}")
+
     df_atoms = pd.DataFrame()
     df_parameters = pd.DataFrame()
     df_arrival_times = pd.DataFrame()
+    ##  take off warnings
+    warnings.simplefilter("error", OptimizeWarning)
     for i, filename in tqdm(enumerate(selected_files)):
         cycle_prefix = filename.replace(".atoms", "")
         X, Y, T = load_XYTTraw(filename)
