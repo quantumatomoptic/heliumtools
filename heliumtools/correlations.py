@@ -886,7 +886,7 @@ class Correlation(DataBuilder):
         post_selec = copy.deepcopy(to_keep[to_keep["N_1+N_2"] > 0])
         # define sqrt(N-1)*Jz
         post_selec["Jz fluctu"] = (
-            sqrt(post_selec["N_1+N_2"] - 1) * post_selec["N_1-N_2"]
+            1 / 2 * (sqrt(post_selec["N_1+N_2"] - 1) * post_selec["N_1-N_2"])
         )
         # compute its square before averaging over realizations
         post_selec["Jz fluctu^2"] = post_selec["Jz fluctu"] ** 2
@@ -898,16 +898,13 @@ class Correlation(DataBuilder):
             [self.var1.name, self.var2.name], as_index=False
         ).counts()
         # compute the quantity of interest
-        res["Denis's criterion"] = (res["Jz fluctu^2"] - res["Jz fluctu"] ** 2) / res[
-            "N_1*N_2"
-        ]
+        res["denis"] = (res["Jz fluctu^2"] - res["Jz fluctu"] ** 2) / res["N_1*N_2"]
         res["Gab"] = res["N_1*N_2"]  # change name
-        res["Denis's criterion counts"] = counts["Jz fluctu"]
+        res["denis counts"] = counts["Jz fluctu"]
 
-        res_to_keep = res[
-            ["Vz1", "Vz2", "Gab", "Denis's criterion", "Denis's criterion counts"]
-        ]
+        res_to_keep = res[["Vz1", "Vz2", "Gab", "denis", "denis counts"]]
         self.result = pd.merge(self.result, res_to_keep, on=["Vz1", "Vz2"])
+        self.result["log(denis)"] = np.log(self.result["denis"])
         # print("Computation is done.")
 
     def save_copy_of_total(self):
@@ -1487,6 +1484,355 @@ class CorrelationCollision(Correlation):
         phi_min = np.min(self.atoms["phi"])
         phi_max = np.max(self.atoms["phi"])
         liste_theta = np.linspace()
+
+
+class CorrelationThirdOrder(Correlation):
+    var1 = None
+    var2 = None
+    var3 = None
+
+    def __init__(self, atoms, **kwargs):
+        super().__init__(atoms, **kwargs)
+        self.boxes = {
+            "1": {
+                "Vx": {"size": 80, "position": 0},
+                "Vy": {"size": 80, "position": 0},
+                "Vz": {"size": 0.9, "position": 56},
+            },
+            "2": {
+                "Vx": {"size": 80, "position": 0},
+                "Vy": {"size": 80, "position": 0},
+                "Vz": {"size": 0.9, "position": 130},
+            },
+            "3": {
+                "Vx": {"size": 80, "position": 0},
+                "Vy": {"size": 80, "position": 0},
+                "Vz": {"size": 0.9, "position": 130},
+            },
+        }
+        self.__dict__.update(kwargs)
+
+    def check_variables(self):
+
+        for i, var in enumerate([self.var1, self.var2, self.var3]):
+            if var == None:
+                log.warning(
+                    f"[CorrelationsThirdOrder] Variable {i+1} was not defined. Please define it."
+                )
+                return 1
+        return 0
+
+    def compute_correlations(self):
+        if self.check_variables():
+            return
+        total = self.generate_total()
+        self.compute_result(total)
+
+    def define_variable3(self, **kwargs):
+        self.var3 = Variable(**kwargs)
+
+    def generate_total(self):
+        """method that generates the total dataframe to compute correlation.
+        It gets the the number of atoms per position/size of the 3 scanned variables. Then, it computes the dataframe which is the cartesian product of the three.
+        """
+        ## the following is just a copypaste of the compute_correlations_different_box_scanned method from Correlation
+        box = self.boxes[self.var1.box].copy()
+        posi_and_size = box.pop(self.var1.axe)
+        scanned_box = {self.var1.axe: posi_and_size}
+        df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
+        # result_var1 is a table with the cycle, the number of atoms in the cycle and the variable 1 value.
+        result_var1 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
+        )
+        # -- Do the same for the second variable
+        box = self.boxes[self.var2.box].copy()
+        posi_and_size = box.pop(self.var2.axe)
+        scanned_box = {self.var2.axe: posi_and_size}
+        df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
+        result_var2 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
+        )
+        # -- idem with the third variable
+        box = self.boxes[self.var3.box].copy()
+        posi_and_size = box.pop(self.var3.axe)
+        scanned_box = {self.var3.axe: posi_and_size}
+        df_atoms_var3 = self.get_atoms_in_box(self.atoms, box)
+        result_var3 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var3, self.var3, scanned_box, column_name="N_" + self.var3.box
+        )
+
+        # %#% STEP2
+        # On construit le dataframe total, qui initialement contient 5 colonnes : Cycle le cycle, N_1 et N_2 nombre d'atomes dans la boîte 1 et 2, self.var1 et self.var2 la position/taille des boîtes lors du scan. Le nombre de lignes de total est dont Nombre_de_cycles x Nombre_de_différentes_var1 x Nombre_de_différentes_var2.
+        total = pd.merge(result_var1, result_var2, on="Cycle")
+        total = pd.merge(total, result_var3)
+        return total
+
+    def compute_result(self, total):
+        total["N1N2"] = total["N_1"] * total["N_2"]
+        total["N1N3"] = total["N_1"] * total["N_3"]
+        total["N2N3"] = total["N_2"] * total["N_3"]
+        total["N1N2N3"] = total["N_1"] * total["N_2"] * total["N_3"]
+        self.total = total
+        self.result = total.groupby(
+            [self.var1.name, self.var2.name, self.var3.name], as_index=False
+        ).mean()
+        ## - define connected correlations
+        self.result["Gc12"] = (
+            self.result["N1N2"] - self.result["N_1"] * self.result["N_2"]
+        )
+        self.result["Gc13"] = (
+            self.result["N1N3"] - self.result["N_1"] * self.result["N_3"]
+        )
+        self.result["Gc23"] = (
+            self.result["N2N3"] - self.result["N_2"] * self.result["N_3"]
+        )
+        self.result["Gc123"] = (
+            self.result["N1N2N3"]
+            - (
+                self.result["N_3"] * self.result["Gc12"]
+                + self.result["N_2"] * self.result["Gc13"]
+                + self.result["N_1"] * self.result["Gc23"]
+            )
+            - self.result["N_1"] * self.result["N_2"] * self.result["N_3"]
+        )
+
+        self.result["g2_12"] = self.result["N1N2"] / (
+            self.result["N_1"] * self.result["N_2"]
+        )
+        self.result["g2_23"] = self.result["N2N3"] / (
+            self.result["N_3"] * self.result["N_2"]
+        )
+        self.result["g2_13"] = self.result["N1N3"] / (
+            self.result["N_1"] * self.result["N_3"]
+        )
+
+
+class CorrelationFourthOrder(Correlation):
+    var1 = None
+    var2 = None
+    var3 = None
+    var4 = None
+
+    def __init__(self, atoms, **kwargs):
+        super().__init__(atoms, **kwargs)
+        self.boxes = {
+            "1": {
+                "Vx": {"size": 80, "position": 0},
+                "Vy": {"size": 80, "position": 0},
+                "Vz": {"size": 0.9, "position": 56},
+            },
+            "2": {
+                "Vx": {"size": 80, "position": 0},
+                "Vy": {"size": 80, "position": 0},
+                "Vz": {"size": 0.9, "position": 130},
+            },
+            "3": {
+                "Vx": {"size": 80, "position": 0},
+                "Vy": {"size": 80, "position": 0},
+                "Vz": {"size": 0.9, "position": 130},
+            },
+            "4": {
+                "Vx": {"size": 80, "position": 0},
+                "Vy": {"size": 80, "position": 0},
+                "Vz": {"size": 0.9, "position": 130},
+            },
+        }
+        self.__dict__.update(kwargs)
+
+    def check_variables(self):
+
+        for i, var in enumerate([self.var1, self.var2, self.var3, self.var4]):
+            if var == None:
+                log.warning(
+                    f"[CorrelationsThirdOrder] Variable {i+1} was not defined. Please define it."
+                )
+                return 1
+        return 0
+
+    def compute_correlations(self):
+        if self.check_variables():
+            return
+        total = self.generate_total()
+        self.compute_result(total)
+
+    def define_variable3(self, **kwargs):
+        self.var3 = Variable(**kwargs)
+
+    def define_variable4(self, **kwargs):
+        self.var4 = Variable(**kwargs)
+
+    def generate_total(self):
+        """method that generates the total dataframe to compute correlation.
+        It gets the the number of atoms per position/size of the 3 scanned variables. Then, it computes the dataframe which is the cartesian product of the three.
+        """
+        ## the following is just a copypaste of the compute_correlations_different_box_scanned method from Correlation
+        box = self.boxes[self.var1.box].copy()
+        posi_and_size = box.pop(self.var1.axe)
+        scanned_box = {self.var1.axe: posi_and_size}
+        df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
+        # result_var1 is a table with the cycle, the number of atoms in the cycle and the variable 1 value.
+        result_var1 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
+        )
+        # -- Do the same for the second variable
+        box = self.boxes[self.var2.box].copy()
+        posi_and_size = box.pop(self.var2.axe)
+        scanned_box = {self.var2.axe: posi_and_size}
+        df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
+        result_var2 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
+        )
+        at_random = result_var2["N_" + self.var2.box].to_numpy()
+        np.random.shuffle(at_random)
+        # result_var2["N_" + self.var2.box] = at_random
+        # -- idem with the third variable
+        box = self.boxes[self.var3.box].copy()
+        posi_and_size = box.pop(self.var3.axe)
+        scanned_box = {self.var3.axe: posi_and_size}
+        df_atoms_var3 = self.get_atoms_in_box(self.atoms, box)
+        result_var3 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var3, self.var3, scanned_box, column_name="N_" + self.var3.box
+        )
+        at_random = result_var3["N_" + self.var3.box].to_numpy()
+        np.random.shuffle(at_random)
+        # result_var3["N_" + self.var3.box] = at_random
+
+        # -- idem with the fourth variable
+        box = self.boxes[self.var4.box].copy()
+        posi_and_size = box.pop(self.var4.axe)
+        scanned_box = {self.var4.axe: posi_and_size}
+        df_atoms_var4 = self.get_atoms_in_box(self.atoms, box)
+        result_var4 = self.counts_atoms_in_boxes_one_variable(
+            df_atoms_var4, self.var4, scanned_box, column_name="N_" + self.var4.box
+        )
+        at_random = result_var4["N_" + self.var4.box].to_numpy()
+        np.random.shuffle(at_random)
+        # result_var4["N_" + self.var4.box] = at_random
+
+        # %#% STEP2
+        # On construit le dataframe total, qui initialement contient 5 colonnes : Cycle le cycle, N_1 et N_2 nombre d'atomes dans la boîte 1 et 2, self.var1 et self.var2 la position/taille des boîtes lors du scan. Le nombre de lignes de total est dont Nombre_de_cycles x Nombre_de_différentes_var1 x Nombre_de_différentes_var2.
+        total = pd.merge(result_var1, result_var2, on="Cycle")
+        total = pd.merge(total, result_var3, on="Cycle")
+        total = pd.merge(total, result_var4, on="Cycle")
+        return total
+
+    def compute_result(self, total):
+        total["N1N2"] = total["N_1"] * total["N_2"]
+        total["N1N3"] = total["N_1"] * total["N_3"]
+        total["N1N4"] = total["N_1"] * total["N_4"]
+        total["N2N3"] = total["N_2"] * total["N_3"]
+        total["N2N4"] = total["N_2"] * total["N_4"]
+        total["N3N4"] = total["N_3"] * total["N_4"]
+        total["N1N2N3"] = total["N_1"] * total["N_2"] * total["N_3"]
+        total["N1N2N4"] = total["N_1"] * total["N_2"] * total["N_4"]
+        total["N1N3N4"] = total["N_1"] * total["N_3"] * total["N_4"]
+        total["N2N3N4"] = total["N_2"] * total["N_3"] * total["N_4"]
+        total["N1N2N3N4"] = total["N_1"] * total["N_2"] * total["N_3"] * total["N_4"]
+        self.total = total
+        self.result = total.groupby(
+            [self.var1.name, self.var2.name, self.var3.name, self.var4.name],
+            as_index=False,
+        ).mean()
+        ## - define connected correlations
+        self.result["Gc12"] = (
+            self.result["N1N2"] - self.result["N_1"] * self.result["N_2"]
+        )
+        self.result["Gc13"] = (
+            self.result["N1N3"] - self.result["N_1"] * self.result["N_3"]
+        )
+        self.result["Gc14"] = (
+            self.result["N1N4"] - self.result["N_1"] * self.result["N_4"]
+        )
+        self.result["Gc23"] = (
+            self.result["N2N3"] - self.result["N_2"] * self.result["N_3"]
+        )
+        self.result["Gc24"] = (
+            self.result["N2N4"] - self.result["N_2"] * self.result["N_4"]
+        )
+        self.result["Gc34"] = (
+            self.result["N3N4"] - self.result["N_3"] * self.result["N_4"]
+        )
+        self.result["Gc123"] = (
+            self.result["N1N2N3"]
+            - self.result["Gc12"]
+            - self.result["Gc13"]
+            - self.result["Gc23"]
+        )
+        self.result["Gc124"] = (
+            self.result["N1N2N4"]
+            - self.result["Gc12"]
+            - self.result["Gc14"]
+            - self.result["Gc24"]
+        )
+        self.result["Gc134"] = (
+            self.result["N1N3N4"]
+            - self.result["Gc13"]
+            - self.result["Gc14"]
+            - self.result["Gc34"]
+        )
+        self.result["Gc234"] = (
+            self.result["N2N3N4"]
+            - self.result["Gc23"]
+            - self.result["Gc24"]
+            - self.result["Gc34"]
+        )
+        ## - define connected correlations
+        self.result["Gc12"] = (
+            self.result["N1N2"] - self.result["N_1"] * self.result["N_2"]
+        )
+        self.result["Gc13"] = (
+            self.result["N1N3"] - self.result["N_1"] * self.result["N_3"]
+        )
+        self.result["Gc23"] = (
+            self.result["N2N3"] - self.result["N_2"] * self.result["N_3"]
+        )
+        self.result["Gc123"] = (
+            self.result["N1N2N3"]
+            - (
+                self.result["N_3"] * self.result["Gc12"]
+                + self.result["N_2"] * self.result["Gc13"]
+                + self.result["N_1"] * self.result["Gc23"]
+            )
+            - self.result["N_1"] * self.result["N_2"] * self.result["N_3"]
+        )
+        ### - define fourth order correlations
+        self.result["Gc1234"] = (
+            self.result["N1N2N3N4"]
+            - (
+                self.result["N_1"] * self.result["N2N3N4"]
+                + self.result["N_2"] * self.result["N1N3N4"]
+                + self.result["N_3"] * self.result["N1N2N4"]
+                + self.result["N_4"] * self.result["N1N2N3"]
+                + self.result["N1N2"] * self.result["N3N4"]
+                + self.result["N1N3"] * self.result["N2N4"]
+                + self.result["N1N4"] * self.result["N2N3"]
+            )
+            + 2
+            * (
+                self.result["N1N2"] * self.result["N_3"] * self.result["N_4"]
+                + self.result["N1N3"] * self.result["N_2"] * self.result["N_4"]
+                + self.result["N1N4"] * self.result["N_2"] * self.result["N_3"]
+                + self.result["N2N3"] * self.result["N_1"] * self.result["N_4"]
+            )
+        )
+        -6 * self.result["N_1"] * self.result["N_2"] * self.result["N_3"] * self.result[
+            "N_4"
+        ]
+        self.result["gc1234"] = self.result["Gc1234"] / (
+            self.result["N_1"]
+            * self.result["N_2"]
+            * self.result["N_3"]
+            * self.result["N_4"]
+        )
+        self.result["g2_12"] = self.result["N1N2"] / (
+            self.result["N_1"] * self.result["N_2"]
+        )
+        self.result["g2_23"] = self.result["N2N3"] / (
+            self.result["N_3"] * self.result["N_2"]
+        )
+        self.result["g2_13"] = self.result["N1N3"] / (
+            self.result["N_1"] * self.result["N_3"]
+        )
 
 
 if __name__ == "__main__":
