@@ -877,16 +877,24 @@ class Correlation(DataBuilder):
             (self.result[self.var2.name] - self.result[self.var1.name]),
             self.round_decimal,
         )
+        try:
+            self.add_denis_criterion(self.total)
+        except Exception as e:
+            log.error(
+                f"[Correlations] Failed to add Denis's quantum criteria. Error is : {e}"
+            )
 
     def add_denis_criterion(self, total):
         #### Denis's criteria
         # keep only a small number of columns for memory usage
-        to_keep = total[total["Vz1", "Vz2", "N_1+N_2", "N_1-N_2", "N_1*N_2"]]
+        to_keep = total[
+            [self.var1.name, self.var2.name, "N_1+N_2", "N_1-N_2", "N_1*N_2"]
+        ]
         # choose only shots for which the number of detected atoms is greater than 0
         post_selec = copy.deepcopy(to_keep[to_keep["N_1+N_2"] > 0])
         # define sqrt(N-1)*Jz
         post_selec["Jz fluctu"] = (
-            1 / 2 * (sqrt(post_selec["N_1+N_2"] - 1) * post_selec["N_1-N_2"])
+            1 / 2 * (np.sqrt(post_selec["N_1+N_2"] - 1) * post_selec["N_1-N_2"])
         )
         # compute its square before averaging over realizations
         post_selec["Jz fluctu^2"] = post_selec["Jz fluctu"] ** 2
@@ -896,7 +904,7 @@ class Correlation(DataBuilder):
         # get the count also
         counts = post_selec.groupby(
             [self.var1.name, self.var2.name], as_index=False
-        ).counts()
+        ).count()
         # compute the quantity of interest
         res["denis"] = (res["Jz fluctu^2"] - res["Jz fluctu"] ** 2) / res["N_1*N_2"]
         res["Gab"] = res["N_1*N_2"]  # change name
@@ -905,7 +913,6 @@ class Correlation(DataBuilder):
         res_to_keep = res[["Vz1", "Vz2", "Gab", "denis", "denis counts"]]
         self.result = pd.merge(self.result, res_to_keep, on=["Vz1", "Vz2"])
         self.result["log(denis)"] = np.log(self.result["denis"])
-        # print("Computation is done.")
 
     def save_copy_of_total(self):
         """Save a copy of the total dataframe. Important to do if one does bottstraping."""
