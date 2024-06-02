@@ -565,6 +565,18 @@ class Correlation(DataBuilder):
         total["[N_1*N_2]**2"] = total["N_1*N_2"] * total["N_1*N_2"]
         total[":N_1**2:**2"] = total[":N_1**2:"] ** 2
         total[":N_2**2:**2"] = total[":N_2**2:"] ** 2
+        total["N_1**2*N_2**2"] = total["N_1"] ** 2 * total["N_2"] ** 2
+        total["N_1**2*N_2"] = total["N_1"] ** 2 * total["N_2"]
+        total["N_1*N_2**2"] = total["N_1"] * total["N_2"] ** 2
+        total["Jz fluctu"] = (
+            1
+            / 2
+            * (
+                np.sqrt((total["N_1+N_2"] - 1) * np.heaviside(total["N_1+N_2"], 0))
+                * total["N_1-N_2"]
+            )
+        )
+        total["Jz fluctu^2"] = total["Jz fluctu"] ** 2
         self.total = total
         # on moyenne les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
         self.result = total.groupby(
@@ -608,13 +620,30 @@ class Correlation(DataBuilder):
         )
 
         # ---------------
+        # Calcul de Denis's criterion (no projector aka no post-selection)
+        # ---------------
+        self.result["denis2"] = (
+            self.result["Jz fluctu^2"] - self.result["Jz fluctu"] ** 2
+        ) / self.result["N_1*N_2"]
+
+        # ---------------
         # Calculs de g^2
         # ---------------
         self.result["g^2"] = self.result["N_1*N_2"] / (
             self.result["N_1"] * self.result["N_2"]
         )
+
         # ---------------
-        # Calculs de g^2
+        # Calculs de g^4
+        # ---------------
+        self.result["g^4"] = (
+            self.result["N_1**2*N_2**2"]
+            - self.result["N_1*N_2**2"]
+            - self.result["N_1**2*N_2"]
+            + self.result["N_1*N_2"]
+        ) / (self.result["N_1"] ** 2 * self.result["N_2"] ** 2)
+        # ---------------
+        # Calculs de corrélations locales
         # ---------------
         self.result[":N_1**2:"] = self.result["N_1**2"] - self.result["N_1"]
         self.result[":N_2**2:"] = self.result["N_2**2"] - self.result["N_2"]
@@ -912,6 +941,7 @@ class Correlation(DataBuilder):
 
         res_to_keep = res[["Vz1", "Vz2", "Gab", "denis", "denis counts"]]
         self.result = pd.merge(self.result, res_to_keep, on=["Vz1", "Vz2"])
+        self.result["P_denis"] = self.result["denis"]
         self.result["log(denis)"] = np.log(self.result["denis"])
 
     def save_copy_of_total(self):
