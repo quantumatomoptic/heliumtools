@@ -73,7 +73,7 @@ class CorrelationHe2Style(DataBuilder):
                 "Vz": {"size": 5, "position": -25},
             },
         }
-        self.denominator_ratio = 0.5
+        self.denominator_ratio = 1
         self.__dict__.update(kwargs)
 
     ############################################
@@ -331,7 +331,7 @@ class CorrelationHe2Style(DataBuilder):
                 G2AB = self.get_G2(atA, atA_all, local=False, numerator=False)
             # self.result["G2AB denominator1"] += G2AB.flatten()
             # self.result["G2AB denominator2"] += G2BB.flatten()
-        if self.only_one_beam is False:
+        if self.only_one_beam is True:
             G2 = "G2AA"
             self.result[G2 + " denominator"] = (
                 self.result[G2 + " denominator"]
@@ -339,13 +339,14 @@ class CorrelationHe2Style(DataBuilder):
                 / self.denominator_ratio
             )
             return
+
         for G2 in ["G2AA", "G2BB", "G2AB"]:
+            print("I am here")
             self.result[G2 + " denominator"] = (
                 self.result[G2 + " denominator"]
                 / (self.n_cycles - 1)
                 / self.denominator_ratio
             )
-        # self.result["G2AB denominator"]
 
     def compute_correlations(
         self,
