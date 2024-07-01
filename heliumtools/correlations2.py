@@ -57,7 +57,6 @@ class CorrelationHe2Style(DataBuilder):
         super().__init__(atoms, **kwargs)
         self.only_one_beam = False
         self.computer_performance = 1
-        self.precision = 100
         self.axis = ["Vx", "Vy", "Vz"]
         self.voxel_size = {"Vx": 0.1, "Vy": 0.1, "Vz": 0.1}
         self.voxel_numbers = {"Vx": 11, "Vy": 11, "Vz": 11}
@@ -299,7 +298,7 @@ class CorrelationHe2Style(DataBuilder):
                 self.result["G2AB"] += G2AB.flatten()
             else:
                 G2AA_crossed = self.get_G2(atA, atA, local=False, numerator=True)
-                self.result["G2AB"] += G2AA_crossed.flatten()
+                self.result["G2AA"] += G2AA_crossed.flatten()
 
     def compute_denominator(self):
         for cycle in tqdm(self.cycles_array):
@@ -332,6 +331,14 @@ class CorrelationHe2Style(DataBuilder):
                 G2AB = self.get_G2(atA, atA_all, local=False, numerator=False)
             # self.result["G2AB denominator1"] += G2AB.flatten()
             # self.result["G2AB denominator2"] += G2BB.flatten()
+        if self.only_one_beam is False:
+            G2 = "G2AA"
+            self.result[G2 + " denominator"] = (
+                self.result[G2 + " denominator"]
+                / (self.n_cycles - 1)
+                / self.denominator_ratio
+            )
+            return
         for G2 in ["G2AA", "G2BB", "G2AB"]:
             self.result[G2 + " denominator"] = (
                 self.result[G2 + " denominator"]

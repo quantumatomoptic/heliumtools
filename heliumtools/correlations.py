@@ -642,6 +642,7 @@ class Correlation(DataBuilder):
             - self.result["N_1**2*N_2"]
             + self.result["N_1*N_2"]
         ) / (self.result["N_1"] ** 2 * self.result["N_2"] ** 2)
+
         # ---------------
         # Calculs de corrélations locales
         # ---------------
@@ -657,12 +658,14 @@ class Correlation(DataBuilder):
                 * (self.result["N_2**2"] - self.result["N_2"])
             )
         )
+            
         self.result["C-S difference"] = self.result["N_1*N_2"] - (
             np.sqrt(
                 (self.result["N_1**2"] - self.result["N_1"])
                 * (self.result["N_2**2"] - self.result["N_2"])
             )
         )
+
         self.result["G^2(k1,k1)"] = self.result["N_1**2"] - self.result["N_1"]
         self.result["G^2(k2,k2)"] = self.result["N_2**2"] - self.result["N_2"]
         self.result["g^2(k1,k1)"] = (
