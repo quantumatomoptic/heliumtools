@@ -277,6 +277,9 @@ def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 
         )
     )
 
+
+    #### Peak 2
+    # Première colonne : densité
     sns.histplot(
         data=peak2,
         x="Vx",
@@ -289,12 +292,18 @@ def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 
     hist_data1, vx_data1, vy_data1 = np.histogram2d(
         peak2["Vx"], peak2["Vy"], bins=n_bins, range=([-60, 18], [-60, 60])
     )
-    VY, VX = np.meshgrid(
-        (vy_data1[0:-1] + vy_data1[1:]) / 2, (vx_data1[0:-1] + vx_data1[1:]) / 2
-    )
+    vy_data1 = (vy_data1[0:-1] + vy_data1[1:]) / 2
+    vx_data1 = (vx_data1[0:-1] + vx_data1[1:]) / 2
+
+    VY, VX = np.meshgrid(vy_data1 , vx_data1)
     g2Dfit = Gauss2DFit(x=(VX, VY), z=hist_data1)
     g2Dfit.do_guess()
     g2Dfit.do_fit()
+    fit_data = g2Dfit.eval(x=(VX, VY))
+    l2Dfit = Lorentz2DFit(x=(VX, VY), z=hist_data1)
+    l2Dfit.do_guess()
+    l2Dfit.do_fit()
+    fit_data_lorentz = l2Dfit.eval(x=(VX, VY))
     popt2 = g2Dfit.popt
     axes[1, 0].set_title(
         "Peak 2 "
@@ -309,19 +318,19 @@ def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 
         )
     )
     ## Coupe 1D Selon X, Y est fixé au maximum de densité. On refait un fit mais 1D.
-    minimumVY = np.argmin(np.abs(vy_data - g2Dfit.popt[5]))
+    minimumVY = np.argmin(np.abs(vy_data1 - g2Dfit.popt[5]))
     ax = axes[1, 1]
-    g1Dfit = Gauss1DFit(x=vx_data, z=hist_data[:, minimumVY])
+    g1Dfit = Gauss1DFit(x=vx_data1, z=hist_data1[:, minimumVY])
     g1Dfit.do_guess()
     g1Dfit.do_fit()
-    l1Dfit = Lorentz1DFit(x=vx_data, z=hist_data[:, minimumVY])
+    l1Dfit = Lorentz1DFit(x=vx_data1, z=hist_data1[:, minimumVY])
     l1Dfit.do_guess()
     l1Dfit.do_fit()
-    ax.plot(vx_data, hist_data[:, minimumVY], "o", alpha=0.6, label="Exp")
-    ax.plot(vx_data, fit_data[:, minimumVY], "--", alpha=1, label="2D Gauss")
-    ax.plot(vx_data, g1Dfit.eval(x=vx_data), "-", alpha=1, label="1D Gauss")
-    ax.plot(vx_data, fit_data_lorentz[:, minimumVY], "-.", alpha=1, label="2D Lorentz")
-    ax.plot(vx_data, l1Dfit.eval(x=vx_data), "-", alpha=1, label="1D Lorentz")
+    ax.plot(vx_data1, hist_data1[:, minimumVY], "o", alpha=0.6, label="Exp")
+    ax.plot(vx_data1, fit_data[:, minimumVY], "--", alpha=1, label="2D Gauss")
+    ax.plot(vx_data1, g1Dfit.eval(x=vx_data1), "-", alpha=1, label="1D Gauss")
+    ax.plot(vx_data1, fit_data_lorentz[:, minimumVY], "-.", alpha=1, label="2D Lorentz")
+    ax.plot(vx_data1, l1Dfit.eval(x=vx_data1), "-", alpha=1, label="1D Lorentz")
     ax.set_ylabel("# of atoms (a.u.)")
     ax.set_xlabel("Vx (mm/s)")
     ax.legend()
@@ -337,20 +346,20 @@ def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 
         )
     )
     ## Coupe 1D Selon Y, X est fixé au maximum de densité. On refait un fit mais 1D.
-    minimumVX = np.argmin(np.abs(vx_data - g2Dfit.popt[4]))
+    minimumVX = np.argmin(np.abs(vx_data1 - g2Dfit.popt[4]))
     ax = axes[1, 2]
-    g1Dfit = Gauss1DFit(x=vy_data, z=hist_data[minimumVX, :])
+    g1Dfit = Gauss1DFit(x=vy_data1, z=hist_data1[minimumVX, :])
     g1Dfit.do_guess()
     g1Dfit.do_fit()
-    l1Dfit = Lorentz1DFit(x=vy_data, z=hist_data[minimumVX, :])
+    l1Dfit = Lorentz1DFit(x=vy_data1, z=hist_data1[minimumVX, :])
     l1Dfit.do_guess()
     l1Dfit.do_fit()
     ax.set_title("1D cut along Y at maximum density")
-    ax.plot(vy_data, hist_data[minimumVX, :], "o", alpha=0.6)
-    ax.plot(vy_data, fit_data[minimumVX, :], "--", alpha=1, label="2D Gaussian")
-    ax.plot(vy_data, g1Dfit.eval(x=vy_data), "-", alpha=1, label="1D Gauss")
-    ax.plot(vy_data, fit_data_lorentz[minimumVY, :], "-.", alpha=1, label="2D Lorentz")
-    ax.plot(vy_data, l1Dfit.eval(x=vy_data), "-", alpha=1, label="1D Lorentz")
+    ax.plot(vy_data1, hist_data1[minimumVX, :], "o", alpha=0.6)
+    ax.plot(vy_data1, fit_data[minimumVX, :], "--", alpha=1, label="2D Gaussian")
+    ax.plot(vy_data1, g1Dfit.eval(x=vy_data1), "-", alpha=1, label="1D Gauss")
+    ax.plot(vy_data1, fit_data_lorentz[minimumVY, :], "-.", alpha=1, label="2D Lorentz")
+    ax.plot(vy_data1, l1Dfit.eval(x=vy_data1), "-", alpha=1, label="1D Lorentz")
     ax.set_ylabel("# of atoms (a.u.)")
     ax.set_xlabel("Vy (mm/s)")
     ax.legend()

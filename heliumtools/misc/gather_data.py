@@ -361,6 +361,7 @@ def fit_BEC_arrival_time(
             )
             ax.set_title("Mean : {:.3f} ms".format(popt[0]))
             ax.set_xlabel("Arrival time of reconstructed atoms (ms)")
+
     ##### FIT in X and Y
     for i, XY in enumerate(["X", "Y"]):
         (bin_mini, bin_maxi) = get_roi_min_max(ROI_for_fit, XY)
@@ -387,6 +388,7 @@ def fit_BEC_arrival_time(
             failed_status = True
             poptXY = p0XY
         ans["BEC Center " + XY] = poptXY[0]
+        ans["BEC Width " + XY]=poptXY[2]
         if show_fit:
             print("Fit in " + XY + " :")
             print(f"p0 : {p0XY}")
