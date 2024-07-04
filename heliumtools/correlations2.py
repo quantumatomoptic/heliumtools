@@ -307,7 +307,6 @@ class CorrelationHe2Style(DataBuilder):
             atA_all = self.atomsA[~(self.atomsA["Cycle"] == cycle)].sample(
                 frac=self.denominator_ratio, replace=False
             )
-
             G2AA1 = self.get_G2(atA, atA_all, local=True, numerator=False)
             G2AA2 = self.get_G2(atA_all, atA, local=True, numerator=False)
             self.result["G2AA denominator"] += (G2AA1.flatten() + G2AA2.flatten()) / 2
@@ -341,7 +340,6 @@ class CorrelationHe2Style(DataBuilder):
             return
 
         for G2 in ["G2AA", "G2BB", "G2AB"]:
-            print("I am here")
             self.result[G2 + " denominator"] = (
                 self.result[G2 + " denominator"]
                 / (self.n_cycles - 1)
