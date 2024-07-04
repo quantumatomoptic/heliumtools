@@ -387,6 +387,7 @@ def fit_BEC_arrival_time(
         except:
             failed_status = True
             poptXY = p0XY
+        ans["BEC Width " + XY] = poptXY[2]
         ans["BEC Center " + XY] = poptXY[0]
         ans["BEC Width " + XY]=poptXY[2]
         if show_fit:
