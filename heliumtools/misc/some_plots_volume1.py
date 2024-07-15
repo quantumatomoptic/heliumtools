@@ -418,14 +418,18 @@ def oneD_density_fitted_plot(
     )
     fig, ax = plt.subplots(figsize=(4.3, 3.9), dpi=110)
     for i, vperp_max in enumerate(vperp_list):
-        box_volume = vperp_max * vperp_max * np.pi * boxZsize / mode_volume
-        my_box = {"Vperp": {"minimum": -1, "maximum": vperp_max}}
+        # box_volume = vperp_max * vperp_max * np.pi * boxZsize / mode_volume
+        # my_box = {"Vperp": {"minimum": -1, "maximum": vperp_max}}
+        my_box = {
+            "Vx": {"size": vperp_max, "position": 0},
+            "Vy": {"size": vperp_max, "position": 0},
+        }
         atoms = corr.get_atoms_in_box(corr.atoms, my_box)
         hist, bins = np.histogram(atoms["Vz"], bins=np.arange(-40, 40, boxZsize))
         x = (bins[0:-1] + bins[1:]) / 2
         ax.scatter(
             x,
-            hist / corr.n_cycles / box_volume,
+            hist / corr.n_cycles,
             alpha=0.3,
             label=r"$\Delta V_z={:.1f}, \, \Delta V_\perp={:.0f}$ mm/s ".format(
                 boxZsize, vperp_max
@@ -440,7 +444,7 @@ def oneD_density_fitted_plot(
             hist1, bins1 = np.histogram(
                 atoms["Vz"], bins=np.arange(peak1[0], peak1[1], boxZsize)
             )
-            hist1 = hist1 / corr.n_cycles / box_volume
+            hist1 = hist1 / corr.n_cycles
             bin_centers1 = np.array(bins1[:-1] + np.diff(bins1) / 2)
             max_index = np.argmax(hist1)
             p0 = [
@@ -467,7 +471,7 @@ def oneD_density_fitted_plot(
             hist1, bins1 = np.histogram(
                 atoms["Vz"], bins=np.arange(peak2[0], peak2[1], boxZsize)
             )
-            hist1 = hist1 / corr.n_cycles / box_volume
+            hist1 = hist1 / corr.n_cycles
             bin_centers1 = np.array(bins1[:-1] + np.diff(bins1) / 2)
             max_index = np.argmax(hist1)
             # p0 = mean, amplitude, standard_deviation
@@ -511,7 +515,6 @@ def oneD_density_fitted_plot(
         framealpha=0.4,
         fontsize="7",
     )
-    print("The volume of a mode is ", mode_volume, "(mm/s)^3")
     # plt.savefig("densite_selon_z.png")
     plt.show()
 
@@ -595,5 +598,3 @@ def heatmap_with_boxes(
                 msg += f" and values = {values}. Box is {box}. Error is : {e}"
                 print(msg)
     return ax
-
-
