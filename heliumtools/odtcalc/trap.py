@@ -18,7 +18,8 @@ from numpy import pi
 from scipy import constants as csts
 from skimage.measure import find_contours
 from scipy.optimize import brentq
-
+import scipy.constants as csts
+from scipy.signal import argrelextrema
 # local
 from heliumtools.atom import Helium
 from heliumtools.odtcalc.laser import GaussianBeam
@@ -30,6 +31,7 @@ from heliumtools.odtcalc.utils import (
     polyfit2D,
     sortp,
     analyze_psort,
+    get_freq_from_polyfit
 )
 
 
@@ -786,7 +788,7 @@ class Trap:
         for i, z in enumerate(["x", "y","z"]):
             result[z] = {}
             result[z]["p"]=np.polyfit(x[z], U[z], 4)
-            result[z]["frequency"] = get_freq(result[z]["p"], unit = unit, m = self.atom.mass)
+            result[z]["frequency"] = get_freq_from_polyfit(result[z]["p"], unit = unit, m = self.atom.mass)
             result[z]["pulsation"] = 2 * pi * result[z]["frequency"]
             arg = argrelextrema(U[z], np.less)
             if arg[0].size>=1 :
@@ -809,7 +811,7 @@ class Trap:
         U["x"] = self.potential(x["x"], y0, z0, unit=unit)
         U["y"] = self.potential(x0, x["y"], z0, unit=unit)
         U["z"] = self.potential(x0, y0, x["z"], unit=unit)
-        result = update_result_with_BEC_properties(self, result)
+        result = self.update_result_with_BEC_properties(result)
         ## we do again the analysis depending on the minimum location
         if perform_two_analyses:
             x2 = {}
@@ -825,7 +827,7 @@ class Trap:
             U2["z"] = self.potential(result["x"]["center"], result["y"]["center"], x2["z"], unit=unit)
             for i, z in enumerate(["x", "y","z"]):
                 result[z]["p2"]=np.polyfit(x2[z], U2[z], 4)
-                result[z]["frequency"] = get_freq(result[z]["p2"], unit = unit, m = self.atom.mass)
+                result[z]["frequency"] = get_freq_from_polyfit(result[z]["p2"], unit = unit, m = self.atom.mass)
                 result[z]["pulsation"] = 2 * pi * result[z]["frequency"]
                 arg = argrelextrema(U2[z], np.less)
                 if arg[0].size>=1 :
