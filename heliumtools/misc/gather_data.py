@@ -732,7 +732,7 @@ def export_metadatas_to_pickle(folder, metadata_list=["json"]) -> pd.DataFrame:
         seq, cycle = return_cycle_from_path(cycle_prefix)
         seq_par = {}
         for metadata in metadata_list:
-            seq_par.update(load_metadata(cycle_prefix, metadata))
+            seq_par.update(load_metadata(cycle_prefix, metadata, show_error=False))
         seq_par["Sequence"] = seq
         seq_par["Cycle"] = cycle
         seq_par["Cycle time"] = get_creation_time(cycle_path)
@@ -865,13 +865,13 @@ def load_metadata(cycle_prefix, metadata, show_error=True):
         return load_hal_type_metadata(
             cycle_prefix + ".picoscope2000_treated", show_error=show_error
         )
-    if metadata.lower() in "HAL fits camera .HAL_fits":
+    if metadata.lower() in "hal fits camera .hal_fits":
         directory, file_name = os.path.split(cycle_prefix)
         file_name = file_name + ".json"
         file_name = os.path.join(
-            directory, ".HAL_fits", file_name, show_error=show_error
+            directory, ".HAL_fits", file_name
         )
-        return load_hal_type_metadata(file_name, show_error=show_error)
+        return load_hal_fit_metadata(file_name, show_error=show_error)
     if metadata.lower() in "all parameters every parameters":
         return load_dictionary_metadata(
             cycle_prefix + ".sequence_parameters", show_error=show_error
@@ -886,6 +886,39 @@ def load_metadata(cycle_prefix, metadata, show_error=True):
 
 import os
 
+def load_hal_fit_metadata(file, show_error=True) -> dict:
+    """Load HAL fit 2D metadata i.e. that contains a dictionary with an element "collection" that provides
+    a list of dictionary with ROI. Honestly it is a mess but it works. 
+    entries name, value, unit, error etc...
+
+    Args:
+        file (str or pathlib.Path): path to the metadata file
+        show_error (boolean): if we show the log
+
+    Returns:
+        dict: dictionary containing all HAL metadata of the file.
+    """
+    try:
+        dico = {}
+
+        f = open(file)
+        data = json.load(f)
+        for roi in data["collection"]:
+            roi_data = data["collection"][roi]["result"]["values"]
+            for element in roi_data:
+                key = element["name"]
+                if element["unit"] != "":
+                    key += " ({})".format(element["unit"])
+                dico[roi + "_"+key] = element["value"]
+        return dico
+    except Exception as e:
+        msg = f"{__file__}"
+        msg += " \n     from load_hal_type_metadata \n "
+        msg += f"Loading HAL type file {file} failed. Are you sure "
+        msg += f"the file you want to load is a HAL file ? Error is {e}."
+        if show_error:
+            log.error(msg)
+        return {}
 
 def load_hal_type_metadata(file, show_error=True) -> dict:
     """Load HAL type of metadat i.e. a list of dictionary with
@@ -949,6 +982,7 @@ def load_dictionary_metadata(file, key_separator=" | ", show_error=True) -> dict
         if show_error:
             log.error(msg)
     return {}
+
 
 
 def get_creation_time(file_path):

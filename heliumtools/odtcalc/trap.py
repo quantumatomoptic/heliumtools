@@ -581,12 +581,61 @@ class Trap:
             plt.show()
 
         return results
+    def get_depth(self, z = np.linspace(-6e-3, 3e-3, int(1e6))):
+        """
+        Return a dictionary of the depth and  position for the horizontal trap, the vertical and both traps.
+        """
+        # the gravity change a lot the position of the minimum
+        #    z = np.linspace(-60e-3, 3e-3, int(1e6))
+        #else:
+        #    z = np.linspace(-1e-3, 1e-3, int(1e4))# 1 mm range is enought for 100 µm of waist
+        Utot, U_dic = self.potential(0, 0, z, yield_each_contribution=True, unit="µK")
+        # first we fint the maximum and the minimum for each potential
+        result ={}
+        for laser in self.lasers:
+            beam = laser.label
+            U = U_dic[beam] + U_dic["gravity"]
+            # find minimum and maximum of the potential
+            maximum = argrelextrema(U, np.greater)[0]
+            minimum = argrelextrema(U, np.less)[0]
+            if len(maximum)>1 or len(minimum)>1:
+                print("The trap {} has two minimum while there is a gravity gradient... It is strange".format(beam))
+                result[beam +" trap position (mm)"] = np.nan
+                result[beam +" trap depth (µK)"] = np.nan
+            elif len(maximum)==0 and len(minimum)==0:
+                # this means that we do not trap...
+                result[beam +" trap position (mm)"] = -np.inf
+                result[beam +" trap depth (µK)"] = 0
+            elif len(maximum)==0 and len(minimum)>0:
+                result[beam +" trap position (mm)"] = z[minimum[0]]* 1000
+                result[beam +" trap depth (µK)"] = np.abs(U[minimum[0]] -np.max(U))
 
+            else:
+                result[beam +" trap position (mm)"] = z[minimum[0]]* 1000
+                result[beam +" trap depth (µK)"] = np.abs(U[minimum[0]] - U[maximum[0]])
+        # now we want to deal with the total potential
+         # find minimum and maximum of the potential
+        maximum = argrelextrema(Utot, np.greater)[0]
+        minimum = argrelextrema(Utot, np.less)[0]
+        if len(maximum)>1 or len(minimum)>1:
+            # we might have to local maximum when dealing with two beams.
+            real_maximum = maximum[np.argmax([U[i] for i in maximum])]
+            real_minimum = minimum[np.argmin([U[i] for i in minimum])]
+            result["ODTc position (mm)"] = z[real_minimum]* 1000
+            result["ODTc depth (µK)"] = np.abs(U[real_minimum] - U[real_maximum])
+        elif len(maximum)==0 or len(minimum)==0:
+            # this means that we do not trap...
+            result["ODTc position (mm)"] = -np.inf
+            result["ODTc depth (µK)"] = 0
+        else:
+            result["ODTc position (mm)"] = z[minimum[0]] * 1000
+            result["ODTc depth (µK)"] = np.abs(U[minimum[0]] - U[maximum[0]])
+        return result
     # -- plotting
 
     def plot_potential(
         self,
-        spatial_range=(1e3, 1e3, 1e3),
+        spatial_range=(1e-3, 1e-3, 1e-3),
         Npoint=(500, 500, 500),
         center=(0, 0, 0),
         unit="µK",
