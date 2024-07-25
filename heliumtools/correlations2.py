@@ -283,6 +283,7 @@ class CorrelationHe2Style(DataBuilder):
         cycles_array_splitted = np.array_split(
             self.cycles_array, int(self.n_cycles / self.computer_performance)
         )
+        print(int(self.n_cycles / self.computer_performance))
         for cycles in cycles_array_splitted:
             ### Beam A
             atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]

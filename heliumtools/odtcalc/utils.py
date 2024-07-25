@@ -254,3 +254,21 @@ def analyze_psort(ps, unit='µK', m=4.002602 * csts.m_u):
     result['y0'] = y0
     result['U0'] = U0
     return result
+
+
+
+def get_freq_from_polyfit(p, unit="µK", m=4.002602 * csts.m_u):
+    """return the frequency of the trap based on the polyfit result. 
+    """
+    omega =  np.sqrt(2 *p[-3])
+    # convert to SI
+    if unit == 'J':
+        mult = 1 / np.sqrt(m)
+    elif unit == 'K':
+        mult = np.sqrt(csts.k / m)
+    elif unit == 'mK':
+        mult = np.sqrt(csts.k / m / 1e3)
+    elif unit == 'µK':
+        mult = np.sqrt(csts.k / m / 1e6)
+    omega_SI = omega * mult
+    return omega_SI/ 2 / pi

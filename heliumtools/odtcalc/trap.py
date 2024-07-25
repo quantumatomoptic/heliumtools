@@ -54,6 +54,7 @@ class Trap:
         self.coils = []
         self.gravity = True
         self.magnetic_field_offset = (0, 0, 0)  # Tesla
+        self.Nat = 2*10**4
 
     # -- components handling (lasers, coils)
     def add_laser(self, **kwargs):
@@ -707,3 +708,150 @@ class Trap:
         plt.tight_layout()
         plt.show()
         pass
+
+
+    def update_result_with_BEC_properties(self, result):
+        """
+        result must contains the trap frequencies in Hz
+        """
+        if "Nat" not in self.__dict__:
+            self.Nat = 10**4
+        # mean harmonic oscillator frequency
+        omega_ho = (result["x"]["pulsation"]*result["y"]["pulsation"]*result["z"]["pulsation"])**(1/3)
+        a_ho = np.sqrt(csts.hbar/(self.atom.mass*omega_ho)) # harmonic oscillator length
+        result["omega_ho"] = omega_ho
+        result["a_ho"] = a_ho
+        # For more informations, see Bose–Einstein Condensation and Superfluidity
+        # by Pitaevskii and Stringari, chapter 11.
+        TF_parameter = self.Nat *  self.atom.scattering_length / a_ho
+        result["chemical potential"] =0.5 *csts.hbar * omega_ho * (15 * TF_parameter)**(2/5)
+        result["chemical potential (nK)"] = result["chemical potential"] /csts.k *1e9
+        result["chemical potential (kHz)"] = result["chemical potential"] / csts.hbar / 2 / np.pi/1000
+        result["TF_parameter"] = TF_parameter
+        for z in ["x", "y", "z"]:
+            result[z]["size"] =np.sqrt(2* result["chemical potential"] /self.atom.mass)/result[z]["pulsation"]
+            result[z]["ho size"]=np.sqrt(csts.hbar/(self.atom.mass*result[z]["pulsation"])) 
+        if TF_parameter <10:
+            print("WARNING : The Thomas-Fermi condition is not met as Na/a_ho = ", str(TF_parameter))
+        return result
+    def analyse_oneD_trap(self,
+            spatial_range=(60e-6, 20e-6, 20e-6),
+            Npoint=(200, 200, 200),
+            center=(0, 0, 0),
+            plot_result=True,
+            print_result=True,
+            only_print_mean=False,
+            unit = "µK",
+            perform_two_analyses = True,
+            figsize=(9, 2.4)):
+        """
+            Analyzes the trap potential to find trap center and frequencies in 1D. 
+            The analysis is done on 1D cuts and performed by defautl twice. The second
+            takes the first analysis result to change the range of the spatial parameter
+            and set the center of the trap as the middle of the analysis
+
+            Parameters
+            ----------
+            spatial_range : tuple, optional
+                spatial ranges (x,y,z) for the analysis, in meters
+            Npoint : tuple, optional
+                number of points for the (x,y,z) grids
+            center : tuple, optional
+                center of the area to analyze
+            
+            plot_result : bool, optional
+                plot the results
+            print_result : bool, optional
+                prints the output of the analysis in the terminal
+
+            Returns
+            -------
+            results : dictionnary
+                dictionnary containing trap parameters with explicit names
+            """
+        # make sure we have 
+        center = list(center)
+        ### FIRST ANALYSE
+        x = {}
+        for i, ax in enumerate(["x", "y", "z"]):
+            x[ax] = np.linspace(-spatial_range[i], spatial_range[i], Npoint[i])
+            x[ax] += center[i]
+        # define potential
+        x0, y0, z0 = center
+        U = {}
+        U["x"] = self.potential(x["x"], y0, z0, unit=unit)
+        U["y"] = self.potential(x0, x["y"], z0, unit=unit)
+        U["z"] = self.potential(x0, y0, x["z"], unit=unit)
+        result = {}
+        for i, z in enumerate(["x", "y","z"]):
+            result[z] = {}
+            result[z]["p"]=np.polyfit(x[z], U[z], 4)
+            result[z]["frequency"] = get_freq(result[z]["p"], unit = unit, m = self.atom.mass)
+            result[z]["pulsation"] = 2 * pi * result[z]["frequency"]
+            arg = argrelextrema(U[z], np.less)
+            if arg[0].size>=1 :
+                result[z]["center"] = x[z][arg[0][0]]
+                # we change the center of the trap so that is match the position of the minimum of the potential
+                if np.abs(result[z]["center"] - center[i])>x[z][1]- x[z][2]:
+                    center[i] = x[z][arg[0][0]]
+                    
+            else:
+                arg = argrelextrema(U[z], np.less_equal)
+                if arg[0].size>=1 :
+                    result[z]["center"] = x[z][arg[0][0]]
+                else:
+                    print(f"The {z} minimum potential was not found. Please provide a spatial range for which a minimum exists")
+                    perform_two_analyses = False
+                    
+        # we change the center of the trap so that it matches  
+        x0, y0, z0 = center
+        U = {}
+        U["x"] = self.potential(x["x"], y0, z0, unit=unit)
+        U["y"] = self.potential(x0, x["y"], z0, unit=unit)
+        U["z"] = self.potential(x0, y0, x["z"], unit=unit)
+        result = update_result_with_BEC_properties(self, result)
+        ## we do again the analysis depending on the minimum location
+        if perform_two_analyses:
+            x2 = {}
+            for i, ax in enumerate(["x", "y", "z"]):
+                # we set the range to 10 times the range of the harmonic oscillator length.
+                x2[ax] = np.linspace(-result[ax]["ho size"] *10, result[ax]["ho size"] *10, Npoint[i])
+                x2[ax] += result[ax]["center"]
+            # define potential
+            
+            U2 = {}
+            U2["x"] = self.potential(x2["x"], result["y"]["center"], result["z"]["center"], unit=unit)
+            U2["y"] = self.potential(result["x"]["center"], x2["y"], result["z"]["center"], unit=unit)
+            U2["z"] = self.potential(result["x"]["center"], result["y"]["center"], x2["z"], unit=unit)
+            for i, z in enumerate(["x", "y","z"]):
+                result[z]["p2"]=np.polyfit(x2[z], U2[z], 4)
+                result[z]["frequency"] = get_freq(result[z]["p2"], unit = unit, m = self.atom.mass)
+                result[z]["pulsation"] = 2 * pi * result[z]["frequency"]
+                arg = argrelextrema(U2[z], np.less)
+                if arg[0].size>=1 :
+                    result[z]["center"] = x2[z][arg[0][0]]
+                else:
+                    arg = argrelextrema(U2[z], np.less_equal)
+                    if arg[0].size>=1 :
+                        result[z]["center"] = x2[z][arg[0][0]]
+                    else:
+                        print("NO minimum was found in the potential. Please consider chancking your range")
+        if plot_result:
+            fig, axes = plt.subplots(ncols = 3, nrows =1,figsize=figsize)
+            markers = ["o", "d", "v"]
+            for i, z in enumerate(["x", "y","z"]):
+                ax = axes[i]
+                ax.scatter(x[z]*1e6, U[z], marker = markers[i],alpha = 0.4, color = f"C1", label  ="Model")
+                p_func = np.poly1d(result[z]["p"])
+                ax.plot(x[z]*1e6, p_func(x[z]), color = "C0", label  ="Fit 1")
+                if perform_two_analyses:
+                    p_func = np.poly1d(result[z]["p2"])
+                    ax.plot(x2[z]*1e6, p_func(x2[z]), color ="C2",lw = 1,ls = "--", label  ="Fit 2")
+
+                ax.set_xlabel(z + " (µm)")
+                ax.legend()
+                ax.set_ylabel(f"Depth ({unit})")
+                ax.grid(True)
+            plt.tight_layout()
+            plt.show()
+        return result
