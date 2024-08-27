@@ -13,7 +13,7 @@ Content of gather_data.py
 In this file are defined some functions to gather data.
 """
 from scipy.optimize import curve_fit
-import glob, os, re, json, random, platform
+import glob, os, re, json, random, platform, copy
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -293,6 +293,7 @@ def fit_BEC_arrival_time(
         Whether to display the fit on a figure (do not set to True if performing multiple fits). Consider using the check_BEC_fit function if you want to verify your fits.
 
     """
+    ROI_for_fit = copy.deepcopy(ROI_for_fit)
     ans = {"Number of Atoms": len(data)}
     ROI_for_fit = check_roi_for_fit(ROI_for_fit)
     data = apply_ROI(data, ROI_for_fit)
@@ -302,11 +303,10 @@ def fit_BEC_arrival_time(
     ans["Number of Atoms in ROIfit"] = len(data)
     ans["BEC Std Arrival Time"] = np.std(data["T"])
     if show_fit:
-        fig, axes = plt.subplots(figsize=(3.3 * 4, 3 * 2), ncols=4, nrows=2)
+        fig, axes = plt.subplots(figsize=(3.3 * 4, 3 * 3), ncols=4, nrows=3)
         axes = axes.flatten()
         print(" ##########  FIT   ##########")
         print("p0 : [mean, amplitude, standard_deviation, offset]")
-
     #### FIT IN TIME
     if True:
         mini, maxi = get_roi_min_max(ROI_for_fit, "T")
@@ -341,7 +341,8 @@ def fit_BEC_arrival_time(
         ans["BEC fitted Std Arrival Time"] = popt[2]
         ans["BEC Arrival Time with fit"] = popt[0]
         if show_fit:
-            ax = axes[0]
+            plot_index = 0
+            ax = axes[plot_index]
             ax.plot(bin_centers, bin_heights, "o", alpha=0.8, label="data")
             print("Fit in T :")
             print(f"p0 : {p0}")
@@ -363,8 +364,24 @@ def fit_BEC_arrival_time(
             ax.set_xlabel("Arrival time of reconstructed atoms (ms)")
 
     ##### FIT in X and Y
-    for i, XY in enumerate(["X", "Y"]):
+    to_fit = ["X", "Y"]
+    for angle in [45, 45+7]:
+        theta=np.pi /180 * angle
+        X0 = data["X"].mean()
+        Y0 = data["Y"].mean()
+        to_fit.append("X ({})".format(angle))
+        to_fit.append("Y ({})".format(angle))
+        data["X ({})".format(angle)] = (data["X"] - X0)*np.cos(theta) + np.sin(theta)*(data["Y"] - Y0)
+        data["Y ({})".format(angle)] = -(data["X"] - X0)*np.sin(theta) + np.cos(theta)*(data["Y"] - Y0)
+        # plot_index +=1
+        ROI_for_fit["Y ({})".format(angle)] = [-15, 15]
+        ROI_for_fit["X ({})".format(angle)] = [-15, 15]
+        # axes[plot_index].hist2d(data["X ({})".format(angle)], data["Y ({})".format(angle)],
+        #                          cmap = "Greys", bins =( np.linspace(-14, 14, 24), np.linspace(-14, 14, 24)))
+    
+    for i, XY in enumerate(to_fit):
         (bin_mini, bin_maxi) = get_roi_min_max(ROI_for_fit, XY)
+
         bin_heightsXY, bin_bordersXY = np.histogram(
             data[XY].to_numpy(),
             bins=np.arange(bin_mini, bin_maxi),
@@ -390,12 +407,14 @@ def fit_BEC_arrival_time(
         ans["BEC Width " + XY] = poptXY[2]
         ans["BEC Center " + XY] = poptXY[0]
         ans["BEC Width " + XY]=poptXY[2]
+        ans["BEC Width std "+XY] = np.std(data[XY].to_numpy())
         if show_fit:
             print("Fit in " + XY + " :")
             print(f"p0 : {p0XY}")
             print(f"popt : {poptXY}")
             print("=" * 20)
-            ax = axes[1 + i]
+            plot_index +=1
+            ax = axes[plot_index]
             ax.plot(bin_centersXY, bin_heightsXY, "*", alpha=0.7, label="data")
             ax.plot(
                 bin_centersXY,
@@ -410,8 +429,10 @@ def fit_BEC_arrival_time(
                 label="guess",
             )
             ax.set_title("Mean : {:.3f} mm".format(poptXY[0]))
-            ax.set_xlabel(XY + " position of reconstructed atoms (mm)")
+            ax.set_xlabel(XY + " (mm)")
     ##### FIT of each channel X1, x2, y1 and y2
+    
+
     if filename:
         ans["Mean Arrival Time (fit .times)"] = 0
         for index, xj in enumerate(["x1", "x2", "y1", "y2"]):
@@ -456,7 +477,8 @@ def fit_BEC_arrival_time(
             ans[xj + " Arrival Time (fit)"] = popt[0]
             ans["Mean Arrival Time (fit .times)"] += popt[0]
             if show_fit:
-                ax = axes[3 + index]
+                plot_index +=1
+                ax = axes[plot_index]
                 ax.plot(bin_centers, bin_heights, "o", alpha=0.8, label="data")
                 print("Fit in T :")
                 print(f"p0 : {p0}")
@@ -490,7 +512,6 @@ def fit_BEC_arrival_time(
         plt.tight_layout()
         plt.show()
     return ans, failed_status
-
 
 def check_BEC_fit(
     folder,
