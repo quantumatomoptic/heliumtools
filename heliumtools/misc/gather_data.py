@@ -365,20 +365,24 @@ def fit_BEC_arrival_time(
 
     ##### FIT in X and Y
     to_fit = ["X", "Y"]
-    for angle in [45, 45+7]:
-        theta=np.pi /180 * angle
+    for angle in [45, 45 + 7]:
+        theta = np.pi / 180 * angle
         X0 = data["X"].mean()
         Y0 = data["Y"].mean()
         to_fit.append("X ({})".format(angle))
         to_fit.append("Y ({})".format(angle))
-        data["X ({})".format(angle)] = (data["X"] - X0)*np.cos(theta) + np.sin(theta)*(data["Y"] - Y0)
-        data["Y ({})".format(angle)] = -(data["X"] - X0)*np.sin(theta) + np.cos(theta)*(data["Y"] - Y0)
+        data["X ({})".format(angle)] = (data["X"] - X0) * np.cos(theta) + np.sin(
+            theta
+        ) * (data["Y"] - Y0)
+        data["Y ({})".format(angle)] = -(data["X"] - X0) * np.sin(theta) + np.cos(
+            theta
+        ) * (data["Y"] - Y0)
         # plot_index +=1
         ROI_for_fit["Y ({})".format(angle)] = [-15, 15]
         ROI_for_fit["X ({})".format(angle)] = [-15, 15]
         # axes[plot_index].hist2d(data["X ({})".format(angle)], data["Y ({})".format(angle)],
         #                          cmap = "Greys", bins =( np.linspace(-14, 14, 24), np.linspace(-14, 14, 24)))
-    
+
     for i, XY in enumerate(to_fit):
         (bin_mini, bin_maxi) = get_roi_min_max(ROI_for_fit, XY)
 
@@ -406,14 +410,14 @@ def fit_BEC_arrival_time(
             poptXY = p0XY
         ans["BEC Width " + XY] = poptXY[2]
         ans["BEC Center " + XY] = poptXY[0]
-        ans["BEC Width " + XY]=poptXY[2]
-        ans["BEC Width std "+XY] = np.std(data[XY].to_numpy())
+        ans["BEC Width " + XY] = poptXY[2]
+        ans["BEC Width std " + XY] = np.std(data[XY].to_numpy())
         if show_fit:
             print("Fit in " + XY + " :")
             print(f"p0 : {p0XY}")
             print(f"popt : {poptXY}")
             print("=" * 20)
-            plot_index +=1
+            plot_index += 1
             ax = axes[plot_index]
             ax.plot(bin_centersXY, bin_heightsXY, "*", alpha=0.7, label="data")
             ax.plot(
@@ -431,7 +435,6 @@ def fit_BEC_arrival_time(
             ax.set_title("Mean : {:.3f} mm".format(poptXY[0]))
             ax.set_xlabel(XY + " (mm)")
     ##### FIT of each channel X1, x2, y1 and y2
-    
 
     if filename:
         ans["Mean Arrival Time (fit .times)"] = 0
@@ -477,7 +480,7 @@ def fit_BEC_arrival_time(
             ans[xj + " Arrival Time (fit)"] = popt[0]
             ans["Mean Arrival Time (fit .times)"] += popt[0]
             if show_fit:
-                plot_index +=1
+                plot_index += 1
                 ax = axes[plot_index]
                 ax.plot(bin_centers, bin_heights, "o", alpha=0.8, label="data")
                 print("Fit in T :")
@@ -512,6 +515,7 @@ def fit_BEC_arrival_time(
         plt.tight_layout()
         plt.show()
     return ans, failed_status
+
 
 def check_BEC_fit(
     folder,
@@ -626,7 +630,7 @@ def export_data_set_to_pickle(
     ROI_for_fit={"T": {"min": 306.2, "max": 309.7}, "X": [-30, 0], "Y": [-15, 15]},
     width_saturation=0,
     supplementary_rois=[],
-    metadata=[],
+    metadata=["json", "bec"],
 ):
     """
     Export the dataset folder as a pickle. This function generates three files in the folder. Thus, the dataframe folder/dataset.pkl contains all the atoms from the folder within the ROI. This function also creates folder/parameters.pkl containing all the sequence parameters, as well as folder/arrival_times.pkl containing the fitted arrival times (plus parameters) of the sequence.
@@ -889,9 +893,7 @@ def load_metadata(cycle_prefix, metadata, show_error=True):
     if metadata.lower() in "hal fits camera .hal_fits":
         directory, file_name = os.path.split(cycle_prefix)
         file_name = file_name + ".json"
-        file_name = os.path.join(
-            directory, ".HAL_fits", file_name
-        )
+        file_name = os.path.join(directory, ".HAL_fits", file_name)
         return load_hal_fit_metadata(file_name, show_error=show_error)
     if metadata.lower() in "all parameters every parameters":
         return load_dictionary_metadata(
@@ -907,9 +909,10 @@ def load_metadata(cycle_prefix, metadata, show_error=True):
 
 import os
 
+
 def load_hal_fit_metadata(file, show_error=True) -> dict:
     """Load HAL fit 2D metadata i.e. that contains a dictionary with an element "collection" that provides
-    a list of dictionary with ROI. Honestly it is a mess but it works. 
+    a list of dictionary with ROI. Honestly it is a mess but it works.
     entries name, value, unit, error etc...
 
     Args:
@@ -930,7 +933,7 @@ def load_hal_fit_metadata(file, show_error=True) -> dict:
                 key = element["name"]
                 if element["unit"] != "":
                     key += " ({})".format(element["unit"])
-                dico[roi + "_"+key] = element["value"]
+                dico[roi + "_" + key] = element["value"]
         return dico
     except Exception as e:
         msg = f"{__file__}"
@@ -940,6 +943,7 @@ def load_hal_fit_metadata(file, show_error=True) -> dict:
         if show_error:
             log.error(msg)
         return {}
+
 
 def load_hal_type_metadata(file, show_error=True) -> dict:
     """Load HAL type of metadat i.e. a list of dictionary with
@@ -1003,7 +1007,6 @@ def load_dictionary_metadata(file, key_separator=" | ", show_error=True) -> dict
         if show_error:
             log.error(msg)
     return {}
-
 
 
 def get_creation_time(file_path):
