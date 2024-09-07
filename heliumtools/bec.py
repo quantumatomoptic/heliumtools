@@ -17,6 +17,7 @@ class BEC:
     _omega_perp = 2 * np.pi * 1000  # Hz
     _omega_z = 2 * np.pi * 30  # Hz
     _temperature = 30 * 1e-9
+    _c_s = None
 
     def __init__(self, **kwargs) -> None:
         self.__dict__.update(**kwargs)
@@ -167,6 +168,69 @@ class BEC:
         energy = np.sqrt(2 * self._mc2 * epsilon_k + epsilon_k**2)
         deriv_energysquare = 4 * self._mc2 * epsilon_k / k + 4 * epsilon_k**2 / k
         return 0.5 * deriv_energysquare / energy / hbar
+
+
+
+    
+class CigarShapeBEC(BEC):
+    _c_s = None
+        
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.set_up_BEC_properties() 
+
+
+
+    def set_up_BEC_properties(self):
+        """set up the BEC properties based on the value of asn1, in the Gaussian ansatz approximation.
+        References:
+        * Gerbier EPL (2004)
+        * Petrov et al PRL (2000)
+        * Petrov et al  J. Phys (2004)
+        * Victor's thesis for notations.
+        """
+        self._mu0 = hbar * self._omega_perp * 2 * np.sqrt(self._asn1)
+        self._radius_perp = 2 * self._a_perp * self._asn1**0.25
+        # self._chi = np.sqrt(self._alpha**3 * (5 + self._alpha**2))
+        self._c_s = np.sqrt(
+            self._mu / 2
+            / self._m
+        )
+        self._Nat = int(
+            self._a_z**2
+            / self._a_s
+            / self._a_perp
+            / 15
+            * (self._alpha ** (1.5) * (self._alpha + 5))
+        )  # atom number
+        self._length = (
+            np.sqrt(self._alpha * self._a_z**4 / self._a_perp**2) * 2
+        )  # total lenght of bec
+        self._n1p = self._asn1 / self._a_s  # max density
+
+        self._radius = (
+            self._a_perp * (1 + 4 * self._asn1) ** 0.25
+        )  # bec transverse sigma
+        self._mc2 = self._m * self._c_s**2  # mc² phonon energy
+        self._xi = hbar / (self._m * self._c_s * np.sqrt(2))  # healing length
+        self._g1D = self._g / (2 * np.pi * self._sigma0**2)
+        self._gamma = self._m * self._g1D / hbar**2 / self._n1p  #
+        # self._radial_0
+        self._l_coh = hbar / np.sqrt(
+            self._m * self._n1p * self._g1D
+        )  # coherence lenght, Petrov and
+        self._T_phi = (
+            15
+            * (hbar * self._omega_z) ** 2
+            / (32 * (self._mu0 - self._omega_perp * hbar))
+            * self._Nat
+            / kb
+        )
+        self._length_phase = 2 * self._n1p * hbar**2 / kb / self._temperature / self._m
+        # round(hbar/(m_he * (1e-3*cs) * np.sqrt(2))*1e6,1)
+        # log.info("Instanciation faite.")
+
+
 
 
 class Gaussian_BEC(BEC):
@@ -330,7 +394,7 @@ class Gaussian_BEC(BEC):
         * Victor's thesis for notations.
         """
         self._mu0 = hbar * self._omega_perp * np.sqrt(1 + 4 * self._asn1)
-        self._sigma0 = self._a_perp
+        self._sigma0 = self._a_perp  * (1 + 4 * self._asn1)**(0.25)
         self._alpha = 2 * (np.sqrt(1 + 4 * self._asn1) - 1)
         self._chi = np.sqrt(self._alpha**3 * (5 + self._alpha**2))
         self._c_s = np.sqrt(
@@ -410,3 +474,17 @@ class Gaussian_BEC(BEC):
         )
         # msg += "\nTphi={:.2f} nK".format(self._T_phi*1e9)
         log.info(msg)
+
+
+if __name__ == "__main__":
+    bec = Gaussian_BEC()
+    bec.set_transverse_freq(1.8e3)
+    phonon_speed = 17/2/1000
+    bec.set_longitudinal_freq(30)
+    bec.set_sound_speed_from_parametric_resonance(phonon_speed)
+    bec.temperature = 40*1e-9
+
+    bec.show_bec_info()
+    bec.get_phonon_population(phonon_speed)
+
+
