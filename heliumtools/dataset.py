@@ -30,7 +30,7 @@ from heliumtools.misc.gather_data import export_data_set_to_pickle
 
 log = getLogger(__name__)
 # set the desired level of warning : DEBUG / INFO / WARNING
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 import yaml
 
 
@@ -68,8 +68,49 @@ class Dataset:
         self.save_parameters()
 
     def set(self, **kwargs):
+        """set a new attribut for the dataset class. Cannot take numpy.64 array."""
+        if self.check_up_keywords(**kwargs):
+            return
         self.__dict__.update(**kwargs)
         self.save_parameters()
+
+    def check_up_keywords(self, **kwargs):
+        """this methods checks the validity of the arguments that are passed
+        to the dataset. If valid, returns 0, if not it returns 1.
+        It tests to save and load in a temporary file the elements.
+        This is because YAML file do not handle numpy array hence
+        one should not pass any np.float64 elements.
+
+        Returns
+        -------
+        Boolean
+            0 if test passed, 1 if fails.
+        """
+        tmp_file_path = os.path.join(self.__name__, "tmp.yml")
+        dic_to_save = kwargs
+        log.debug(f"check_up_keywords() called for {dic_to_save}")
+        try:
+            with open(tmp_file_path, "w") as file:
+                yaml.dump(dic_to_save, file, default_flow_style=False)
+        except Exception as e:
+            msg = "[Dataset]: Test for your new dataset attribut fails."
+            msg += f" You're {dic_to_save} cannot be save as a YAML file."
+            msg += f" Please check it. Error traceback: {e}"
+            log.error(msg)
+            return 1
+        try:
+            with open(tmp_file_path, "r") as file:
+                data = yaml.safe_load(file)
+        except Exception as e:
+            msg = "[Dataset]: Test for your new dataset attribut fails."
+            msg += f" You're {dic_to_save} cannot be save and load as a YAML file."
+            msg += " This is often due no numpy.64 elements that cannot be saved in YAML file. The latter are typically returned by pandas.mean() and std. Please convert numpy elements to float or to list and try again."
+            msg += f" Please check it. Error traceback: {e}"
+            log.error(msg)
+            return 1
+        os.remove(tmp_file_path)
+        log.debug("Test passed, congrats !")
+        return 0
 
     def remove(self, *args) -> None:
         """remove an element from the parameters"""
@@ -127,7 +168,9 @@ class Dataset:
         log.warning(msg)
         msg = "Note that this is not a problem if you do not need to update the atoms nor the metadata stored in the dataset folder. However, it can be an issue if you want to re-export datas to the dataset. If so, I advise you to change the sequences attributs to switch it to the real sequences you are aiming to gather. Good luck !"
         log.info(msg)
-        log.info("The saved sequences are the following : {}".format(self.__sequences__))
+        log.info(
+            "The saved sequences are the following : {}".format(self.__sequences__)
+        )
 
     def save_parameters(self, load_file_before_dump=True) -> None:
         """Save the parameters of the class into the properties.yml file.
@@ -261,10 +304,7 @@ class Dataset:
             msg = f"Sequence {seq_dir} was not added to the database"
             log.warning(msg)
             return
-        if not os.path.exists(seq_dir):
-            msg = f"The sequence directory {seq_dir} does not exists"
-            log.error(msg)
-            return
+
         if seq_id in self.__sequences__:
             msg = f"Sequence {seq_dir} is already in the database (registered under {seq_id})."
             if not force_update:
@@ -275,7 +315,10 @@ class Dataset:
                 log.warning(msg)
                 return
         # we add the sequence to the dataset
-
+        if not os.path.exists(seq_dir):
+            msg = f"The sequence directory {seq_dir} does not exists"
+            log.error(msg)
+            return
         [atoms, params, bec_arr] = export_data_set_to_pickle(
             folder=seq_dir,
             ROI=self.raw_ROI,
@@ -409,5 +452,9 @@ class Dataset:
 
 ## %% FOR TEST %%
 if __name__ == "__main__":
-    d = Dataset("/home/victor/Bureau/tmp/salut")
-    d.get_dataset_properties()
+    d = Dataset("/home/victor/Desktop/tmp/salut")
+    d.set(test=3)
+    import numpy as np
+
+    # d.set(tes_2=np.linspace(1, 10))
+    # d.get_dataset_properties()
