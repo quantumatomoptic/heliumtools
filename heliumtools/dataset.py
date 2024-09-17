@@ -165,12 +165,9 @@ class Dataset:
             f"The path registered {old_name} does not match your path {self.__name__}. "
         )
         msg += "This might be due to windows/unix path compatibility issues. The path to the dataset data is well defined however sequence location might be wrong."
-        log.warning(msg)
-        msg = "Note that this is not a problem if you do not need to update the atoms nor the metadata stored in the dataset folder. However, it can be an issue if you want to re-export datas to the dataset. If so, I advise you to change the sequences attributs to switch it to the real sequences you are aiming to gather. Good luck !"
         log.info(msg)
-        log.info(
-            "The saved sequences are the following : {}".format(self.__sequences__)
-        )
+        msg = "Note that this is not a problem if you do not need to update the atoms nor the metadata stored in the dataset folder. However, it can be an issue if you want to re-export datas to the dataset. If so, I advise you to change the sequences attributs to switch it to the real sequences you are aiming to gather. Good luck !"
+        log.debug(msg)
 
     def save_parameters(self, load_file_before_dump=True) -> None:
         """Save the parameters of the class into the properties.yml file.

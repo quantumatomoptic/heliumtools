@@ -556,6 +556,9 @@ class Correlation(DataBuilder):
         total[":N_1**2:"] = total["N_1"] ** 2 - total["N_1"]
         total["N_2**2"] = total["N_2"] ** 2
         total[":N_2**2:"] = total["N_2"] ** 2 - total["N_2"]
+        total[":N_1^2xN_2^2:"] = (
+            total["N_1"] * (total["N_1"] - 1) * total["N_2"] * (total["N_2"] - 1)
+        )
         total["N_1-N_2"] = total["N_1"] - total["N_2"]
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
@@ -636,7 +639,9 @@ class Correlation(DataBuilder):
         # ---------------
         # Calculs de g^4
         # ---------------
-        self.result["g^4"] = (
+        self.result["g^4"] = self.result[":N_1^2xN_2^2:"] / (self.result["N_1"] ** 2 * self.result["N_2"] ** 2)
+        # normalement ça doit être les mêmes...
+        self.result["g^4 bis"] = (
             self.result["N_1**2*N_2**2"]
             - self.result["N_1*N_2**2"]
             - self.result["N_1**2*N_2"]
@@ -658,7 +663,7 @@ class Correlation(DataBuilder):
                 * (self.result["N_2**2"] - self.result["N_2"])
             )
         )
-            
+
         self.result["C-S difference"] = self.result["N_1*N_2"] - (
             np.sqrt(
                 (self.result["N_1**2"] - self.result["N_1"])
