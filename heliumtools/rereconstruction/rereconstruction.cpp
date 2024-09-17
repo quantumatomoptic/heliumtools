@@ -8,7 +8,11 @@
 //
 //  Copyright (c) 2022 - Helium1@LCF
 // ----------------------------------
+// How to run the code ???
+// If you do not want to change the code but just, on linux, just run ./rereconstruction after having change the conf.txt file.
 //
+// HOW TO COMPILE ?
+// On linux, "g++ -o rereconstruction rereconstruction.cpp"
 
 /*
 This code ables to reconstruct atoms a posteriori. It should not be mandatory to recompile it to make it work on a linux computer. One should just change the configuration file conf.txt and enter
@@ -32,6 +36,7 @@ Third line : the programm number the user wants to use
 #include <vector>
 #include <algorithm>
 #include <iterator>
+#include <cmath> // Pour std::abs()
 using namespace std;
 using namespace std::chrono; // to measure the execution time of the programm
 
@@ -97,12 +102,16 @@ bool reconstruction5(list<timedata> &X1_p,
                      list<timedata> &Y2_p,
                      vector<atomdata> &atoms_p,
                      paramstruct params);
+
 bool reconstruction6(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
                      vector<atomdata> &atoms_p,
-                     paramstruct params);
+                     paramstruct params,
+                     std::vector<std::vector<int>> &offset_p,
+                     map<string, float> &reconstruction_statistics);
+
 void WriteStatistics(string filename, map<string, float> &reconstruction_statistics, string inputfile);
 void WriteAtoms(string filename, vector<atomdata> &atoms);
 void copy_paste_file(string input_file, string output_file);
@@ -218,7 +227,7 @@ int main()
         }
         if (params.reconstruction_number == 6)
         {
-            reconstruction6(X1, X2, Y1, Y2, atoms, params);
+            reconstruction6(X1, X2, Y1, Y2, atoms, params, offset, reconstruction_statistics);
         }
         auto t_end_reconstruction = high_resolution_clock::now();
         auto duration_reconstruction = duration_cast<milliseconds>(t_end_reconstruction - t_start);
@@ -256,6 +265,15 @@ timedata AbsDiff(timedata T1, timedata T2)
         return T1 - T2;
     else
         return T2 - T1;
+}
+
+// Fonction pour calculer l'offset_diff
+int calculate_offset_diff(timedata TX1, timedata TX2, timedata TY1, timedata TY2, const std::vector<std::vector<int>> &offset_p)
+{
+    int S = TX1 + TX2 - TY1 - TY2;
+    int X = 708 - TX1 + TX2;
+    int Y = 708 - TY1 + TY2;
+    return S - offset_p[X][Y];
 }
 
 bool reconstruction1(list<timedata> &X1_p,
@@ -511,10 +529,7 @@ bool reconstruction3(list<timedata> &X1_p,
                         // time difference between events on X and Y
                         // its a curious way of calculating an absolute value
                         // but we want to make sure that we don't loose precision (time coded on 64bits)
-                        int S = TX1 + TX2 - TY1 - TY2;
-                        int X = 708 - TX1 + TX2;
-                        int Y = 708 - TY1 + TY2;
-                        int offset_diff = S - offset_p[X][Y];
+                        int offset_diff = calculate_offset_diff(TX1, TX2, TY1, TY2, offset_p);
                         if (offset_diff < params.offset_resolution)
                         /*if (AbsDiff(S, 0) < 80)*/
                         {
@@ -761,128 +776,70 @@ bool reconstruction5(list<timedata> &X1_p,
         return true;
 }
 
-bool reconstruction5(list<timedata> &X1_p,
+bool reconstruction6(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
                      list<timedata> &Y2_p,
                      vector<atomdata> &atoms_p,
-                     paramstruct params)
+                     paramstruct params,
+                     std::vector<std::vector<int>> &offset_p,
+                     map<string, float> &stats_p)
 {
-    cout << "Reconstruction 5 : Recovering Only Isolated Atoms for very dilute clouds." << endl;
-    // gate X, gatY->bulb width
-    timedata gateY = 2 * timedata((params.evgate + params.atgate) / params.res);
-    timedata gateX = 2 * timedata((params.evgate + params.atgate) / params.res);
-    // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
-    timedata MCPdiameter = timedata(params.evgate / params.res);
-    // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
-    timedata deltaT = timedata(params.deltaTgate / params.res);
-    auto atoms_alone = 0;
-    auto atoms_duplicata = 0;
-    timedata X1_last = 5 * gateX;
-    while (X1_p.begin() != X1_p.end())
+    cout << "Reconstruction 6 : Calling reconstruction 3 to find potential atoms." << endl;
+    // we create a potential atoms vector in which we store all potential atoms
+    vector<atomdata> potential_atoms;
+    timedata time_bulb = timedata((params.evgate + params.atgate) / params.res);
+    reconstruction3(X1_p, X2_p, Y1_p, Y2_p, potential_atoms, params, offset_p);
+    stats_p["Number of potential atoms"] = potential_atoms.size();
+
+    //**************************************** */
+    // STEP 1: WE SORT POTENTIAL ATOMS BY THEIR OFFSET VALUE */
+    //**************************************** */
+    // create the list
+    std::vector<std::pair<atomdata, int>> potential_atoms_with_offset;
+    auto it = potential_atoms.begin();
+    while (it != potential_atoms.end())
     {
+        atomdata &atom = *it;
+        int offset_diff = std::abs(calculate_offset_diff(atom.TX1, atom.TX2, atom.TY1, atom.TY2, offset_p));
+        potential_atoms_with_offset.push_back({atom, offset_diff});
+        it++;
+    };
+    // Trier le vecteur temporaire par offset_diff
+    std::sort(potential_atoms_with_offset.begin(), potential_atoms_with_offset.end(),
+              [](const std::pair<atomdata, int> &a, const std::pair<atomdata, int> &b)
+              {
+                  return a.second < b.second;
+              });
 
-        // Specific for Reco5 : we must test if X1 is the time we consider in X1 (*X1_p.begin()) is alone in the intervall [-gateX, gateX]
-        if (AbsDiff(X1_last, *X1_p.begin()) < gateX)
+    //**************************************** */
+    // STEP2: WE ADD A POTENTIAL ATOM IF AND ONLY IF IT IS UNIQUE
+    //**************************************** */
+    // Utiliser des unordered_sets pour vérifier l'unicité des coordonnées
+    std::unordered_set<timedata> unique_TX1, unique_TX2, unique_TY1, unique_TY2;
+    // Parcourir les éléments triés par offset_diff
+    for (const auto &atom_offset_pair : potential_atoms_with_offset)
+    {
+        const atomdata &atom = atom_offset_pair.first;
+        bool is_unique =
+            (unique_TX1.find(atom.TX1) == unique_TX1.end()) &&
+            (unique_TX2.find(atom.TX2) == unique_TX2.end()) &&
+            (unique_TY1.find(atom.TY1) == unique_TY1.end()) &&
+            (unique_TY2.find(atom.TY2) == unique_TY2.end());
+        // Vérifier si les coordonnées de l'atom existent déjà dans new_atoms
+        if (is_unique)
         {
+            // Ajouter les coordonnées dans les sets pour marquer l'atom comme utilisé
+            unique_TX1.insert(atom.TX1);
+            unique_TX2.insert(atom.TX2);
+            unique_TY1.insert(atom.TY1);
+            unique_TY2.insert(atom.TY2);
 
-            X1_last = *X1_p.begin();
-            X1_p.erase(X1_p.begin());
-            continue;
+            // Ajouter l'atom à la liste des atomes
+            atoms_p.push_back(atom);
         }
-        else if (AbsDiff(*X1_p.begin(), *std::next(X1_p.begin())) < gateX)
-        {
-            X1_last = *X1_p.begin();
-            X1_p.erase(X1_p.begin());
-            continue;
-        }
-
-        X1_last = *X1_p.begin();
-        // We first definitively get rid of all events occurring before the bulb start on X2, Y1, Y2
-        // By construction, they will never match with a later event on X1
-        if (*X1_p.begin() > gateX)
-            while (X2_p.begin() != X2_p.end() && *X2_p.begin() < (*X1_p.begin() - gateX))
-                X2_p.erase(X2_p.begin());
-        if (*X1_p.begin() > gateY)
-        {
-            while (Y1_p.begin() != Y1_p.end() && *Y1_p.begin() < (*X1_p.begin() - gateY))
-                Y1_p.erase(Y1_p.begin());
-            while (Y2_p.begin() != Y2_p.end() && *Y2_p.begin() < min((*X1_p.begin() - gateY), *X1_p.begin()))
-                Y2_p.erase(Y2_p.begin());
-        }
-
-        // This part is specific to this reconstruction : we want to make sure that there are no other candidate that could be reconstructed
-        auto count = 0;
-        // We then look for events that can correspond to an atom
-        // As soon as we have found such events, we erase them from the list and keep going along X1
-        atomdata atom;
-        timedata TX1 = 0;
-        timedata TX2 = 0;
-        timedata TY1 = 0;
-        timedata TY2 = 0;
-        auto searchX2 = X2_p.begin();
-        bool atomfound = false;
-        while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + gateX))
-        {
-            auto searchY1 = Y1_p.begin();
-            while (searchY1 != Y1_p.end() && *searchY1 < (*X1_p.begin() + gateY))
-            {
-                auto searchY2 = Y2_p.begin();
-                while (searchY2 != Y2_p.end() && *searchY2 < (*X1_p.begin() + gateY))
-                {
-                    count++;
-                    timedata TX1 = *X1_p.begin();
-                    timedata TX2 = *searchX2;
-                    timedata TY1 = *searchY1;
-                    timedata TY2 = *searchY2;
-                    timedata dTX = AbsDiff(TX1, TX2);
-                    timedata dTY = AbsDiff(TY1, TY2);
-                    timedata TX = (TX1 + TX2) / 2;
-                    timedata TY = (TY1 + TY2) / 2;
-                    // distance to the MCP centre
-                    timedata dist = timedata(sqrt(pow(dTX, 2) + pow(dTY, 2)));
-
-                    // time difference between events on X and Y
-                    // its a curious way of calculating an absolute value
-                    // but we want to make sure that we don't loose precision (time coded on 64bits)
-                    timedata dT = AbsDiff(TX, TY);
-
-                    // an atom would be inside the MCP radius and fall atoms the same time on X and Y
-                    if (dist < MCPdiameter) // && dT < deltaT)
-                    {                       // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
-                        // compare it to the MCP offset reference map.
-                        // time difference between events on X and Y
-                        // its a curious way of calculating an absolute value
-                        // but we want to make sure that we don't loose precision (time coded on 64bits)
-                        timedata S = TX1 + TX2 - TY1 - TY2;
-                        atomfound = true;
-                        int X = 708 - TX1 + TX2;
-                        int Y = 708 - TY1 + TY2;
-                        atom = atomdata{TX1, TX2, TY1, TY2};
-                    }
-                    ++searchY2;
-                }
-                ++searchY1;
-            }
-            ++searchX2;
-        }
-        if (atomfound)
-        {
-            if (count == 1)
-            {
-                atoms_p.push_back(atom);
-                atoms_alone++;
-            }
-            else if (count > 1)
-            {
-                atoms_duplicata = atoms_duplicata + count;
-            }
-        }
-
-        X1_p.erase(X1_p.begin());
     }
-    cout << "Nombre d'atomes reconstruits : " << atoms_alone << endl;
-    cout << "Nombre d'atomes non pris en compte : " << atoms_duplicata << endl;
+
     if (atoms_p.empty())
     {
         return false;

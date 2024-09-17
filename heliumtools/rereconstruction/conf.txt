@@ -1,6 +1,6 @@
-/home/victor/Data/offset_drift_issue/007
-/home/victor/Data/offset_drift_issue/2022_07_15_007
-5
+/home/victor/Data/014
+/home/victor/Data/014_ter
+3
 14
 -5
 
@@ -23,6 +23,7 @@ The available reconstructions are the following
 * Reconstruction 3 : Recovering All Potential Atoms taking into account offset maps.
 * Reconstruction 4 : Recovering All Potential Atoms Without Any Offset Filter
 * Reconstruction 5 : Recovering Only Isolated Atoms for very dilute clouds
+* Reconstruction 6 : Recovering All Atoms taking into account offset maps (we select atoms from the potential atoms list)
 
 
 ====================================================
