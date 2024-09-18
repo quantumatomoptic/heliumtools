@@ -49,8 +49,8 @@ struct atomdata
 struct paramstruct // reconstruction parameters
 {
     double res = 120E-12;                  // TDC resolution (seconds) -> 0.12e-9 ; 275e-12 old MCP
-    double evgate = 85.00E-9;              // time gate to identify matching detection events --> retard line.
-    double atgate = 5.00E-9;               // time gate to identify matching events that should be counted as an atom
+    double time_mcp_diameter = 85E-9;      // MCP diameter with some margin
+    double time_bulb = 90.00E-9;           // it should be equal to time_mcp_diameter but we take some margin.
     double deltaTgate = 10.00E-9;          // time gate maximale une fois qu'on a obtenu un quadruplet
     std::string seq_folder = "salut";      // le fichier depuis lequel on veut charger la séquence
     std::string new_seq_folder = "salut2"; // le nouveau dossier dans lequel on veut enregistrer les données
@@ -59,6 +59,9 @@ struct paramstruct // reconstruction parameters
     bool keep_all_potential_atoms = true;
     int offset_resolution = 5;
     int offset_resolution_min = -5;
+    int offset_offset = 3; // this is because our offset MAP is not really accurate hence we add an offset to the measured offset
+    double evgate = 85E-9;
+    double atgate = 5E-9;
 };
 
 typedef std::vector<std::string> stringvec;
@@ -275,7 +278,20 @@ int calculate_offset_diff(timedata TX1, timedata TX2, timedata TY1, timedata TY2
     int Y = 708 - TY1 + TY2;
     return S - offset_p[X][Y];
 }
-
+bool is_on_mcp(timedata TX1, timedata TX2, timedata TY1, timedata TY2, timedata MCPDiameter)
+{
+    timedata dTX = AbsDiff(TX1, TX2);
+    timedata dTY = AbsDiff(TY1, TY2);
+    timedata dist = timedata(sqrt(pow(dTX, 2) + pow(dTY, 2)));
+    if (dist <= MCPDiameter)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
 bool reconstruction1(list<timedata> &X1_p,
                      list<timedata> &X2_p,
                      list<timedata> &Y1_p,
@@ -473,8 +489,8 @@ bool reconstruction3(list<timedata> &X1_p,
     timedata gateY = timedata((params.evgate + params.atgate) / params.res);
     timedata gateX = timedata((params.evgate + params.atgate) / params.res);
     // MCPdiameter -> events can only correspond to an atom if they can be traced back to a position inside the MCP radius
-    timedata MCPdiameter = timedata(params.evgate / params.res);
-    // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
+    timedata MCPdiameter = timedata(params.time_mcp_diameter / params.res);
+    timedata TimeBulb = timedata(params.time_bulb / params.res); // deltaT -> events can only correspond to an atom if the times on X and Y are close to each other
     timedata deltaT = timedata(params.deltaTgate / params.res);
 
     while (X1_p.begin() != X1_p.end())
@@ -482,13 +498,13 @@ bool reconstruction3(list<timedata> &X1_p,
         // We first definitively get rid of all events occurring before the bulb start on X2, Y1, Y2
         // By construction, they will never match with a later event on X1
         if (*X1_p.begin() > gateX)
-            while (X2_p.begin() != X2_p.end() && *X2_p.begin() < (*X1_p.begin() - gateX))
+            while (X2_p.begin() != X2_p.end() && *X2_p.begin() < (*X1_p.begin() - TimeBulb))
                 X2_p.erase(X2_p.begin());
         if (*X1_p.begin() > gateY)
         {
-            while (Y1_p.begin() != Y1_p.end() && *Y1_p.begin() < (*X1_p.begin() - gateY))
+            while (Y1_p.begin() != Y1_p.end() && *Y1_p.begin() < (*X1_p.begin() - TimeBulb))
                 Y1_p.erase(Y1_p.begin());
-            while (Y2_p.begin() != Y2_p.end() && *Y2_p.begin() < min((*X1_p.begin() - gateY), *X1_p.begin()))
+            while (Y2_p.begin() != Y2_p.end() && *Y2_p.begin() < min((*X1_p.begin() - TimeBulb), *X1_p.begin()))
                 Y2_p.erase(Y2_p.begin());
         }
         // We then look for events that can correspond to an atom
@@ -496,47 +512,25 @@ bool reconstruction3(list<timedata> &X1_p,
         auto searchX2 = X2_p.begin();
         // cout << "#######################" << endl;
         // cout << "X1" << *X1_p.begin() << endl;
-        while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + gateX))
+        while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + TimeBulb))
         {
             auto searchY1 = Y1_p.begin();
-            while (searchY1 != Y1_p.end() && *searchY1 < (*X1_p.begin() + gateY))
+            while (searchY1 != Y1_p.end() && *searchY1 < (*X1_p.begin() + TimeBulb))
             {
                 auto searchY2 = Y2_p.begin();
-                while (searchY2 != Y2_p.end() && *searchY2 < (*X1_p.begin() + gateY))
+                while (searchY2 != Y2_p.end() && *searchY2 < (*X1_p.begin() + TimeBulb))
                 {
                     timedata TX1 = *X1_p.begin();
                     timedata TX2 = *searchX2;
                     timedata TY1 = *searchY1;
                     timedata TY2 = *searchY2;
-                    timedata dTX = AbsDiff(TX1, TX2);
-                    timedata dTY = AbsDiff(TY1, TY2);
-                    timedata TX = (TX1 + TX2) / 2;
-                    timedata TY = (TY1 + TY2) / 2;
-                    // distance to the MCP centre
-                    timedata dist = timedata(sqrt(pow(dTX, 2) + pow(dTY, 2)));
 
-                    // time difference between events on X and Y
-                    // its a curious way of calculating an absolute value
-                    // but we want to make sure that we don't loose precision (time coded on 64bits)
-                    timedata dT = AbsDiff(TX, TY);
-
-                    // an atom would be inside the MCP radius and fall atoms the same time on X and Y. Note that this fucking diame
-                    if (dist < MCPdiameter) // && dT < deltaT)
+                    if (is_on_mcp(TX1, TX2, TY1, TY2, MCPdiameter)) // && dT < deltaT)
                     {
-                        // Once we KNOW that the possible atom is on the MCP, we compute its offset value and
-                        // compare it to the MCP offset reference map.
-
-                        // time difference between events on X and Y
-                        // its a curious way of calculating an absolute value
-                        // but we want to make sure that we don't loose precision (time coded on 64bits)
-                        int offset_diff = calculate_offset_diff(TX1, TX2, TY1, TY2, offset_p);
-                        if (offset_diff < params.offset_resolution)
-                        /*if (AbsDiff(S, 0) < 80)*/
+                        int relative_offset = std::abs(calculate_offset_diff(TX1, TX2, TY1, TY2, offset_p));
+                        if (relative_offset < params.offset_resolution)
                         {
-                            if (offset_diff > params.offset_resolution_min)
-                            {
-                                atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
-                            }
+                            atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
                         }
                     }
                     ++searchY2;
@@ -786,11 +780,15 @@ bool reconstruction6(list<timedata> &X1_p,
                      map<string, float> &stats_p)
 {
     cout << "Reconstruction 6 : Calling reconstruction 3 to find potential atoms." << endl;
+    // here units are TDC coding steps
+    timedata MCPdiameter = timedata(params.time_mcp_diameter / params.res);
+    timedata TimeBulb = timedata(params.time_bulb / params.res);
     // we create a potential atoms vector in which we store all potential atoms
     vector<atomdata> potential_atoms;
-    timedata time_bulb = timedata((params.evgate + params.atgate) / params.res);
+    // we use the third reconstruction program to find all potential atoms
     reconstruction3(X1_p, X2_p, Y1_p, Y2_p, potential_atoms, params, offset_p);
     stats_p["Number of potential atoms"] = potential_atoms.size();
+    cout << "Salut" << endl;
 
     //**************************************** */
     // STEP 1: WE SORT POTENTIAL ATOMS BY THEIR OFFSET VALUE */
@@ -821,6 +819,8 @@ bool reconstruction6(list<timedata> &X1_p,
     for (const auto &atom_offset_pair : potential_atoms_with_offset)
     {
         const atomdata &atom = atom_offset_pair.first;
+        auto off = atom_offset_pair.second;
+        cout << off << endl;
         bool is_unique =
             (unique_TX1.find(atom.TX1) == unique_TX1.end()) &&
             (unique_TX2.find(atom.TX2) == unique_TX2.end()) &&
@@ -839,6 +839,77 @@ bool reconstruction6(list<timedata> &X1_p,
             atoms_p.push_back(atom);
         }
     }
+
+    if (atoms_p.empty())
+    {
+        return false;
+    }
+    else
+        return true;
+}
+
+bool reconstruction7(list<timedata> &X1_p,
+                     list<timedata> &X2_p,
+                     list<timedata> &Y1_p,
+                     list<timedata> &Y2_p,
+                     vector<atomdata> &atoms_p,
+                     paramstruct params,
+                     std::vector<std::vector<int>> &offset_p)
+{
+    cout << "Reconstruction 3 : Recovering All Potential Atoms" << endl;
+    // here units are TDC coding steps
+    timedata MCPdiameter = timedata(params.time_mcp_diameter / params.res);
+    timedata TimeBulb = timedata(params.time_bulb / params.res);
+    while (X1_p.begin() != X1_p.end())
+    {
+        // We first definitively get rid of all events occurring before the X1 time-bulb (events on channels X2, Y1, Y2)
+        // By construction, they will never match with a later event on X1, the leter being time ordered.
+        if (*X1_p.begin() > TimeBulb)
+            while (X2_p.begin() != X2_p.end() && *X2_p.begin() < (*X1_p.begin() - TimeBulb))
+                X2_p.erase(X2_p.begin());
+        if (*X1_p.begin() > TimeBulb)
+        {
+            while (Y1_p.begin() != Y1_p.end() && *Y1_p.begin() < (*X1_p.begin() - TimeBulb))
+                Y1_p.erase(Y1_p.begin());
+            while (Y2_p.begin() != Y2_p.end() && *Y2_p.begin() < min((*X1_p.begin() - TimeBulb), *X1_p.begin()))
+                Y2_p.erase(Y2_p.begin());
+        }
+        // We then look for events that can correspond to an atom
+        // However, we never erase X1, Y1 or Y2 from the list
+        auto searchX2 = X2_p.begin();
+        // restrict the search to atoms in X1 time-bulb along X2
+        while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + TimeBulb))
+        { // restrict the search to atoms in X1 time-bulb along Y1
+            auto searchY1 = Y1_p.begin();
+            while (searchY1 != Y1_p.end() && *searchY1 < (*X1_p.begin() + TimeBulb))
+            { // restrict the search to atoms in X1 time-bulb along Y2
+                auto searchY2 = Y2_p.begin();
+                while (searchY2 != Y2_p.end() && *searchY2 < (*X1_p.begin() + TimeBulb))
+                {
+                    timedata TX1 = *X1_p.begin();
+                    timedata TX2 = *searchX2;
+                    timedata TY1 = *searchY1;
+                    timedata TY2 = *searchY2;
+
+                    if (is_on_mcp(TX1, TX2, TY1, TY2, MCPdiameter))
+                    { // compute the relative offset
+
+                        int relative_offset = std::abs(calculate_offset_diff(TX1, TX2, TY1, TY2, offset_p));
+                        if (relative_offset < params.offset_resolution)
+                        {
+                            atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
+                        }
+                    }
+                    ++searchY2;
+                }
+                ++searchY1;
+            }
+            ++searchX2;
+        }
+
+        X1_p.erase(X1_p.begin());
+    }
+    cout << atoms_p.size() << endl;
 
     if (atoms_p.empty())
     {

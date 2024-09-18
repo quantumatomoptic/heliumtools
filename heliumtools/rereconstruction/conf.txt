@@ -1,5 +1,5 @@
 /home/victor/Data/014
-/home/victor/Data/014_ter
+/home/victor/Data/014_ter3
 3
 14
 -5
@@ -31,5 +31,76 @@ The available reconstructions are the following
 ====================================================
 
 
+
+bool reconstruction7(list<timedata> &X1_p,
+                     list<timedata> &X2_p,
+                     list<timedata> &Y1_p,
+                     list<timedata> &Y2_p,
+                     vector<atomdata> &atoms_p,
+                     paramstruct params,
+                     std::vector<std::vector<int>> &offset_p)
+{
+    cout << "Reconstruction 3 : Recovering All Potential Atoms" << endl;
+    // here units are TDC coding steps
+    timedata MCPdiameter = timedata(params.time_mcp_diameter / params.res);
+    timedata TimeBulb = timedata(params.time_bulb / params.res);
+    while (X1_p.begin() != X1_p.end())
+    {
+        // We first definitively get rid of all events occurring before the X1 time-bulb (events on channels X2, Y1, Y2)
+        // By construction, they will never match with a later event on X1, the leter being time ordered.
+        if (*X1_p.begin() > TimeBulb)
+            while (X2_p.begin() != X2_p.end() && *X2_p.begin() < (*X1_p.begin() - TimeBulb))
+                X2_p.erase(X2_p.begin());
+        if (*X1_p.begin() > TimeBulb)
+        {
+            while (Y1_p.begin() != Y1_p.end() && *Y1_p.begin() < (*X1_p.begin() - TimeBulb))
+                Y1_p.erase(Y1_p.begin());
+            while (Y2_p.begin() != Y2_p.end() && *Y2_p.begin() < min((*X1_p.begin() - TimeBulb), *X1_p.begin()))
+                Y2_p.erase(Y2_p.begin());
+        }
+        // We then look for events that can correspond to an atom
+        // However, we never erase X1, Y1 or Y2 from the list
+        auto searchX2 = X2_p.begin();
+        // restrict the search to atoms in X1 time-bulb along X2
+        while (searchX2 != X2_p.end() && *searchX2 < (*X1_p.begin() + TimeBulb))
+        { // restrict the search to atoms in X1 time-bulb along Y1
+            auto searchY1 = Y1_p.begin();
+            while (searchY1 != Y1_p.end() && *searchY1 < (*X1_p.begin() + TimeBulb))
+            { // restrict the search to atoms in X1 time-bulb along Y2
+                auto searchY2 = Y2_p.begin();
+                while (searchY2 != Y2_p.end() && *searchY2 < (*X1_p.begin() + TimeBulb))
+                {
+                    timedata TX1 = *X1_p.begin();
+                    timedata TX2 = *searchX2;
+                    timedata TY1 = *searchY1;
+                    timedata TY2 = *searchY2;
+
+                    if (is_on_mcp(TX1, TX2, TY1, TY2, TimeBulb))
+                    { // compute the relative offset
+
+                        int relative_offset = std::abs(calculate_offset_diff(TX1, TX2, TY1, TY2, offset_p, params));
+                        if (relative_offset < params.offset_resolution)
+                        {
+                            atoms_p.push_back(atomdata{TX1, TX2, TY1, TY2});
+                        }
+                    }
+                    ++searchY2;
+                }
+                ++searchY1;
+            }
+            ++searchX2;
+        }
+
+        X1_p.erase(X1_p.begin());
+    }
+    cout << atoms_p.size() << endl;
+
+    if (atoms_p.empty())
+    {
+        return false;
+    }
+    else
+        return true;
+}
 
 
