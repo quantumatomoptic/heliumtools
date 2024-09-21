@@ -170,16 +170,12 @@ class BEC:
         return 0.5 * deriv_energysquare / energy / hbar
 
 
-
-    
 class CigarShapeBEC(BEC):
     _c_s = None
-        
+
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.set_up_BEC_properties() 
-
-
+        self.set_up_BEC_properties()
 
     def set_up_BEC_properties(self):
         """set up the BEC properties based on the value of asn1, in the Gaussian ansatz approximation.
@@ -192,10 +188,7 @@ class CigarShapeBEC(BEC):
         self._mu0 = hbar * self._omega_perp * 2 * np.sqrt(self._asn1)
         self._radius_perp = 2 * self._a_perp * self._asn1**0.25
         # self._chi = np.sqrt(self._alpha**3 * (5 + self._alpha**2))
-        self._c_s = np.sqrt(
-            self._mu / 2
-            / self._m
-        )
+        self._c_s = np.sqrt(self._mu / 2 / self._m)
         self._Nat = int(
             self._a_z**2
             / self._a_s
@@ -229,8 +222,6 @@ class CigarShapeBEC(BEC):
         self._length_phase = 2 * self._n1p * hbar**2 / kb / self._temperature / self._m
         # round(hbar/(m_he * (1e-3*cs) * np.sqrt(2))*1e6,1)
         # log.info("Instanciation faite.")
-
-
 
 
 class Gaussian_BEC(BEC):
@@ -394,7 +385,7 @@ class Gaussian_BEC(BEC):
         * Victor's thesis for notations.
         """
         self._mu0 = hbar * self._omega_perp * np.sqrt(1 + 4 * self._asn1)
-        self._sigma0 = self._a_perp  * (1 + 4 * self._asn1)**(0.25)
+        self._sigma0 = self._a_perp * (1 + 4 * self._asn1) ** (0.25)
         self._alpha = 2 * (np.sqrt(1 + 4 * self._asn1) - 1)
         self._chi = np.sqrt(self._alpha**3 * (5 + self._alpha**2))
         self._c_s = np.sqrt(
@@ -479,12 +470,10 @@ class Gaussian_BEC(BEC):
 if __name__ == "__main__":
     bec = Gaussian_BEC()
     bec.set_transverse_freq(1.8e3)
-    phonon_speed = 17/2/1000
+    phonon_speed = 17 / 2 / 1000
     bec.set_longitudinal_freq(30)
     bec.set_sound_speed_from_parametric_resonance(phonon_speed)
-    bec.temperature = 40*1e-9
+    bec.temperature = 40 * 1e-9
 
     bec.show_bec_info()
     bec.get_phonon_population(phonon_speed)
-
-
