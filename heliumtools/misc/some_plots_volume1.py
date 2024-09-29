@@ -277,7 +277,6 @@ def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 
         )
     )
 
-
     #### Peak 2
     # Première colonne : densité
     sns.histplot(
@@ -295,7 +294,7 @@ def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 
     vy_data1 = (vy_data1[0:-1] + vy_data1[1:]) / 2
     vx_data1 = (vx_data1[0:-1] + vx_data1[1:]) / 2
 
-    VY, VX = np.meshgrid(vy_data1 , vx_data1)
+    VY, VX = np.meshgrid(vy_data1, vx_data1)
     g2Dfit = Gauss2DFit(x=(VX, VY), z=hist_data1)
     g2Dfit.do_guess()
     g2Dfit.do_fit()
@@ -598,3 +597,81 @@ def heatmap_with_boxes(
                 msg += f" and values = {values}. Box is {box}. Error is : {e}"
                 print(msg)
     return ax
+
+
+def show_vz_correlations(corr, VXY_list=[100, 50, 8], VZ_span=[-12, 12]):
+    """function that take as an input a IntegratedCorrelation class and show the integrated g2 along z
+
+    Parameters
+    ----------
+    corr : CorrelationHe2Style
+        Correlation already calculated.
+    VXY_list : list, optional
+        transverse integration volume list for all plots, by default [100, 50, 8]
+    VZ_span : list, optional
+        longitudinal ROI, that are the span of the axes., by default [-12, 12]
+    """
+    fig, axes = plt.subplots(
+        figsize=(11, 4),
+        ncols=3,
+    )
+    axis = "Vz"
+    # -- Set style
+    custom_cycler1 = cycler(
+        color=[plt.get_cmap("magma")(i) for i in range(0, 256, 256 // len(VXY_list))]
+    )
+    axes[2].set_prop_cycle(custom_cycler1)
+    custom_cycler2 = cycler(
+        color=[plt.get_cmap("viridis")(i) for i in range(0, 256, 256 // len(VXY_list))]
+    )
+    axes[0].set_prop_cycle(custom_cycler2)
+    axes[1].set_prop_cycle(custom_cycler2)
+    markers = ["o", "v", "s", "d", "p", "*", "H", "P", "<", "+"] * 3
+    lines = ["--", "-.", ":"] * 10
+    for j, vxy in enumerate(VXY_list):
+        ROI = {
+            "Vx": {"position": 0, "size": 2 * vxy},
+            "Vy": {"position": 0, "size": 2 * vxy},
+            "Vz": VZ_span,
+        }
+        for i, TO_PLOT in enumerate(["g2 aa", "g2 bb", "g2 ab"]):
+            ax = axes[i]
+            df = get_g2(corr.result, axis, ROI)
+            x = df[axis]
+            y = df[TO_PLOT]
+            yerr = df[TO_PLOT + " error"]
+            ax.errorbar(
+                x, y, yerr=yerr, fmt=markers[j], label="{}".format(vxy), alpha=0.7
+            )
+    for ax in axes:
+        ax.legend(fontsize="small", title=r"$\delta V_\perp$")
+        ax.grid(True, alpha=0.5)
+        ax.set_xlabel("$\delta {} = k_{{Z,1}} -k_{{Z,2}}  $ (mm/s)".format(axis))
+        ax.set_ylabel("$\int g^{{(2)}}(k, k+\delta k_z) dk_z$")
+    axes[2].set_xlabel("$\delta {} = k_{{Z,1}} + k_{{Z,2}}  $ (mm/s)".format(axis))
+
+    ## Style
+    if corr.cross_correlation_sign["Vx"] > 0:
+        sign = "+"
+    else:
+        sign = "-"
+    title = f"Crossed correlations function (sign:${sign}$) \n in inertial frame "
+    title += r"$\vec{{V}}$=({}, {}, {}) mm/s ".format(
+        corr.ref_frame_speed["Vx"],
+        corr.ref_frame_speed["Vy"],
+        corr.ref_frame_speed["Vz"],
+    )
+    axes[2].set_title(title, fontsize="medium")
+
+    if get_roi_center(corr.beams["A"], "Vz") > 0:
+        title = r" ($V_z > 0$)."
+    else:
+        title = r" ($V_z < 0$)."
+    axes[0].set_title("Beam A local correlations" + title, fontsize="medium")
+    if get_roi_center(corr.beams["B"], "Vz") > 0:
+        title = r" ($V_z > 0$)."
+    else:
+        title = r" ($V_z < 0$)."
+    axes[1].set_title("Beam B local correlations" + title, fontsize="medium")
+    plt.tight_layout()
+    plt.show()

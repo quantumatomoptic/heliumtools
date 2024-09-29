@@ -639,7 +639,9 @@ class Correlation(DataBuilder):
         # ---------------
         # Calculs de g^4
         # ---------------
-        self.result["g^4"] = self.result[":N_1^2xN_2^2:"] / (self.result["N_1"] ** 2 * self.result["N_2"] ** 2)
+        self.result["g^4"] = self.result[":N_1^2xN_2^2:"] / (
+            self.result["N_1"] ** 2 * self.result["N_2"] ** 2
+        )
         # normalement ça doit être les mêmes...
         self.result["g^4 bis"] = (
             self.result["N_1**2*N_2**2"]
