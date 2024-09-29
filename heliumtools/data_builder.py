@@ -302,3 +302,20 @@ class DataBuilder:
         Modifie le dataframe "atoms" en appliquant la region of desinterest i.e. en sélectionnant les atomes autre que ceux dans la ROD. Si la ROD est vide, la méthode ne fait rien.
         """
         self.atoms = apply_ROD(self.atoms, self.ROD)
+
+    def rotate_inertial_frame(self, angle: float):
+        """rotate the atoms dataframe in the (Vx, Vy) plane with an angle.
+
+        Parameters
+        ----------
+        angle : float
+            rotation angle, in degree
+        """
+        X = self.atoms["Vx"]
+        Y = self.atoms["Vy"]
+        self.atoms["Vx"] = X * np.cos(2 * np.pi * angle / 360) + Y * np.sin(
+            2 * np.pi * angle / 360
+        )
+        self.atoms["Vy"] = -Y * np.sin(2 * np.pi * angle / 360) + Y * np.cos(
+            2 * np.pi * angle / 360
+        )
