@@ -75,8 +75,8 @@ def stability_of_sequence(
     columns_to_plot=[
         "Number of Atoms in ROIfit",
         "Number of Atoms in ROI",
-        "BEC Arrival Time",
-        "BEC Std Arrival Time",
+        "BEC Arrival Time with fit",
+        "signal BEC Arrival Time (ms)",
     ],
     selec_bec_arrival_times=None,
     filters={},

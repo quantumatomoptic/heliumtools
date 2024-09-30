@@ -636,6 +636,14 @@ class Correlation(DataBuilder):
             self.result["N_1"] * self.result["N_2"]
         )
 
+        # -------------------------------
+        # Calculs de delta, qty Parentani
+        # -------------------------------
+        self.result["Delta"] = -self.result["N_1*N_2"] / 2 + (
+            self.result["N_1"] * self.result["N_2"]
+        )
+        self.result["-Delta"] = -self.result["Delta"] 
+
         # ---------------
         # Calculs de g^4
         # ---------------
@@ -705,19 +713,21 @@ class Correlation(DataBuilder):
                     self.boxes["1"][not_scanned_axes[1]]["position"]
                     != self.boxes["2"][not_scanned_axes[1]]["position"]
                 ):
-                    if len(local_condition) > 0:
-                        print(
-                            "[WARNING] Shot Noise has not been taken off weird because boxes are do not have the same center. "
-                        )
+                    # if len(local_condition) > 0:
+                    #     print(
+                    #         "[WARNING] Shot Noise has not been taken off weird because boxes are do not have the same center. "
+                    #     )
+                    pass
                 elif (
                     (self.boxes["1"]["Vz"]["size"] != self.boxes["2"]["Vz"]["size"])
                     or (self.boxes["1"]["Vy"]["size"] != self.boxes["2"]["Vy"]["size"])
                     or (self.boxes["1"]["Vx"]["size"] != self.boxes["2"]["Vx"]["size"])
                 ):
-                    if len(local_condition) > 0:
-                        print(
-                            "[WARNING] Shot Noise has not been taken off weird because boxes do not have the same size. Please be carefull when delaing with local correlations !"
-                        )
+                    pass
+                    # if len(local_condition) > 0:
+                    #     print(
+                    #         "[WARNING] Shot Noise has not been taken off weird because boxes do not have the same size. Please be carefull when delaing with local correlations !"
+                    #     )
                 else:
                     self.result.loc[local_condition, "g^2"] = (
                         self.result["N_1*N_2"] - self.result["N_1"]
@@ -919,9 +929,10 @@ class Correlation(DataBuilder):
         try:
             self.add_denis_criterion(self.total)
         except Exception as e:
-            log.error(
-                f"[Correlations] Failed to add Denis's quantum criteria. Error is : {e}"
-            )
+            pass
+            # log.error(
+            #     f"[Correlations] Failed to add Denis's quantum criteria. Error is : {e}"
+            # )
 
     def add_denis_criterion(self, total):
         #### Denis's criteria
