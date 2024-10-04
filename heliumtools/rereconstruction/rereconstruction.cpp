@@ -194,6 +194,8 @@ int main()
         cout << "Input file : " + inputfile << endl;
         cout << "Output file : " + outputfile << endl;
         copy_paste_file(inputfile + ".json", outputfile + ".json");
+        copy_paste_file(inputfile + ".picoscope2000_treated", outputfile + ".picoscope2000_treated");
+        copy_paste_file(inputfile + ".picoscope_treated", outputfile + ".picoscope_treated");
         copy_paste_file(inputfile + ".sequence_parameters", outputfile + ".sequence_parameters");
         auto t_start = high_resolution_clock::now();
         if (params.reconstruction_number == 1)
@@ -431,6 +433,7 @@ bool reconstruction2(list<timedata> &X1_p,
             atoms_p.push_back(atom);
         }
     }
+    stats_p["Number of atoms"] = atoms_p.size();
 
     if (atoms_p.empty())
     {

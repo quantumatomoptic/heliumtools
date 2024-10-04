@@ -1,5 +1,5 @@
-/home/victor/Data/014
-/home/victor/Data/014_ter3
+/mnt/helium/Sauvegarde manip/gus_data/2024/10/03/016
+/mnt/helium/Sauvegarde manip/gus_data/2024/10/03/116
 2
 14
 2

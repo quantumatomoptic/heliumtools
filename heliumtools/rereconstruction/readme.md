@@ -4,7 +4,11 @@ The  [rereconstruction program](../heliumtools/rereconstruction/rereconstruction
 ```
 ./rereconstruction
 ```
-
+You can also modify the rereconstruction program. To do so, edit the `.cpp` file and then compile it. For example:
+```
+g++ rereconstruction.cpp -o rereconstruction
+```
+and then just run your brand-new program. Of course, do not forget to commit your modification, comment your code and update this readme file!
 
 ### Choosing the rereconstruction parameters
 When it is run, the rereconstruction program reads the following files 
@@ -16,15 +20,16 @@ The configuration file must have the following lines :
 * Line 2: The folder in which we want to create the .atoms files. This folder should not exists.
 * Line 3: The reconstruction program number we want to use. See the available reconstruction program below.
 * Line 4: The maximum deviation allowed for the offset from the offset map.
-* Line 5: The minimum deviation allowed for the reference offset.
+* Line 5: The offset we want to add to ALL offset difference values. 
+            formula for the offset difference is
+                    off_diff = S - offset_p[X][Y] + params.offset_offset;
 
 
 The available reconstructions are the following
-* Reconstruction 1 : [Ziyad style](#reconstruction1-program)
-* Reconstruction 2 : Ziyad Style with Offset Map (useless reconstruction, here for historical reasons).
+* Reconstruction 1 : Old reconstruction program [Ziyad style](#reconstruction1-program)
+* Reconstruction 2 : New reconstruction program. Recover all potential atoms (calling reconstruction3) and then sort atoms by their offset_diff value and keep only the lowest offset if two potential atoms have a "same" value in their column.
 * Reconstruction 3 : Recovering All Potential Atoms taking into account offset maps.
-* Reconstruction 4 : Recovering All Potential Atoms Without Any Offset Filter
-* Reconstruction 5 : Recovering Only Isolated Atoms for very dilute clouds
+* Reconstruction 4 : Recovering Only Isolated Atoms for very dilute clouds --> use this to perform offset maps.
 
 
 ## Reconstruction programs 

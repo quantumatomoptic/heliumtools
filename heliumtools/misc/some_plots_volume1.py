@@ -20,6 +20,7 @@ import numpy as np
 from heliumtools.misc.gather_data import apply_ROI
 from scipy.optimize import curve_fit
 import pandas as pd
+from cycler import cycler
 
 
 def histogram_plots_with_inset(df, X1, X2, Y, X1_label="", X2_label="", title=""):
