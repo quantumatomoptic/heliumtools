@@ -89,6 +89,8 @@ class Correlation(DataBuilder):
 
     """
 
+    correlation_order_max = 6
+
     def __init__(self, atoms, **kwargs):
         """
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
@@ -580,6 +582,14 @@ class Correlation(DataBuilder):
             )
         )
         total["Jz fluctu^2"] = total["Jz fluctu"] ** 2
+
+        ##### nth order correlations
+        total[":N_1^1:"] = total["N_1"]
+        
+        total[":N_2^1:"] = total["N_2"]
+        for i in range(2, self.correlation_order_max + 1):
+            total[f":N_1^{i}:"] = total[f":N_1^{i-1}:"] * (total["N_1"] - i + 1)
+            total[f":N_2^{i}:"] = total[f":N_2^{i-1}:"] * (total["N_2"] - i + 1)
         self.total = total
         # on moyenne les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
         self.result = total.groupby(
@@ -635,6 +645,14 @@ class Correlation(DataBuilder):
         self.result["g^2"] = self.result["N_1*N_2"] / (
             self.result["N_1"] * self.result["N_2"]
         )
+        # -----------------
+        # Calcul de g^n local
+        # -----------------
+        for i in range(2, self.correlation_order_max + 1):
+            self.result[f"g_1^({i})"] = self.result[f":N_1^{i}:"] /self.result["N_1"]**i
+            self.result[f"g_2^({i})"] = self.result[f":N_2^{i}:"] /self.result["N_2"]**i
+
+        
 
         # -------------------------------
         # Calculs de delta, qty Parentani
@@ -642,7 +660,7 @@ class Correlation(DataBuilder):
         self.result["Delta"] = -self.result["N_1*N_2"] / 2 + (
             self.result["N_1"] * self.result["N_2"]
         )
-        self.result["-Delta"] = -self.result["Delta"] 
+        self.result["-Delta"] = -self.result["Delta"]
 
         # ---------------
         # Calculs de g^4
@@ -734,6 +752,20 @@ class Correlation(DataBuilder):
                     ) / (self.result["N_1"] * self.result["N_2"])
                     self.result.loc[local_condition, "N_1*N_2"] = (
                         self.result["N_1*N_2"] - self.result["N_1"]
+                    )
+                    ## Recompute Cauchy-Schwarz
+                    self.result["C-S"] = self.result["N_1*N_2"] / (
+                        np.sqrt(
+                            (self.result["N_1**2"] - self.result["N_1"])
+                            * (self.result["N_2**2"] - self.result["N_2"])
+                        )
+                    )
+
+                    self.result["C-S difference"] = self.result["N_1*N_2"] - (
+                        np.sqrt(
+                            (self.result["N_1**2"] - self.result["N_1"])
+                            * (self.result["N_2**2"] - self.result["N_2"])
+                        )
                     )
             if self.var1.type == "size":
                 if (
