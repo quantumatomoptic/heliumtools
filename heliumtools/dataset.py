@@ -348,7 +348,9 @@ class Dataset:
         #     return
 
     def load_data(self) -> pd.DataFrame:
-        """function that load data from the dataset.
+        """function that load data from the dataset. Atom data are stored in
+        pickle file. Since October 24, we also save them in a csv file to
+        avoid numpy incompatibility issues.
 
         Returns
         -------
@@ -361,8 +363,16 @@ class Dataset:
                 data = pd.read_pickle(data_dir)
                 return data
             except Exception as e:
-                msg = f"Failed to load data. Error is {e}."
+                msg = f"Failed to load pickle data. Error is {e}. Trying to load csv file..."
                 log.warning(msg)
+        data_dir = os.path.join(self.__name__, "data.csv")
+        try:
+            data = pd.read_csv(data_dir)
+            return data
+        except Exception as e:
+            msg = f"Failed to load csv data. Error is {e}."
+            log.warning(msg)
+        log.error("Loading data failed.")
         return pd.DataFrame({"X": [], "Y": [], "T": [], "Cycle": []})
 
     def _save_data(self, data):
@@ -374,6 +384,7 @@ class Dataset:
             pandas dataframe that contains atoms to be saved
         """
         data.to_pickle(os.path.join(self.__name__, "data.pkl"))
+        data.to_csv(os.path.join(self.__name__, "data.csv"))
 
     def load_metadata(self) -> pd.DataFrame:
         """function that load metadata from the dataset.
@@ -383,14 +394,23 @@ class Dataset:
         pd.DataFrame
             data loaded from the dataset
         """
+
         data_dir = os.path.join(self.__name__, "metadata.pkl")
         if os.path.exists(data_dir):
             try:
                 metadata = pd.read_pickle(data_dir)
                 return metadata
             except Exception as e:
-                msg = f"Failed to load metadata. Error is {e}."
+                msg = f"Failed to load pickle metadata. Error is {e}. Trying to load csv file..."
                 log.warning(msg)
+        data_dir = os.path.join(self.__name__, "metadata.csv")
+        try:
+            metadata = pd.read_csv(data_dir)
+            return metadata
+        except Exception as e:
+            msg = f"Failed to csv load metadata. Error is {e}."
+            log.warning(msg)
+        log.error("Loading metadata failed.")
         return pd.DataFrame({"Cycle": []})
 
     def _save_metadata(self, metadata):
@@ -402,9 +422,10 @@ class Dataset:
             pandas dataframe that contains metadata to be saved
         """
         metadata.to_pickle(os.path.join(self.__name__, "metadata.pkl"))
+        metadata.to_csv(os.path.join(self.__name__, "metadata.csv"))
 
     def clean_up_dataset(self):
-        """function that cleans up the dataset aka supppresses data and metadata and set the sequences empty"""
+        """function that cleans up the dataset aka suppresses data and metadata and set the sequences empty"""
         if not self.__sequences__:
             return
         try:
