@@ -675,7 +675,9 @@ class Correlation(DataBuilder):
             - self.result["N_1**2*N_2"]
             + self.result["N_1*N_2"]
         ) / (self.result["N_1"] ** 2 * self.result["N_2"] ** 2)
-
+        ## define the minimum of the fourth order correlation function for thermal gaussian state
+        self.result["g^4 mini"] =16*self.result["g^2"] + 4*(self.result["g^2"]-1)**2 -12
+        self.result["g^4 maxi"] =16*self.result["g^2"] + 6*(self.result["g^2"]-1)**2 -12
         # ---------------
         # Calculs de corrélations locales
         # ---------------
