@@ -585,7 +585,7 @@ class Correlation(DataBuilder):
 
         ##### nth order correlations
         total[":N_1^1:"] = total["N_1"]
-        
+
         total[":N_2^1:"] = total["N_2"]
         for i in range(2, self.correlation_order_max + 1):
             total[f":N_1^{i}:"] = total[f":N_1^{i-1}:"] * (total["N_1"] - i + 1)
@@ -649,10 +649,12 @@ class Correlation(DataBuilder):
         # Calcul de g^n local
         # -----------------
         for i in range(2, self.correlation_order_max + 1):
-            self.result[f"g_1^({i})"] = self.result[f":N_1^{i}:"] /self.result["N_1"]**i
-            self.result[f"g_2^({i})"] = self.result[f":N_2^{i}:"] /self.result["N_2"]**i
-
-        
+            self.result[f"g_1^({i})"] = (
+                self.result[f":N_1^{i}:"] / self.result["N_1"] ** i
+            )
+            self.result[f"g_2^({i})"] = (
+                self.result[f":N_2^{i}:"] / self.result["N_2"] ** i
+            )
 
         # -------------------------------
         # Calculs de delta, qty Parentani
@@ -676,8 +678,12 @@ class Correlation(DataBuilder):
             + self.result["N_1*N_2"]
         ) / (self.result["N_1"] ** 2 * self.result["N_2"] ** 2)
         ## define the minimum of the fourth order correlation function for thermal gaussian state
-        self.result["g^4 mini"] =16*self.result["g^2"] + 4*(self.result["g^2"]-1)**2 -12
-        self.result["g^4 maxi"] =16*self.result["g^2"] + 6*(self.result["g^2"]-1)**2 -12
+        self.result["g^4 mini"] = (
+            16 * self.result["g^2"] + 4 * (self.result["g^2"] - 1) ** 2 - 12
+        )
+        self.result["g^4 maxi"] = (
+            16 * self.result["g^2"] + 6 * (self.result["g^2"] - 1) ** 2 - 12
+        )
         # ---------------
         # Calculs de corrélations locales
         # ---------------

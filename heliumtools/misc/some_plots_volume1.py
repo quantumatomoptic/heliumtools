@@ -527,6 +527,7 @@ def heatmap_with_boxes(
     values: str,
     boxes=[{}],
     boxes_color=["r"],
+    cbar_bool=True,
     **kwargs,
 ):
     """function that draws the heatmap of the dataframe onto a given ax. It adds the
@@ -549,6 +550,7 @@ def heatmap_with_boxes(
         _description_, by default [{}]
     boxes_color: list of str or color
         colors of the boxes
+    cbar_bool: if we put a colorbar on the plot
     Returns
     -------
     matplotlib.axes
@@ -563,7 +565,8 @@ def heatmap_with_boxes(
         ymin = np.min(df[index])
         ymax = np.max(df[index])
         img = ax.imshow(data, extent=[xmin, xmax, ymin, ymax], **kwargs)
-        cbar = plt.colorbar(img, ax=ax)
+        if cbar_bool:
+            cbar = plt.colorbar(img, ax=ax)
         ax.set_xlabel(columns)
         ax.set_ylabel(index)
     except Exception as e:

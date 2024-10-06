@@ -26,6 +26,7 @@ from heliumtools.misc.gather_data import export_data_set_to_pickle
 from heliumtools.bec import Gaussian_BEC
 
 m_he = 4 * m_p
+from skimage import measure  # for contour finding
 
 
 def thermal_prof(x, T, Ath):
@@ -247,6 +248,24 @@ def fit_pair_density_v3(
                 )
             except:
                 pass
+    try:
+        right_at = (
+            res["Width right (mm/s)"]
+            * res["Amplitude right (at/mm/s)"]
+            * np.sqrt(2 * np.pi)
+        )
+        left_at = (
+            res["Width left (mm/s)"]
+            * res["Amplitude left (at/mm/s)"]
+            * np.sqrt(2 * np.pi)
+        )
+        print(
+            "Number of atoms: {:.2f} and {:.2f}  --> g^(2) max = {:.2f} and {:.2f}".format(
+                left_at, right_at, 2 + 1 / left_at, 2 + 1 / right_at
+            )
+        )
+    except:
+        pass
     return res
 
 
@@ -980,11 +999,11 @@ def show_correlations_heatmaps(corr):
     ax.set_xlabel("|Vz| (mm/s)")
     ax.set_ylabel("$g^{(2)}_{k,k}$")
 
-    ax.plot(-df2[corr.var1.name], df2["g^2(k1,k1)"], label="-")
-    ax.plot(df1[corr.var2.name], df1["g^2(k2,k2)"], label="+")
+    ax.plot(np.abs(df2[corr.var1.name]), df2["g^2(k1,k1)"], label="-")
+    ax.plot(np.abs(df1[corr.var2.name]), df1["g^2(k2,k2)"], label="+")
     ax = axes[-1]
-    ax.plot(-df2[corr.var1.name], df2["N_1"], label="-")
-    ax.plot(df1[corr.var2.name], df1["N_2"], ls="--", label="+")
+    ax.plot(np.abs(df2[corr.var1.name]), df2["N_1"], label="-")
+    ax.plot(np.abs(df1[corr.var2.name]), df1["N_2"], ls="--", label="+")
     ax.set_xlabel("|Vz| (mm/s)")
     ax.set_ylabel("Population")
     for ax in axes[0:-2]:
@@ -1185,3 +1204,591 @@ def show_correlation_kmk_optimized(
         plt.tight_layout()
         plt.show()
     return res_mean
+
+
+from cycler import cycler
+
+
+def sinus_card(x, A, sigma, x0):
+    return A * np.sinc((np.abs((x - x0) / (2 * sigma))) ** (1)) + 1
+
+
+def sinus_card_sqrt(x, A, sigma, x0):
+    return A * np.sinc((np.abs((x - x0) / (2 * sigma))) ** (1 / 2)) + 1
+
+
+def lorentzian(x, A, sigma, x0):
+    return 1 + A * (1 / (1 + (x - x0) ** 2 / (sigma) ** 2))
+
+
+def lorentzian2(x, A, sigma, x0):
+    return 1 + A * (1 / (1 + (x - x0) ** 2 / (sigma) ** 2) ** 2)
+
+
+def gaussian(x, A, sigma, x0):
+    return 1 + A * np.exp(-((x - x0) ** 2) / (2 * sigma**2))
+
+
+def gaussian_no_offset(x, A, sigma, x0):
+    return A * np.exp(-((x - x0) ** 2) / (2 * sigma**2))
+
+
+def show_and_ft_integrated_correlations(
+    corr3,
+    TO_PLOT="g2 bb",
+    VX_list=[15, 10, 5],
+    VY_list=[15, 10, 5],
+    VZ_list=[2, 1, 0.7],
+    VXY_span=[-30, 30],
+    VZ_span=[-4, 4],
+    func_list2=[gaussian, gaussian, gaussian],
+):
+
+    fig, axes = plt.subplots(
+        figsize=(12, 5),
+        ncols=3,
+    )
+    for i, axis in enumerate(["Vx", "Vy", "Vz"]):
+        ax = axes.flatten()[i]
+        fit = False
+        markers = ["o", "v", "s", "d", "p", "*", "H", "P", "<", "+"] * 3
+        lines = ["--", "-.", ":"] * 10
+        # set style
+
+        colormap = plt.get_cmap("viridis")
+        # colormap =create_linear_colormap(RGB1=blue_iogs_rgb, RGB2=red_iogs_rgb,pivot=False,)
+        custom_cycler = cycler(
+            color=[colormap(i) for i in range(0, 256, 256 // len(VX_list))]
+        )
+        ax.set_prop_cycle(custom_cycler)
+        for j, (vx, vy, vz) in enumerate(zip(VX_list, VY_list, VZ_list)):
+            ROI = {
+                "Vx": {"position": 0, "size": 2 * vx},
+                "Vy": {"position": 0, "size": 2 * vy},
+                "Vz": {"position": 0, "size": 2 * vz},
+            }
+            # del ROI[axis]
+            if axis == "Vz":
+                ROI[axis] = VZ_span
+            else:
+                ROI[axis] = VXY_span
+            # df = copy.deepcopy(corr.result)
+            # df[axis]  = df[axis] + FRAME[axis]
+            df = get_g2(corr3.result, axis, ROI)
+            x = df[axis]
+            y = df[TO_PLOT]
+            yerr = 2 * df[TO_PLOT + " error"]
+            ax.errorbar(
+                x,
+                y,
+                yerr=yerr,
+                fmt=markers[j],
+                label="{}, {}, {}".format(vx, vy, vz),
+                alpha=0.7,
+            )
+
+            try:
+                p0 = [np.max(y) - 1, 0.2 * max(ROI[axis])]
+                # print("-"*50)
+                # print(ROI)
+                func_list = [
+                    lorentzian
+                ]  # [sinus_card, sinus_card_sqrt, gaussian, lorentzian]
+                # for func in func_list:
+                func = func_list2[i]
+                popt, pcov = curve_fit(
+                    func, x, y, sigma=yerr, absolute_sigma=True, p0=[0.4, 5, 0]
+                )
+                perr = np.sqrt(np.diag(pcov))
+                print(
+                    func.__name__,
+                    ": width of {:.2f}({:.2f}) mm/s ; A = {:.2f} and center at {:.2f} mm/s".format(
+                        popt[1], perr[1], popt[0], popt[2]
+                    ),
+                )
+                x_fit = np.linspace(min(x), max(x), 100)
+                ax.plot(
+                    x_fit,
+                    func(x_fit, *popt),
+                    "--",
+                    color=ax.lines[-1].get_color(),
+                    label=r"$\sigma$={:.2f}".format(popt[1]),
+                )
+            except Exception as e:
+                print(f"Failed to fit : {e}")
+        ax.grid(visible=True)
+        ncol = 1
+        if fit:
+            ncol = 2
+        ax.legend(
+            ncol=1,
+            fontsize=8,
+            title="$\Delta V_x, \Delta V_y, \Delta V_z $",
+            title_fontsize=9,
+        )
+        ax.set_xlabel("$\delta {}$ (mm/s)".format(axis))
+        ax.set_ylabel("$\int g^{{(2)}}(k, k+\delta k_z) dk_z$")
+        ax.set_title(axis, fontsize="medium")
+
+    plt.tight_layout()
+    plt.show()
+
+
+class Correlation1D(Correlation):
+    width = [11, 14]
+    length = 10
+    sliding = 3
+
+    def get_correlation(self, show=True):
+        middle = np.mean(self.width)
+        dW = 2 * (np.max(self.width) - np.min(self.width))
+        maxi = self.length + dW
+        Xlist = ["Vz1+Vz2", "Vz1-Vz2", "Vz1-Vz2"]
+        ### Corrélation locales du pic positif
+        self.define_variable1(
+            box="1",
+            axe="Vz",
+            type="position",
+            name="Vz1",
+            min=middle - maxi,
+            max=middle + maxi,
+            step=self.boxes["1"]["Vz"]["size"],
+        )
+        self.define_variable2(
+            box="2",
+            axe="Vz",
+            type="position",
+            name="Vz2",
+            min=middle - maxi,
+            max=middle + maxi,
+            step=self.boxes["2"]["Vz"]["size"],
+        )
+        self.compute_correlations()
+        self.total["Vz1+Vz2"] = round(self.total["Vz1"] + self.total["Vz2"], 3)
+        self.total["Vz1-Vz2"] = round(self.total["Vz1"] - self.total["Vz2"], 3)
+        self._peak_positiv = self.total
+        self._peak_positiv_r = self.result
+
+        ### Corrélation locales du pic négatif
+        self.define_variable1(
+            box="1",
+            axe="Vz",
+            type="position",
+            name="Vz1",
+            min=-middle - maxi,
+            max=-middle + maxi,
+            step=self.boxes["1"]["Vz"]["size"],
+        )
+        self.define_variable2(
+            box="2",
+            axe="Vz",
+            type="position",
+            name="Vz2",
+            min=-middle - maxi,
+            max=-middle + maxi,
+            step=self.boxes["2"]["Vz"]["size"],
+        )
+        self.compute_correlations()
+        self.total["Vz1+Vz2"] = round(self.total["Vz1"] + self.total["Vz2"], 3)
+        self.total["Vz1-Vz2"] = round(self.total["Vz1"] - self.total["Vz2"], 3)
+        self._peak_negativ = self.total
+        self._peak_negativ_r = self.result
+
+        ### Corrélation locales du pic croisé
+        self.define_variable1(
+            box="1",
+            axe="Vz",
+            type="position",
+            name="Vz1",
+            min=-middle - maxi,
+            max=-middle + maxi,
+            step=self.boxes["1"]["Vz"]["size"],
+        )
+        self.define_variable2(
+            box="2",
+            axe="Vz",
+            type="position",
+            name="Vz2",
+            min=middle - maxi,
+            max=middle + maxi,
+            step=self.boxes["2"]["Vz"]["size"],
+        )
+        self.compute_correlations()
+        self.total["Vz1+Vz2"] = round(self.total["Vz1"] + self.total["Vz2"], 3)
+        self.total["Vz1-Vz2"] = round(self.total["Vz1"] - self.total["Vz2"], 3)
+        self._peak_cross = self.total
+        self._peak_cross_r = self.result
+
+        if show:
+            fig, axes = plt.subplots(ncols=3, figsize=(9, 2.4))
+            for i, df in enumerate(
+                [self._peak_cross_r, self._peak_negativ_r, self._peak_positiv_r]
+            ):
+                heatmap_with_boxes(
+                    ax=axes[i],
+                    df=df,
+                    boxes={},
+                    columns=self.var1.name,
+                    index=self.var2.name,
+                    values="g^2",
+                    vmax=2,
+                    vmin=1,
+                    cmap="Blues",
+                )
+            axes[0].plot(
+                -np.array(self.width),
+                self.width,
+                "o",
+                markerfacecolor="#ffffff00",
+                markeredgecolor="indianred",
+                ls="",
+            )
+            axes[1].plot(
+                -np.array(self.width),
+                -np.array(self.width),
+                "o",
+                markerfacecolor="#ffffff00",
+                markeredgecolor="indianred",
+                ls="",
+            )
+            axes[2].plot(
+                np.array(self.width),
+                self.width,
+                "o",
+                markerfacecolor="#ffffff00",
+                markeredgecolor="indianred",
+                ls="",
+            )
+            plt.tight_layout()
+            ### check the roi
+            ### compute correlation
+            self._peak_cross_r = apply_ROI(
+                self._peak_cross_r, {"Vz1-Vz2": {"position": -2 * middle, "size": dW}}
+            )
+            self._peak_negativ_r = apply_ROI(
+                self._peak_negativ_r, {"Vz1+Vz2": {"position": -2 * middle, "size": dW}}
+            )
+            self._peak_positiv_r = apply_ROI(
+                self._peak_positiv_r, {"Vz1+Vz2": {"position": 2 * middle, "size": dW}}
+            )
+            for i, df in enumerate(
+                [self._peak_cross_r, self._peak_negativ_r, self._peak_positiv_r]
+            ):
+                heatmap_with_boxes(
+                    ax=axes[i],
+                    df=df,
+                    boxes={},
+                    columns=self.var1.name,
+                    index=self.var2.name,
+                    values="g^2",
+                    vmax=2,
+                    vmin=1,
+                    cmap="Reds",
+                    cbar_bool=False,
+                )
+            plt.show()
+
+        self._peak_cross = apply_ROI(
+            self._peak_cross, {"Vz1-Vz2": {"position": -2 * middle, "size": dW}}
+        )
+        self._peak_negativ = apply_ROI(
+            self._peak_negativ, {"Vz1+Vz2": {"position": -2 * middle, "size": dW}}
+        )
+        self._peak_positiv = apply_ROI(
+            self._peak_positiv, {"Vz1+Vz2": {"position": 2 * middle, "size": dW}}
+        )
+
+        ##### Compute correlation
+        self._peak_cross = (
+            self._peak_cross.groupby(["Vz1+Vz2", "Cycle"])
+            .sum()
+            .reset_index()[["Vz1+Vz2", "N_1", "N_2", "Cycle"]]
+        )
+        self._peak_negativ = (
+            self._peak_negativ.groupby(["Vz1-Vz2", "Cycle"])
+            .sum()
+            .reset_index()[["Vz1-Vz2", "N_1", "N_2", "Cycle"]]
+        )
+        self._peak_positiv = (
+            self._peak_positiv.groupby(["Vz1-Vz2", "Cycle"])
+            .sum()
+            .reset_index()[["Vz1-Vz2", "N_1", "N_2", "Cycle"]]
+        )
+        # remove shot noise
+        for df in [self._peak_cross, self._peak_negativ, self._peak_positiv]:
+            df["N_1*N_2"] = df["N_1"] * df["N_2"]
+            try:
+                local_condition = np.abs(df["Vz1-Vz2"]) <= dW / 2
+                df.loc[local_condition, "N_1*N_2"] = df["N_1*N_2"] - np.minimum(
+                    df["N_1"], df["N_2"]
+                )
+            except:
+                pass
+        ### le dataframe comprenant tous les résultats
+        self._peaks_total = [self._peak_cross, self._peak_negativ, self._peak_positiv]
+        self.peak_result = []
+        for i, df in enumerate(self._peaks_total):
+            X = Xlist[i]  # soit c'est Vz1+Vz2 soit Vz1-Vz2
+            resultat = apply_ROI(
+                df.groupby(X).mean().reset_index(),
+                {X: [-self.length, self.length]},
+            )
+            resultat_std = apply_ROI(
+                df.groupby(X).std().reset_index(),
+                {X: [-self.length, self.length]},
+            )
+            resultat["g^2"] = resultat["N_1*N_2"] / resultat["N_1"] / resultat["N_2"]
+
+            for col in resultat_std:
+                resultat[f"U({col})"] = resultat_std[col] / np.sqrt(self.n_cycles)
+
+            ## compute error on g^2
+            resultat["U(g^2)"] = resultat["g^2"] * np.sqrt(
+                resultat["U(N_1*N_2)"] ** 2 / resultat["N_1*N_2"] ** 2
+                + resultat["U(N_1)"] ** 2 / resultat["N_1"] ** 2
+                + resultat["U(N_2)"] ** 2 / resultat["N_2"] ** 2
+            )
+            self.peak_result.append(resultat)
+
+        if show:
+            fig, axes = plt.subplots(ncols=3, figsize=(9, 3))
+
+            for i, df in enumerate(self.peak_result):
+                X = Xlist[i]
+                ax = axes[i]
+                ax.errorbar(
+                    df[X],
+                    df["g^2"],
+                    yerr=df["U(g^2)"],
+                    color="darkblue",
+                    fmt="o",
+                    alpha=0.7,
+                    markerfacecolor="lightblue",
+                    markeredgecolor="darkblue",
+                )
+
+                ax.set_xlabel(X + " (mm/s)")
+                ax.grid(True, alpha=0.5)
+                a = df.loc[np.abs(df[X]).idxmin()]
+                ax.set_title(
+                    "n1 = {:.2f}, n2={:.2f}".format(a["N_1"], a["N_2"]),
+                    fontsize="medium",
+                )
+
+            axes[0].set_ylabel(r"$g^{(2)}(k,-k+\delta k)$")
+            axes[1].set_ylabel(r"$g^{(2)}(-k,-k+\delta k)$")
+            axes[2].set_ylabel(r"$g^{(2)}(k,k+\delta k)$")
+            plt.tight_layout()
+            plt.show()
+
+    def get_cross_correlation(self, show=True):
+        middle = np.mean(self.width)
+        dW = 2 * (np.max(self.width) - np.min(self.width))
+        maxi = self.length + dW
+        ### Corrélation locales du pic croisé
+        self.define_variable1(
+            box="1",
+            axe="Vz",
+            type="position",
+            name="Vz1",
+            min=-middle - maxi,
+            max=-middle + maxi,
+            step=self.boxes["1"]["Vz"]["size"],
+        )
+        self.define_variable2(
+            box="2",
+            axe="Vz",
+            type="position",
+            name="Vz2",
+            min=middle - maxi,
+            max=middle + maxi,
+            step=self.boxes["2"]["Vz"]["size"],
+        )
+        self.compute_correlations()
+        self.total["Vz1+Vz2"] = round(self.total["Vz1"] + self.total["Vz2"], 3)
+        self.total["Vz1-Vz2"] = round(self.total["Vz1"] - self.total["Vz2"], 3)
+        self._peak_cross = self.total
+        self._peak_cross_r = self.result
+        self._peak_cross = apply_ROI(
+            self._peak_cross, {"Vz1-Vz2": {"position": -2 * middle, "size": dW}}
+        )
+
+        if show:
+            fig, axes = plt.subplots(ncols=3, figsize=(9, 2.8))
+            heatmap_with_boxes(
+                ax=axes[0],
+                df=self._peak_cross_r,
+                boxes={},
+                columns=self.var1.name,
+                index=self.var2.name,
+                values="g^2",
+                vmax=2,
+                vmin=1,
+                cmap="Blues",
+            )
+            df = apply_ROI(
+                self._peak_cross_r, {"Vz1-Vz2": {"position": -2 * middle, "size": dW}}
+            )
+            axes[0].plot(
+                -np.array(self.width),
+                self.width,
+                "o",
+                markerfacecolor="#ffffff00",
+                markeredgecolor="indianred",
+                ls="",
+            )
+            heatmap_with_boxes(
+                ax=axes[0],
+                df=df,
+                boxes={},
+                columns=self.var1.name,
+                index=self.var2.name,
+                values="g^2",
+                vmax=2,
+                vmin=1,
+                cmap="Reds",
+                cbar_bool=False,
+            )
+
+        ##### Compute correlation: on applique la ROI et on inègre selon l'antidiagonale
+        self._peak_cross = (
+            self._peak_cross.groupby(["Vz1+Vz2", "Cycle"])
+            .sum()
+            .reset_index()[["Vz1+Vz2", "N_1", "N_2", "Cycle"]]
+        ).sort_values(by=["Cycle", "Vz1+Vz2"])
+        self._peak_cross["N_1*N_2"] = self._peak_cross["N_1"] * self._peak_cross["N_2"]
+        self._peak_cross[":(N_1*N_2)^1:"] = (
+            self._peak_cross["N_1"] * self._peak_cross["N_2"]
+        )
+        for i in [2, 3]:
+            self._peak_cross[f":(N_1*N_2)^{i}:"] = (
+                self._peak_cross[f":(N_1*N_2)^{i-1}:"]
+                * (self._peak_cross["N_1"] - i + 1)
+                * (self._peak_cross["N_2"] - i + 1)
+            )
+        ### on veut moyenner aussi sur deux boîtes adjacentes
+        # lissage = 2
+        # n1=self._peak_cross["N_1"].to_numpy()
+        # n1prime = copy.deepcopy(n1)
+        # n1prime[1:] += n1[0:-1]
+        # n1prime[:-1] += n1[1:]
+        # self._peak_cross["N_1avg2"]=n1prime
+        # n1=self._peak_cross["N_2"].to_numpy()
+        # n1prime = copy.deepcopy(n1)
+        # n1prime[1:] += n1[0:-1]
+        # n1prime[:-1] += n1[1:]
+        # self._peak_cross["N_2avg2"]=n1prime
+        # self._peak_cross["N_1*N_2avg2"] = self._peak_cross["N_1avg2"]*self._peak_cross["N_2avg2"]
+
+        # Fonction pour appliquer la moyenne glissante sur N
+        def moyenne_glissante(N):
+            N_new = N.copy() * 0
+            N_new[1:] += N[:-1]
+            N_new[:-1] += N[1:] * 0
+            return N_new
+
+        # corr._peak_cross.groupby('Cycle')['N_2'].rolling(2).sum().reset_index(0,drop=True)
+        # Appliquer la fonction moyenne glissante pour chaque cycle
+        self._peak_cross["N_1avg2"] = (
+            self._peak_cross.groupby("Cycle")["N_1"]
+            .rolling(self.sliding)
+            .sum()
+            .reset_index(0, drop=True)
+        )  # ["N_2"]
+        self._peak_cross["N_2avg2"] = (
+            self._peak_cross.groupby("Cycle")["N_2"]
+            .rolling(self.sliding)
+            .sum()
+            .reset_index(0, drop=True)
+        )  # ["N_2"]
+        # self._peak_cross['N_2avg2'] = self._peak_cross.groupby('Cycle')['N_2'].transform(moyenne_glissante)
+        self._peak_cross["N_1*N_2avg2"] = (
+            self._peak_cross["N_1avg2"] * self._peak_cross["N_2avg2"]
+        )
+
+        self._peak_cross_r = apply_ROI(
+            self._peak_cross.groupby("Vz1+Vz2").mean().reset_index(),
+            {"Vz1+Vz2": [-self.length, self.length]},
+        )
+        self._peak_cross_err = apply_ROI(
+            self._peak_cross.groupby("Vz1+Vz2").std().reset_index(),
+            {"Vz1+Vz2": [-self.length, self.length]},
+        )
+
+        for col in self._peak_cross_r:
+            self._peak_cross_r[f"U({col})"] = self._peak_cross_err[col] / np.sqrt(
+                self.n_cycles
+            )
+        for i, df in enumerate([self._peak_cross_r]):
+            df["g^2"] = df["N_1*N_2"] / df["N_1"] / df["N_2"]
+            df["U(g^2)"] = df["g^2"] * np.sqrt(
+                df["U(N_1*N_2)"] ** 2 / df["N_1*N_2"] ** 2
+                + df["U(N_1)"] ** 2 / df["N_1"] ** 2
+                + df["U(N_2)"] ** 2 / df["N_2"] ** 2
+            )
+            df["g^2avg2"] = df["N_1*N_2avg2"] / df["N_1avg2"] / df["N_2avg2"]
+            df["U(g^2avg2)"] = df["g^2avg2"] * np.sqrt(
+                df["U(N_1*N_2avg2)"] ** 2 / df["N_1*N_2avg2"] ** 2
+                + df["U(N_1avg2)"] ** 2 / df["N_1avg2"] ** 2
+                + df["U(N_2avg2)"] ** 2 / df["N_2avg2"] ** 2
+            )
+            for i in [2, 3]:
+                df[f"g^{2*i}"] = (
+                    df[f":(N_1*N_2)^{i}:"] / df["N_1"] ** i / df["N_2"] ** i
+                )
+                df[f"U(g^{2*i})"] = df[f"g^{2*i}"] * np.sqrt(
+                    df[f"U(:(N_1*N_2)^{i}:)"] ** 2 / df[f":(N_1*N_2)^{i}:"] ** 2
+                    + i * df["U(N_1)"] ** 2 / df["N_1"] ** 2
+                    + i * df["U(N_2)"] ** 2 / df["N_2"] ** 2
+                )
+
+            # df["U(g^2)"] = df["g^2"] * np.sqrt((np.sqrt(df["N_1"]**2+df["N_1"])/df["N_1"]/self.n_cycles)**2
+            #                                 +  (np.sqrt(df["N_2"]**2+df["N_2"])/df["N_2"]/self.n_cycles)**2)
+
+        if show:
+            axes[1].errorbar(
+                self._peak_cross_r["Vz1+Vz2"],
+                self._peak_cross_r["g^2"],
+                yerr=self._peak_cross_r["U(g^2)"],
+                color="darkblue",
+                fmt="o",
+                alpha=0.7,
+                markerfacecolor="lightblue",
+                markeredgecolor="darkblue",
+            )
+            axes[1].set_ylabel(r"$g^{(2)}(k,-k)$")
+            axes[1].set_xlabel("Vz1+Vz2 (mm/s)")
+            axes[1].grid(True, alpha=0.5)
+            a = self._peak_cross_r.loc[np.abs(self._peak_cross_r["Vz1+Vz2"]).idxmin()]
+            axes[1].set_title(
+                "n1 = {:.2f}, n2={:.2f}".format(a["N_1"], a["N_2"]), fontsize="medium"
+            )
+            vec = self._peak_cross_r["Vz1+Vz2"].to_numpy()
+            dv = np.abs(vec[1] - vec[0])
+            axes[1].errorbar(
+                self._peak_cross_r["Vz1+Vz2"] - self.sliding / 2 * dv,
+                self._peak_cross_r["g^2avg2"],
+                yerr=self._peak_cross_r["U(g^2avg2)"],
+                color="sienna",
+                fmt="<",
+                alpha=0.5,
+                markerfacecolor="bisque",
+                markeredgecolor="sienna",
+            )
+            axes[2].errorbar(
+                self._peak_cross_r["Vz1+Vz2"],
+                self._peak_cross_r["g^4"],
+                yerr=self._peak_cross_r["U(g^4)"],
+                color="sienna",
+                fmt="o",
+                alpha=0.7,
+                markerfacecolor="bisque",
+                markeredgecolor="sienna",
+            )
+            axes[2].set_ylabel(r"$g^{(4)}(k,-k)$")
+            lims = axes[1].get_ylim()
+            if lims[1] > 3:
+                axes[1].set_ylim([0.5, 3])
+            axes[2].set_xlabel("Vz1+Vz2 (mm/s)")
+            axes[2].grid(True, alpha=0.5)
+            plt.tight_layout()
