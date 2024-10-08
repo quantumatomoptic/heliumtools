@@ -1532,6 +1532,15 @@ class Correlation1D(Correlation):
         self.peak_result = []
 
         for i, df in enumerate(self._peaks_total):
+            ## -------------------------
+            ##### nth order correlations (do not work)
+            df[":N_1^1:"] = df["N_1"]
+            df[":N_2^1:"] = df["N_2"]
+            for j in range(2, self.correlation_order_max + 1):
+                df[f":N_1^{j}:"] = df[f":N_1^{j-1}:"] * (df["N_1"] - j + 1)
+                df[f":N_2^{j}:"] = df[f":N_2^{j-1}:"] * (df["N_2"] - j + 1)
+            ## end nth order correlation
+            ## -------------------------
             X = Xlist[i]  # soit c'est Vz1+Vz2 soit Vz1-Vz2
             resultat = apply_ROI(
                 df.groupby(X).mean().reset_index(),
@@ -1552,11 +1561,26 @@ class Correlation1D(Correlation):
                 + resultat["U(N_1)"] ** 2 / resultat["N_1"] ** 2
                 + resultat["U(N_2)"] ** 2 / resultat["N_2"] ** 2
             )
+
+            # -----------------
+            # Calcul de g^n local
+            # -----------------
+            for j in range(2, self.correlation_order_max + 1):
+                resultat[f"g_1^({j})"] = resultat[f":N_1^{j}:"] / resultat["N_1"] ** i
+                resultat[f"g_2^({j})"] = resultat[f":N_2^{j}:"] / resultat["N_2"] ** i
+                resultat[f"U(g_2^({j}))"] = np.sqrt(
+                    resultat[f"U(:N_2^{j}:)"] ** 2 / resultat[f":N_2^{j}:"] ** 2
+                    + i * resultat["U(N_2)"] ** 2 / resultat["N_2"] ** 2
+                )
+                resultat[f"U(g_1^({j}))"] = np.sqrt(
+                    resultat[f"U(:N_1^{j}:)"] ** 2 / resultat[f":N_1^{j}:"] ** 2
+                    + i * resultat["U(N_1)"] ** 2 / resultat["N_1"] ** 2
+                )
+
             self.peak_result.append(resultat)
 
         if show:
             fig, axes = plt.subplots(ncols=3, figsize=(9, 3))
-
             for i, df in enumerate(self.peak_result):
                 X = Xlist[i]
                 ax = axes[i]
