@@ -1363,7 +1363,8 @@ class Correlation1D(Correlation):
             max=middle + maxi,
             step=self.boxes["2"]["Vz"]["size"],
         )
-        self.compute_correlations()
+        with np.errstate(divide="ignore"):
+            self.compute_correlations()
         self.total["Vz1+Vz2"] = round(self.total["Vz1"] + self.total["Vz2"], 3)
         self.total["Vz1-Vz2"] = round(self.total["Vz1"] - self.total["Vz2"], 3)
         self._peak_positiv = self.total
@@ -1388,7 +1389,8 @@ class Correlation1D(Correlation):
             max=-middle + maxi,
             step=self.boxes["2"]["Vz"]["size"],
         )
-        self.compute_correlations()
+        with np.errstate(divide="ignore"):
+            self.compute_correlations()
         self.total["Vz1+Vz2"] = round(self.total["Vz1"] + self.total["Vz2"], 3)
         self.total["Vz1-Vz2"] = round(self.total["Vz1"] - self.total["Vz2"], 3)
         self._peak_negativ = self.total
@@ -1413,7 +1415,8 @@ class Correlation1D(Correlation):
             max=middle + maxi,
             step=self.boxes["2"]["Vz"]["size"],
         )
-        self.compute_correlations()
+        with np.errstate(divide="ignore"):
+            self.compute_correlations()
         self.total["Vz1+Vz2"] = round(self.total["Vz1"] + self.total["Vz2"], 3)
         self.total["Vz1-Vz2"] = round(self.total["Vz1"] - self.total["Vz2"], 3)
         self._peak_cross = self.total
@@ -1527,6 +1530,7 @@ class Correlation1D(Correlation):
         ### le dataframe comprenant tous les résultats
         self._peaks_total = [self._peak_cross, self._peak_negativ, self._peak_positiv]
         self.peak_result = []
+
         for i, df in enumerate(self._peaks_total):
             X = Xlist[i]  # soit c'est Vz1+Vz2 soit Vz1-Vz2
             resultat = apply_ROI(
@@ -1604,7 +1608,8 @@ class Correlation1D(Correlation):
             max=middle + maxi,
             step=self.boxes["2"]["Vz"]["size"],
         )
-        self.compute_correlations()
+        with np.errstate(divide="ignore"):
+            self.compute_correlations()
         self.total["Vz1+Vz2"] = round(self.total["Vz1"] + self.total["Vz2"], 3)
         self.total["Vz1-Vz2"] = round(self.total["Vz1"] - self.total["Vz2"], 3)
         self._peak_cross = self.total
