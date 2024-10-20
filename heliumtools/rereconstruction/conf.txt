@@ -1,7 +1,7 @@
-/mnt/helium/Sauvegarde manip/gus_data/2024/10/03/016
-/mnt/helium/Sauvegarde manip/gus_data/2024/10/03/116
+/home/victor/Data/2024/10/18/063
+/home/victor/DataReconstructed/2024/10/18/063
 2
-14
+4
 2
 
 

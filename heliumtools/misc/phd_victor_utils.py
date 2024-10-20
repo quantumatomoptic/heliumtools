@@ -1017,7 +1017,7 @@ def show_correlations_heatmaps(corr):
     plt.show()
 
 
-def show_n_order_correlation(corr):
+def show_n_order_correlation(corr, n_bootstrap=50):
     """show the nth order correation function and the full counting statitstics of
     a correlation with only 1 variable.
 
@@ -1043,7 +1043,7 @@ def show_n_order_correlation(corr):
     corr.compute_correlations()
     corr.save_copy_of_total()
     df = []
-    for n in range(50):
+    for n in range(n_bootstrap):
         corr.bootstrap_total()
         corr.compute_result(corr.total)
         df.append(corr.result)
@@ -1689,12 +1689,23 @@ class Correlation1D(Correlation):
         self._peak_cross[":(N_1*N_2)^1:"] = (
             self._peak_cross["N_1"] * self._peak_cross["N_2"]
         )
+        ### compute correlations d'ordre N
         for i in [2, 3]:
             self._peak_cross[f":(N_1*N_2)^{i}:"] = (
                 self._peak_cross[f":(N_1*N_2)^{i-1}:"]
                 * (self._peak_cross["N_1"] - i + 1)
                 * (self._peak_cross["N_2"] - i + 1)
             )
+
+        #### calcul des corrélations d'ordre N
+        ##### nth order correlations (do not work)
+        df = self._peak_cross
+        df[":N_1^1:"] = df["N_1"]
+        df[":N_2^1:"] = df["N_2"]
+        for j in range(2, self.correlation_order_max + 1):
+            df[f":N_1^{j}:"] = df[f":N_1^{j-1}:"] * (df["N_1"] - j + 1)
+            df[f":N_2^{j}:"] = df[f":N_2^{j-1}:"] * (df["N_2"] - j + 1)
+        self._peak_cross = df
         ### on veut moyenner aussi sur deux boîtes adjacentes
         # lissage = 2
         # n1=self._peak_cross["N_1"].to_numpy()
@@ -1748,29 +1759,55 @@ class Correlation1D(Correlation):
             self._peak_cross_r[f"U({col})"] = self._peak_cross_err[col] / np.sqrt(
                 self.n_cycles
             )
-        for i, df in enumerate([self._peak_cross_r]):
-            df["g^2"] = df["N_1*N_2"] / df["N_1"] / df["N_2"]
-            df["U(g^2)"] = df["g^2"] * np.sqrt(
-                df["U(N_1*N_2)"] ** 2 / df["N_1*N_2"] ** 2
-                + df["U(N_1)"] ** 2 / df["N_1"] ** 2
-                + df["U(N_2)"] ** 2 / df["N_2"] ** 2
+        self._peak_cross_r["g^2"] = (
+            self._peak_cross_r["N_1*N_2"]
+            / self._peak_cross_r["N_1"]
+            / self._peak_cross_r["N_2"]
+        )
+        self._peak_cross_r["U(g^2)"] = self._peak_cross_r["g^2"] * np.sqrt(
+            self._peak_cross_r["U(N_1*N_2)"] ** 2 / self._peak_cross_r["N_1*N_2"] ** 2
+            + self._peak_cross_r["U(N_1)"] ** 2 / self._peak_cross_r["N_1"] ** 2
+            + self._peak_cross_r["U(N_2)"] ** 2 / self._peak_cross_r["N_2"] ** 2
+        )
+        self._peak_cross_r["g^2avg2"] = (
+            self._peak_cross_r["N_1*N_2avg2"]
+            / self._peak_cross_r["N_1avg2"]
+            / self._peak_cross_r["N_2avg2"]
+        )
+        self._peak_cross_r["U(g^2avg2)"] = self._peak_cross_r["g^2avg2"] * np.sqrt(
+            self._peak_cross_r["U(N_1*N_2avg2)"] ** 2
+            / self._peak_cross_r["N_1*N_2avg2"] ** 2
+            + self._peak_cross_r["U(N_1avg2)"] ** 2 / self._peak_cross_r["N_1avg2"] ** 2
+            + self._peak_cross_r["U(N_2avg2)"] ** 2 / self._peak_cross_r["N_2avg2"] ** 2
+        )
+        ##" fonction de corrélation d'ordre 4 et 6
+        for i in [2, 3]:
+            self._peak_cross_r[f"g^{2*i}"] = (
+                self._peak_cross_r[f":(N_1*N_2)^{i}:"]
+                / self._peak_cross_r["N_1"] ** i
+                / self._peak_cross_r["N_2"] ** i
             )
-            df["g^2avg2"] = df["N_1*N_2avg2"] / df["N_1avg2"] / df["N_2avg2"]
-            df["U(g^2avg2)"] = df["g^2avg2"] * np.sqrt(
-                df["U(N_1*N_2avg2)"] ** 2 / df["N_1*N_2avg2"] ** 2
-                + df["U(N_1avg2)"] ** 2 / df["N_1avg2"] ** 2
-                + df["U(N_2avg2)"] ** 2 / df["N_2avg2"] ** 2
+            self._peak_cross_r[f"U(g^{2*i})"] = self._peak_cross_r[
+                f"g^{2*i}"
+            ] * np.sqrt(
+                self._peak_cross_r[f"U(:(N_1*N_2)^{i}:)"] ** 2
+                / self._peak_cross_r[f":(N_1*N_2)^{i}:"] ** 2
+                + i * self._peak_cross_r["U(N_1)"] ** 2 / self._peak_cross_r["N_1"] ** 2
+                + i * self._peak_cross_r["U(N_2)"] ** 2 / self._peak_cross_r["N_2"] ** 2
             )
-            for i in [2, 3]:
-                df[f"g^{2*i}"] = (
-                    df[f":(N_1*N_2)^{i}:"] / df["N_1"] ** i / df["N_2"] ** i
-                )
-                df[f"U(g^{2*i})"] = df[f"g^{2*i}"] * np.sqrt(
-                    df[f"U(:(N_1*N_2)^{i}:)"] ** 2 / df[f":(N_1*N_2)^{i}:"] ** 2
-                    + i * df["U(N_1)"] ** 2 / df["N_1"] ** 2
-                    + i * df["U(N_2)"] ** 2 / df["N_2"] ** 2
-                )
-
+        resultat = self._peak_cross_r
+        for j in range(2, self.correlation_order_max + 1):
+            resultat[f"g_1^({j})"] = resultat[f":N_1^{j}:"] / resultat["N_1"] ** i
+            resultat[f"g_2^({j})"] = resultat[f":N_2^{j}:"] / resultat["N_2"] ** i
+            resultat[f"U(g_2^({j}))"] = np.sqrt(
+                resultat[f"U(:N_2^{j}:)"] ** 2 / resultat[f":N_2^{j}:"] ** 2
+                + i * resultat["U(N_2)"] ** 2 / resultat["N_2"] ** 2
+            )
+            resultat[f"U(g_1^({j}))"] = np.sqrt(
+                resultat[f"U(:N_1^{j}:)"] ** 2 / resultat[f":N_1^{j}:"] ** 2
+                + i * resultat["U(N_1)"] ** 2 / resultat["N_1"] ** 2
+            )
+        self._peak_cross_r  = resultat
             # df["U(g^2)"] = df["g^2"] * np.sqrt((np.sqrt(df["N_1"]**2+df["N_1"])/df["N_1"]/self.n_cycles)**2
             #                                 +  (np.sqrt(df["N_2"]**2+df["N_2"])/df["N_2"]/self.n_cycles)**2)
 
@@ -1821,3 +1858,19 @@ class Correlation1D(Correlation):
             axes[2].set_xlabel("Vz1+Vz2 (mm/s)")
             axes[2].grid(True, alpha=0.5)
             plt.tight_layout()
+
+
+def set_boxes_from_fit_density(corr, density_fit, factor={"Vx": 1, "Vy": 1, "Vz": 1}):
+    for vj in ["Vx", "Vy", "Vz"]:
+        corr.boxes["1"][vj]["size"] = (
+            2 * density_fit[f"Width {vj} left (mm/s)"] * factor[vj]
+        )
+        corr.boxes["2"][vj]["size"] = (
+            2 * density_fit[f"Width {vj} right (mm/s)"] * factor[vj]
+        )
+        if vj in "VxVy":
+            corr.boxes["1"][vj]["position"] = density_fit[f"Center {vj} left (mm/s)"]
+            corr.boxes["2"][vj]["position"] = density_fit[f"Center {vj} right (mm/s)"]
+        else:
+            corr.boxes["1"][vj]["position"] = density_fit[f"Position left (mm/s)"]
+            corr.boxes["2"][vj]["position"] = density_fit[f"Position right (mm/s)"]

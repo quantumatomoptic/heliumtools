@@ -585,7 +585,6 @@ class Correlation(DataBuilder):
 
         ##### nth order correlations
         total[":N_1^1:"] = total["N_1"]
-
         total[":N_2^1:"] = total["N_2"]
         for i in range(2, self.correlation_order_max + 1):
             total[f":N_1^{i}:"] = total[f":N_1^{i-1}:"] * (total["N_1"] - i + 1)
@@ -595,6 +594,10 @@ class Correlation(DataBuilder):
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
         ).mean()
+        if self.compute_errors:
+            self.errors = total.groupby(
+                [self.var1.name, self.var2.name], as_index=False
+            ).std()
         column_name = "N_1*N_2"
         df = self.result[self.result[column_name] < 0]
         if len(df) > 1:
@@ -649,12 +652,32 @@ class Correlation(DataBuilder):
         # Calcul de g^n local
         # -----------------
         for i in range(2, self.correlation_order_max + 1):
-            self.result[f"g_1^({i})"] = (
-                self.result[f":N_1^{i}:"] / self.result["N_1"] ** i
-            )
-            self.result[f"g_2^({i})"] = (
-                self.result[f":N_2^{i}:"] / self.result["N_2"] ** i
-            )
+            for j in [1, 2]:
+                self.result[f"g_{j}^({i})"] = (
+                    self.result[f":N_{j}^{i}:"] / self.result[f"N_{j}"] ** i
+                )
+                if self.compute_errors:
+                    self.result[f"U(g_{j}^({i}))"] = (
+                        self.result[f"g_{j}^({i})"]
+                        * np.sqrt(
+                            self.errors[f":N_{j}^{i}:"] ** 2
+                            / self.result[f":N_{j}^{i}:"] ** 2
+                            + i
+                            * self.errors[f"N_{j}"] ** 2
+                            / self.result[f"N_{j}"] ** 2
+                        )
+                        / np.sqrt(self.n_cycles)
+                    )
+                else:
+                    ## here we miss out the standard deviation of N1**i
+                    self.result[f"U(g_{j}^({i}))"] = (
+                        self.result[f"g_{j}^({i})"]
+                        * np.sqrt(
+                           i* (self.result[f"N_{j}"] ** 2 + self.result[f"N_{j}"])
+                            / self.result[f"N_{j}"] ** 2
+                        )
+                        / np.sqrt(self.n_cycles)
+                    )
 
         # -------------------------------
         # Calculs de delta, qty Parentani
