@@ -80,6 +80,7 @@ def get_g2(data: pd.DataFrame, axis: str, ROI: dict) -> pd.DataFrame:
     data_err = data.groupby(axis).mean().reset_index()
     for G2, g2 in zip(["G2AA", "G2BB", "G2AB"], ["g2 aa", "g2 bb", "g2 ab"]):
         data[g2] = data[G2] / data[G2 + " denominator"]
+        data[g2 + " mean"] = data[G2 + " mean"] / data[G2 + " denominator"]
         if G2 + " std" in data.columns:
             data[g2 + " error"] = (
                 np.sqrt(data_err[G2 + " squared"] - data_err[G2 + " mean squared"])
@@ -812,6 +813,7 @@ class CorrelationFCS(Correlation):
             gn["Bootstrap"] = j
             bootstrap_result.append(gn)
         bootstrap_result = pd.concat(bootstrap_result)
+        self.bootstrap_result = bootstrap_result
         bootstrap_result = (
             bootstrap_result.groupby([self.var1.name, "order n"]).std().reset_index()
         )
@@ -1231,6 +1233,40 @@ def gaussian(x, A, sigma, x0):
 
 def gaussian_no_offset(x, A, sigma, x0):
     return A * np.exp(-((x - x0) ** 2) / (2 * sigma**2))
+
+
+def g2_criterion(n1, n2):
+    """
+    Calcule la condition de non-séparabilité pour g_{12}^{(2)} en fonction de n1 et n2.
+
+    Paramètres:
+    -----------
+    n1 : array
+        Tableau de valeurs de n1.
+    n2 : array
+        Tableau de valeurs de n2.
+
+    Retourne:
+    ---------
+    critere : array
+        Tableau de critères suffisants pour la non-séparabilité selon les conditions.
+    """
+    # Calcul du produit n1 * n2
+    n1n2 = n1 * n2
+
+    # Condition 1 : n1n2 >= 1/2
+    condition_1 = n1n2 >= 0.5
+
+    # Condition 2 : n1n2 < 1/2, avec la formule donnée
+    condition_2 = n1n2 < 0.5
+    critere_2 = 2 + (0.5 - n1n2) / (2 * n1n2 + n1 + n2 + 0.5)
+
+    # Construction du tableau résultat
+    # Pour les indices où n1n2 >= 1/2, on met 2 (condition suffisante)
+    # Pour les indices où n1n2 < 1/2, on met le critère calculé
+    critere = np.where(condition_1, 2, critere_2)
+
+    return critere
 
 
 def show_and_ft_integrated_correlations(
@@ -1807,9 +1843,9 @@ class Correlation1D(Correlation):
                 resultat[f"U(:N_1^{j}:)"] ** 2 / resultat[f":N_1^{j}:"] ** 2
                 + i * resultat["U(N_1)"] ** 2 / resultat["N_1"] ** 2
             )
-        self._peak_cross_r  = resultat
-            # df["U(g^2)"] = df["g^2"] * np.sqrt((np.sqrt(df["N_1"]**2+df["N_1"])/df["N_1"]/self.n_cycles)**2
-            #                                 +  (np.sqrt(df["N_2"]**2+df["N_2"])/df["N_2"]/self.n_cycles)**2)
+        self._peak_cross_r = resultat
+        # df["U(g^2)"] = df["g^2"] * np.sqrt((np.sqrt(df["N_1"]**2+df["N_1"])/df["N_1"]/self.n_cycles)**2
+        #                                 +  (np.sqrt(df["N_2"]**2+df["N_2"])/df["N_2"]/self.n_cycles)**2)
 
         if show:
             axes[1].errorbar(

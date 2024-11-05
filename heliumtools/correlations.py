@@ -707,6 +707,11 @@ class Correlation(DataBuilder):
         self.result["g^4 maxi"] = (
             16 * self.result["g^2"] + 6 * (self.result["g^2"] - 1) ** 2 - 12
         )
+        g2 = self.result["g^2"]
+        g4 = self.result["g^4"]
+        # Calcul de theta
+        self.result["theta_g^4"] = (g4 - (16 * g2 + 4 * (g2 - 1)**2 - 12)) / (2 * (g2 - 1)**2)
+         
         # ---------------
         # Calculs de corrélations locales
         # ---------------

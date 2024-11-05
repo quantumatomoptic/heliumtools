@@ -406,6 +406,7 @@ class CorrelationHe2Style(DataBuilder):
                 self.result[X + " std"] = (
                     self.result[X + " squared"] - self.result[X + " mean"] ** 2
                 )
+        self.recover_true_atoms()
 
     def get_g2(self, axis, ROI):
         data = self.result.copy()
