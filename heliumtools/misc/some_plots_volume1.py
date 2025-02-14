@@ -101,11 +101,14 @@ def stability_of_sequence(
     fig, axes = plt.subplots(ncols=ncols, figsize=(11, 3 * nrows), nrows=nrows)
     bec_arrival_times = bec_arrival_times.sort_values(by="Cycle").reset_index(drop=True)
     hue = "Sequence"
-    if "Date" in bec_arrival_times.columns:
+    try:
+
         bec_arrival_times["Day"] = pd.to_datetime(
-            bec_arrival_times["Date"]
+            bec_arrival_times["Date"], utc=True
         ).dt.strftime("%A, %d")
         hue = "Day"
+    except:
+        pass
     selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
 
     for i, column in enumerate(columns_to_plot):
