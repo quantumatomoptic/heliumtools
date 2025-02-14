@@ -501,7 +501,7 @@ class MCP_offset_map:
     ##################################################################
     ########## METHODS TO SHOW THE MCP MAPS
     ##################################################################
-    def show_map(self, column, **kwargs):
+    def show_map(self, column, ymin=0, ymax=None, **kwargs):
         """Montre une carte d'offset, résolution ou autre selon la valeur de column qui  doit être un des colonnes du dataframe result.
 
 
@@ -520,6 +520,10 @@ class MCP_offset_map:
             **kwargs,
         )
         plt.title(f"{column} of offset")
+
+        # Set y-axis limits only if ymax is provided
+        if ymax is not None:
+            ax.set_ylim(ymin, ymax)
         plt.tight_layout()
         plt.show()
 
