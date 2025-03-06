@@ -74,7 +74,7 @@ class Correlation(DataBuilder):
 
     raman_kick : float, kick raman en mm/s
 
-    var1 et var2 : objet Variable (cf classe ci-dessous), les paramètres des boîtes que nous allons changer pour faire les corrélations.
+    var1 et var2 : Variable object (see class below), the parameters of the boxes that we are going to change to make the correlations.
 
     round_decimal : il s'est avéré (LabJournal du 24/05/2022) que python fait des arrondis un peu bizarre lorsqu'il calcule Vz1 + Vz2 : j'arrondi donc tous les nombres concernant Vz1 et Vz2 (ou plutot les varaibels self.var1.name) à la décimale  round_decimal ( par défaut 5) (--> voir la méthode copute_result)
 
@@ -152,16 +152,18 @@ class Correlation(DataBuilder):
 
     def get_atoms_in_box(self, df, box):
         """
-        Retourne un dataframe avec les positions de atomes à l'intérieur de la boîte.
+        Returns a dataframe with the positions of atoms inside the box.
 
         Parameters
         ----------
-        df : dataframe d'atomes
-        box : dictionnaire, du type {"Vx": {"size": 10, "position": 0}}. Il faut que les entrées du dictionnaire matchent le nom des colonnes du dataframe soit Vx, Vy, Vz et Cycle. Update depuis mai 2023, les entrées du dictionnaire de boite peuvent être 'range' (array) ou bien minimum et maximum.
+        df : atom dataframe
+        box : dictionary, of the type {"Vx": {"size": 10, "position": 0}}. The dictionary entries must match the name of the 
+        dataframe columns, namely Vx, Vy, Vz and Cycle. Updated since May 2023, the box dictionary entries can be 'range' 
+        (array) or minimum and maximum.
 
         Returns
         ----------
-        df : dataframe avec les même colonnes dont les atomes sont tous dans la box.
+        df : dataframe with the same columns whose atoms are all in the box.
         """
         df = apply_ROI(df, box)
         return df
@@ -226,51 +228,58 @@ class Correlation(DataBuilder):
 
     def counts_atoms_in_boxes_one_variable(self, df, var, box, column_name="N_1"):
         """
-        Prend en argument un dataframe d'atomes, une variable et une boîte. Pour chaque "value" de  "variable", elle redéfinie la taille/position de la boîte et récupère le nombre d'atomes dans la boîte à chaque cycle. Elle renvoie un dataframe de 3 colonnes : une avec les cycles de nom "Colonne", une avec le nombre d'atome au cycle donné (de nom column_name) et une avec la valeur de la position/taille de la boîte (de nom var.name)
+        Takes as arguments a dataframe of atoms, a variable and a box. 
+        For each "value" of "variable", it redefines the size/position of the box and retrieves the number of atoms in the box each cycle. 
+        It returns a dataframe of 3 columns: one with the cycles named "Column", 
+        one with the number of atoms in the given cycle (named column_name) 
+        and one with the value of the position/size of the box (named var .name)
 
         Parameters
         ----------
-        df : pandas dataframe, dataframe avec les atomes
+        df : pandas dataframe, dataframe with atoms
         var : Variable
-        box : dictionnaire, position et taille de la boîte sur 1 à 4 axes.
-            Exemple {"Vx": {"size": 10, "position": 0}}
+        box : dictionary, position and size of the box on 1 to 4 axes.
+        Example {"Vx": {"size": 10, "position": 0}}
         column
 
         Returns
         ----------
         result : pandas dataframe
-            dataframe avec 3 colonnes :
-                "Cycle" : avec le numéro du cycle
-                column_name (ex : "N1") : avec le nombre d'atome dans la boîte
-                var.name (ex : "ΔVx"): avec la valeur de la position/taille de la boîte.
+            dataframe with 3 columns:
+                "Cycle": with the cycle number
+                column_name (ex: "N1"): with the number of atoms in the box
+                var.name (ex: "ΔVx"): with the value of the position/size of the box.
         """
-        # On parcourt les différentes valeurs de la Variable var (tqdm --> waiting bar)
+        # We go through the different values ​​of the Variable var (tqdm --> waiting bar)
         # for i in tqdm(range(var.n_step), desc="Gathering {}".format(var.name)):
         for i in range(var.n_step):
-            # On change la boîte selon la i-ème valeur de var
+            # We change the box according to the i-th value of var
             box[var.axe][var.type] = var.get_value_i(i)
-            # On récupère le dataframe avec le nombre d'atome dans la boîte à chaque cycle
+            # We retrieve the dataframe with the number of atoms in the box at each cycle
             dataframe = self.obtain_number_of_atoms_per_cycle_in_box(
                 df, box, column_name=column_name
             )
             dataframe[var.name] = var.get_value_i(i)
-            # On ajoute la colonne avec la valeur de variable
+            # We add the column with the variable value
             if i == 0:
                 result = dataframe
             else:
                 result = pd.concat([result, dataframe])
-        # les index se répètent : c'est bof : je les réinitialise.
+        # the indexes repeat themselves: it's meh: I reset them.
         result.reset_index(drop=True)
         return result
 
     ###########################################################
-    ######## GESTION DES CAS DE FIGURE AVANT LE CALCUL  #######
+    ######## MANAGEMENT OF CASES BEFORE CALCULATION  #######
     ###########################################################
     def compute_correlations(self):
         """
-        Cette fonction gère les différents cas de figure de scan.
+        
+        This function manages the different scanning scenarios.        
+        
         """
-        # Cas 1 : on ne scanne aucun paramètre, on veut juste la corrélation entre deux boites.
+
+        # Case 1: we do not scan any parameters, we just want the correlation between two boxes.
         if (self.var1 == None) and (self.var2 == None):
             atoms_box1 = self.obtain_number_of_atoms_per_cycle_in_box(
                 self.atoms, self.boxes["1"], column_name="N_1"
@@ -283,20 +292,25 @@ class Correlation(DataBuilder):
             corr_names = self.quantity_of_interest()
             corr_values = self.quantity_of_interest(total_atoms)
             self.result = pd.DataFrame([corr_values], columns=corr_names)
-        # Cas 2 : on ne scanne qu'un seul paramètre : dans ce cas, on définit la seconde variable scannée avec un seul paramètre en appelant define_new_variable_with_one_value puis on réappelle la méthode compute_correlations pour être dans le cas 3
+
+        # Case 2: we scan only one parameter: in this case, we define the second scanned variable with a single parameter 
+        # by calling define_new_variable_with_one_value then we call the compute_correlations method again to be in case 3
         elif (self.var1 == None) and (self.var2 != None):
-            # dans ce cas on va définir la variable 1
+            # in this case we will define the variable 1
             # print("I defined myself variable1")
             self.define_new_variable_with_one_value(self.var2, 1)
             self.compute_correlations()
+
         elif (self.var1 != None) and (self.var2 == None):
             # print("I defined myself variable2")
             self.define_new_variable_with_one_value(self.var1, 2)
             self.compute_correlations()
-        # Cas 3 : on scanne des paramètres appartenant à deux boîtes différentes
+
+        # Case 3: we scan parameters belonging to two different boxes
         elif self.var1.box != self.var2.box:
             self.compute_correlations_different_box_scanned()
-        # Cas 4 : on scanne des paramètres appartenant à la même boîte
+
+        # Case 4: we scan parameters belonging to the same box
         else:
             self.compute_correlations_same_box_scanned()
 
@@ -339,44 +353,74 @@ class Correlation(DataBuilder):
 
     def compute_correlations_different_box_scanned(self):
         """
-        Méthode pour calcul des corrélations lorsque var1 et var2 (les paramètres scannés) correspondent à deux boites différentes.
+        Method for calculating correlations when var1 and var2 (the scanned parameters) correspond to two different boxes.
         """
-        # %#% STEP 1 : on récupère le nombre d'atome dans les boites associées à var1 et var2. Disons que intuivement, var1 corresponde à la boîte 1 et var2 à la boîte 2 mais ce n'est pas nécessaire dans le code.
-        # --> Start with var1
-        # On ne récupère que les atomes présents dans la boîte selon les deux axes qui ne varient pas. Par exemple, si on est en train de faire varier la position de la boite selon Vx, on récupère les atomes qui vérifient déjà les bonnes conditions selon Vy et Vz pour alléger les calculs.
+
+        """ To understand the algorithm consider the example: we want the correlation map in the Vz direction for both pairs, that is 
+        determine g^(2)(Vz1 , Vz2). In this case, the scanned variable is Vz, that is we create several boxes in Vz, for both beams in the
+        pairs, and cound the number of atoms in each box. Notice however, that the scanned variable can be Vx, for example, and they do not
+        need to be the same for both beams, e.g, for va1 the scanned variable can be Vz and for var2 the scanned varibale can be Vx. """
+
+        """ STEP 1: we retrieve the number of atoms in the boxes associated with var1 and var2. """
+
+        # Let's say that intuitively, var1 corresponds to box 1 and var2 to box 2 but this is not necessary in the code.
+
+        # We start with var1. We start by retriving all atoms present in the box transverse to the scanned direction.
+        # E.g if Vz is the scanned direction, then we collect all atoms in the transverse (Vx,Vy) box defined in var1 
+        # This lightens the calculation.
+
+        # create copy of box defined in var1
         box = self.boxes[self.var1.box].copy()
-        # On enlève l'axe concerné par le scan
+        # remove the scanned axis of the box, e.g Vz
         posi_and_size = box.pop(self.var1.axe)
-        # l'axe concerné par le scan est donc
+        # create scanned box
         scanned_box = {self.var1.axe: posi_and_size}
-        # On a donc deux boîtes maintenant : une avec deux axes (box) qui ne sont pas modifié à chaque position/taille de boîte et une autre (scanned_box) avec un seul axe qui correspond à l'axe scanné var1.axe
+
+        # Now we have two boxes: 
+        # scanned_box -> corresponds to the scanned direction var1.axe, e.g Vz. 
+        # box -> transverse box, along transverse directions, e.g Vx and Vy. This box is the same for all different positions of var1.axe.
+
+        # get all atoms that are inside the transverse box, e.g Vx and Vy.
         df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
-        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycle", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
-        result_var1 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
-        )
+        
+        # we scan the scanned direction: we split it into several small boxes and count the number of atoms in each box.
+        # the size of each box is determined by var1
+        # The return is result_var1 which is a dataframe with the number of atoms in each small box at each cycle. 
+        # result_var1 has 3 columns with headers "Cycle", "N_i" with i = 1 or 2 depending on the box and the name of the scanned variable e.g. "ΔVz". 
+        # See the documentation of counts_atoms_in_boxes_one_variable for more details.
+        result_var1 = self.counts_atoms_in_boxes_one_variable(df_atoms_var1,self.var1, scanned_box,column_name="N_"+self.var1.box)
+        
         ## check 21 of may:
         column_name = "N_" + self.var1.box
         df = result_var1[result_var1[column_name] < 0]
         if len(df) > 1:
             print(df)
-        # --> Do the same with var2
+
+        # We do the same with var2
+        # create copy of box defined in var2
         box = self.boxes[self.var2.box].copy()
+        # remove the scanned axis of the box
         posi_and_size = box.pop(self.var2.axe)
+        # create scanned box
         scanned_box = {self.var2.axe: posi_and_size}
+        # get all atoms that are inside the transverse box
         df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
-        result_var2 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
-        )
+        # split scanned direction into several small boxes and count the number of atoms in each box.
+        result_var2 = self.counts_atoms_in_boxes_one_variable(df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box)
+
         column_name = "N_" + self.var2.box
         df = result_var2[result_var2[column_name] < 0]
         if len(df) > 1:
             print(df)
-        # %#% STEP2
-        # On construit le dataframe total, qui initialement contient 5 colonnes : Cycle le cycle, N_1 et N_2 nombre d'atomes dans la boîte 1 et 2, self.var1 et self.var2 la position/taille des boîtes lors du scan. Le nombre de lignes de total est dont Nombre_de_cycles x Nombre_de_différentes_var1 x Nombre_de_différentes_var2.
-        total = pd.merge(result_var1, result_var2, on="Cycle")
+        
+        """ STEP2: merge dataframes """
 
-        # %#% STEP3 : computes quantites of interest
+        # We build the total dataframe, which initially contains 5 columns: Cycle, N_1 and N_2 (the number of atoms in box 1 and 2) and self.var1 and self.var2 (the position/size of the boxes during the scan).
+        # The number of rows in total is therefore (Number_of_cycles) * (Number_of_different_var1) * (Number_of_different_var2).
+
+        total = pd.merge(result_var1, result_var2, on = "Cycle")
+
+        """ STEP3: computes quantities of interest """
         self.compute_result(total)
 
     def compute_opposite_momenta_correlations(self):
@@ -531,28 +575,30 @@ class Correlation(DataBuilder):
 
     def compute_result(self, total):
         """
-        Calcul le dataframe de corrélation result utilisant total. Total est un dataframe avec pour chaque cycle et chaque position/taille de boites le nombre d'atomes dans la boite 1 et dans la boite 2.
+        Compute the correlation dataframe result using total. 
+        Total is a dataframe with for each cycle and each box position/size the number of atoms in box 1 and in box 2.
 
-        /!\ /!\ Ne fonctionne que si on a deux variables --> à faire pour un scan 1D ? ou bien on garde la façon naïve car ce n'est pas long.
+        /!\ /!\ Only works if we have two variables --> to do for a 1D scan? or we keep the naive way because it is not long.
 
         Parameters
         ----------
-        total : pandas dataframe de 5 colonnes : 'Cycle' le cycle, 'N_1' et 'N_2' nombre d'atomes dans la boîte 1 et 2, self.var1 et self.var2 la position/taille des boîtes lors du scan. Le nombre de lignes de total est dont Nombre_de_cycles x Nombre_de_différentes_var1 x Nombre_de_différentes_var2.
-
+        total : pandas dataframe of 5 columns: 'Cycle' the cycle, 'N_1' and 'N_2' number of atoms in box 1 and 2, self.var1 and self.var2 the position/size of the boxes when scanned. 
+        The number of rows in total is therefore Number_of_cycles x Number_of_different_var1 x Number_of_different_var2.
 
         Built
         ----------
-        self.result : pandas dataframe de Nombre_de_différentes_var1 x Nombre_de_différentes_var2 lignes. Ses différentes colonnes sont
-            var1.name et var2.name : le nom des variables scannées
-            "N_1", "N_2" :  moyenne sur les cycles du nombre d'atomes dans la boîte 1, 2
-            "N_1+N_2" : somme des populations moyenne
-            "N_1-N_2" : différence des populations moyenne
-            "(N_1-N_2)^2" : moyenne (sur les cycles) des écart quadratiques
-            "N_1*N_2" : moyenne du produit du nombre d'atomes
-            "variance" : variance, il s'agit de la quantité <(N1 - N2)^2> / <N1-N2>^2 où la moyenne est prise sur les cycles.
-            "normalized variance" : variance normalisée, variance divisée par la somme des populations  : variance / <N1 + N2>
-            "<N_1>*<N_2>" : produit de la moyenne du nombre d'atomes
+        self.result : pandas dataframe of Number_of_different_var1 x Number_of_different_var2 rows. Its different columns are
+        var1.name and var2.name : the name of the scanned variables
+            "N_1", "N_2" :  average over cycles of the number of atoms in box 1, 2
+            "N_1+N_2" : sum of average populations
+            "N_1-N_2" : mean population difference
+            "(N_1-N_2)^2" : average (over cycles) of the squared deviations
+            "N_1*N_2" : average of the product of the number of atoms
+            "variance" : variance, this is the quantity <(N1 - N2)^2> / <N1-N2>^2 where the average is taken over the cycles.
+            "normalized variance" : normalized variance, variance divided by the sum of the populations: variance / <N1 + N2>
+            "<N_1>*<N_2>" : product of the average number of atoms
         """
+
         total["N_1*N_2"] = total["N_1"] * total["N_2"]
         total["N_1**2"] = total["N_1"] ** 2
         total[":N_1**2:"] = total["N_1"] ** 2 - total["N_1"]
@@ -590,7 +636,8 @@ class Correlation(DataBuilder):
             total[f":N_1^{i}:"] = total[f":N_1^{i-1}:"] * (total["N_1"] - i + 1)
             total[f":N_2^{i}:"] = total[f":N_2^{i-1}:"] * (total["N_2"] - i + 1)
         self.total = total
-        # on moyenne les données sur les cycles (on les groupe donc par différentes valeurs de var1 et var2)
+        
+        # we average the data over the cycles (we therefore group them by different values ​​of var1 and var2)
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
         ).mean()
