@@ -28,7 +28,7 @@ from .misc.gather_data import apply_ROI, apply_ROD
 
 class DataBuilder:
     """
-    Classe DataBuilder. Takes as an input a pandas dataframe with 4 columns Cycle, X, Y et T and built a dataframe in mm/s for all speeds.
+    Classe DataBuilder. Takes as an input a pandas dataframe with 4 columns Cycle, X, Y et T and builds a dataframe in mm/s for all speeds.
 
     Mandatory parameters
     --------------------
@@ -92,7 +92,8 @@ class DataBuilder:
 
     def build_the_atoms_dataframe(self):
         """
-        Cette méthode construit le dataframe contenant l'ensemble des positions des atomes : elle construit le dataframe self.atoms, dont les vitesses sont exprimées en mm/s à partir du dataframe initial.
+        This method builds the dataframe containing all the positions of the atoms: 
+        it builds the dataframe self.atoms, whose speeds are expressed in mm/s from the initial dataframe.
         """
         # Cleaning the self.atoms dataframe : must contains only 4 columns (to avoid mixing when merging.)
         for column in self.atoms.columns:
