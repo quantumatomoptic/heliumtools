@@ -262,6 +262,233 @@ def check_roi_for_fit(roi):
     return roi
 
 
+def fitBEC(
+    data,
+    ROI_for_fit={
+        "T": {"min": 305.5, "max": 309.7},
+        "X": {"min": -35, "max": -7},
+        "Y": {"min": -35, "max": 35},
+    },
+    histogramm_width = 0.01,
+    width_saturation = 0.0,
+    show_fit = False,
+):
+    """
+    This functions fits the arrival time of the BEC as well as X and Y distribuition. 
+    It generates a dictionary named ans in which we store some properties of the arrival time of the BEC.
+
+    Parameters
+    ----------
+    data : pandas DataFrame
+        DataFrame with the 3 columns X, Y, T, with data to fit. Dataframe can contain other keys.
+    ROI_for_fit : dict
+        Dictionary with the ROI for fitting. This ROI is applied to all axes (X, Y, and T).
+    histogramm_width : float
+        Width of the histogram bins for fitting according to T in ms.
+    width_saturation : float
+        Saturation width during which there is no signal due to TDC saturation. 
+        The histogram points between tmax, the time at which the signal is maximal, 
+        and tmax + dt are removed and are not taken into account by the fit.
+    show_fit : bool
+        True if you want to display the fit on a figure (do not set to True if performing multiple fits). 
+        Consider using the check_BEC_fit() function if you want to verify your fits.
+
+    Returns
+    -------
+    ans : dictionary
+        dictionary with fitted data.
+    failed_status : bollean
+        False if fit was successful, True otherwise. 
+        If True, the fit parameters are determined using the histogram, not by fitting function.
+    """
+
+    ROI_for_fit = copy.deepcopy(ROI_for_fit)
+
+    # initialize dictionary for fit results
+    ans = {"Number of Atoms": len(data)}
+
+    # Check if the roi use for the fit of the BEC arrival time has enough entries
+    ROI_for_fit = check_roi_for_fit(ROI_for_fit)
+
+    # get atoms in ROI
+    data = apply_ROI(data, ROI_for_fit)
+
+    # get X, Y and T coordinates
+    X = data["X"].to_numpy()
+    Y = data["Y"].to_numpy()
+    T = data["T"].to_numpy()
+
+    ans["Number of Atoms in ROIfit"] = len(data)
+    ans["BEC Std Arrival Time"] = np.std(data["T"])
+
+    # if you want to plot
+    if show_fit:
+        fig , axes = plt.subplots(figsize=(3.3 * 4, 3 * 3), ncols = 4, nrows = 2)
+        axes = axes.flatten()
+        
+    # Fit in the time coordinate T
+    if True:
+        # get ROI limits for T coordinate
+        mini, maxi = get_roi_min_max(ROI_for_fit, "T")
+
+        # create bins for histogram
+        caixas = np.arange(mini, maxi, histogramm_width)
+        # create histogram
+        counts, bin_borders = np.histogram(T,bins = caixas)
+        # get bin centers
+        bin_centers = np.array(bin_borders[:-1] + np.diff(bin_borders) / 2)
+        
+        # find the position of the max
+        max_index = np.argmax(counts)
+
+        # calculate mean and sigma using histogram
+        mean = bin_centers[max_index]
+        ans["BEC Arrival Time with max"] = mean
+        sigma = np.mean(counts * (bin_centers - mean) ** 2)
+        sigma = 0.1
+
+        # create guess
+        p0 = [mean, np.max(counts), sigma, 0]
+        counts = list(counts)
+        bin_centers = list(bin_centers)
+
+        # below, we delete a certain number of points so as not to take into account the saturation of the mcp.
+        n_hole = int(width_saturation / histogramm_width)
+        failed_status = False
+        for i in range(n_hole):
+            if max_index + 2 < len(bin_centers):
+                bin_centers.pop(max_index + 1)
+                counts.pop(max_index + 1)
+
+        # try to fit
+        try:
+            popt, pcov = curve_fit(gaussian_function, bin_centers, counts, p0=p0)
+            # perr = np.sqrt(np.diag(pcov))
+        except:
+            failed_status = True
+            popt = p0
+        
+        ans["BEC Arrival Time"] = popt[0]
+        ans["BEC fitted Std Arrival Time"] = popt[2]
+        ans["BEC Arrival Time with fit"] = popt[0]
+        
+        # if you want to plot
+        if show_fit:
+            plot_index = 0
+            ax = axes[plot_index]
+
+            #ax.plot(bin_centers, counts, "o", alpha=0.8, label="data")
+            # plot histogram
+            ax.hist(bin_borders[:-1],bin_borders, weights = counts , label="data")
+            
+            print("Fit in T :")
+            print(f"p0 : {p0}")
+            print(f"popt : {popt}")
+            print("=" * 20)
+            
+            # plot fit function as well as guess
+            ax.plot(bin_centers, gaussian_function(bin_centers, *popt), "-", label="fit")
+            ax.plot(bin_centers, gaussian_function(bin_centers, *p0), "--", label="guess")
+
+            #ax.axvspan(
+            #    bin_centers[max_index],
+            #    bin_centers[max_index] + n_hole * histogramm_width,
+            #    alpha=0.2,
+            #    color="red",
+            #)
+
+            ax.set_title("Mean : {:.3f} ms".format(popt[0]))
+            ax.set_xlabel("time (ms)")
+
+    # Fit data in X and Y coordinates
+    if True:
+        to_fit = ["X", "Y"]
+
+        # first rotate the coordinates
+        for angle in [45, 45 + 7]:
+            theta = np.pi / 180 * angle
+            X0 = data["X"].mean()
+            Y0 = data["Y"].mean()
+
+            to_fit.append("X ({})".format(angle))
+            to_fit.append("Y ({})".format(angle))
+
+            data["X ({})".format(angle)] = (data["X"] - X0) * np.cos(theta) + np.sin(theta) * (data["Y"] - Y0)
+            data["Y ({})".format(angle)] = - (data["X"] - X0) * np.sin(theta) + np.cos(theta) * (data["Y"] - Y0)
+
+            # plot_index +=1
+            ROI_for_fit["Y ({})".format(angle)] = [-15, 15]
+            ROI_for_fit["X ({})".format(angle)] = [-15, 15]
+            # axes[plot_index].hist2d(data["X ({})".format(angle)], data["Y ({})".format(angle)],
+            #                          cmap = "Greys", bins =( np.linspace(-14, 14, 24), np.linspace(-14, 14, 24)))
+
+        # for each coordinate (rotated and not rotated)
+        for i, XY in enumerate(to_fit):
+
+            # get ROI limits
+            (bin_mini, bin_maxi) = get_roi_min_max(ROI_for_fit, XY)
+
+            # create bins
+            caixas = np.arange(bin_mini, bin_maxi)
+            # create histogram
+            countsXY, bin_bordersXY = np.histogram(data[XY].to_numpy(),bins = caixas)
+
+            # get bin centers
+            bin_centersXY = np.array(bin_bordersXY[:-1] + np.diff(bin_bordersXY) / 2)
+            
+            # find the position of the max
+            max_indexXY = np.argmax(countsXY)
+            arr_time_maximumXY = bin_centersXY[max_indexXY]
+            mean = bin_centersXY[max_indexXY]
+            offset = np.min(countsXY)
+            # sigma = np.mean((countsXY - offset) * (bin_centersXY - mean) ** 2)
+            sigma = 4
+            p0XY = [mean, np.max(countsXY) - offset, np.abs(sigma), offset]
+            countsXY = list(countsXY)
+            bin_centersXY = list(bin_centersXY)
+
+            # try to fit
+            try:
+                poptXY, pcovXY = curve_fit(gaussian_function, bin_centersXY, countsXY, p0 = p0XY)
+            except:
+                failed_status = True
+                poptXY = p0XY
+
+            # store results
+            ans["BEC Width " + XY] = poptXY[2]
+            ans["BEC Center " + XY] = poptXY[0]
+            ans["BEC Width " + XY] = poptXY[2]
+            ans["BEC Width std " + XY] = np.std(data[XY].to_numpy())
+
+            # if you want to fit
+            if show_fit:
+                print("Fit in " + XY + " :")
+                print(f"p0 : {p0XY}")
+                print(f"popt : {poptXY}")
+                print("=" * 20)
+                plot_index += 1
+                ax = axes[plot_index]
+
+                # plot histogram
+                ax.hist(bin_bordersXY[:-1],bin_bordersXY, weights = countsXY , label="data")
+                # ax.plot(bin_centersXY, countsXY, "*", alpha=0.7, label="data")
+
+                # plot both fit function and guess
+                ax.plot(bin_centersXY,gaussian_function(bin_centersXY, *poptXY), "-",label="fit",)
+                ax.plot(bin_centersXY,gaussian_function(bin_centersXY, *p0XY), "--",label="guess",)
+
+                ax.set_title("Mean : {:.3f} mm".format(poptXY[0]))
+                ax.set_xlabel(XY + " (mm)")
+    
+    if show_fit:
+        for ax in axes:
+            ax.legend(loc=0)
+        plt.tight_layout()
+        plt.show()
+
+    return ans, failed_status
+
+
 def fit_BEC_arrival_time(
     data,
     filename,
@@ -275,7 +502,8 @@ def fit_BEC_arrival_time(
     show_fit=False,
 ):
     """
-    This functions fit BEC arrival times. It generates a dictionary named ans in which we store some properties of the arrival times of our BEC.
+    This functions fits the raw data X1, Y1 , X2 , Y2 as well as the arrival time of the BEC. 
+    It generates a dictionary named ans in which we store some properties of the arrival times of our BEC.
 
     Parameters
     ----------
@@ -434,8 +662,8 @@ def fit_BEC_arrival_time(
             )
             ax.set_title("Mean : {:.3f} mm".format(poptXY[0]))
             ax.set_xlabel(XY + " (mm)")
+    
     ##### FIT of each channel X1, x2, y1 and y2
-
     if filename:
         ans["Mean Arrival Time (fit .times)"] = 0
         for index, xj in enumerate(["x1", "x2", "y1", "y2"]):
@@ -507,6 +735,7 @@ def fit_BEC_arrival_time(
         ans["Mean Arrival Time (fit .times)"] = (
             ans["Mean Arrival Time (fit .times)"] / 4
         )
+    
     if show_fit:
         for ax in axes:
             ax.legend(
@@ -906,6 +1135,83 @@ def load_metadata(cycle_prefix, metadata, show_error=True):
         return load_hal_type_metadata(file_name, show_error=show_error)
     return {}
 
+
+def Fit1Dhistogram(df,key,mini,maxi,binWidth):
+    """ Creates a histogram and fits a gaussian function to it.
+
+    Parameters
+    ----------
+    df : pandas dataframe
+        dataframe with the data. It must have at least two collumns: the "cycle" and the key of data to analyse
+    key : string
+        name of the key of the data in df from which we want to build an histogram
+    mini : float
+        minimum value for the x-axis of the histogram
+    maxi : float
+        maximum value for the y-axis of the histogram
+    binWidth :
+        width of the bins of the histogram. The number of bins is (max-min)/binWidth
+
+    Returns
+    -------
+    counts : numpy float array
+        number of atom counts in each bin
+    caixas : numpy float array
+        bins of the histogram
+    ans : dictionary
+        dictionary with gaussian fit parameters
+    FitStatus : bollean
+        False if fit was successful, True otherwise. 
+        If True, the fit parameters are determined using the histogram, not by the fitting function.
+    """
+
+    # get cycles on dataframe temp
+    cycles = df['Cycle'].drop_duplicates().tolist()
+
+    # get data
+    data = df[key].to_numpy()
+    
+    # build histogram
+    caixas = np.arange(mini, maxi, binWidth)
+    counts, caixas = np.histogram(data, bins = caixas)
+
+    # normalize to cycle number 
+    counts = counts/len(cycles)
+
+    # gaussian to fit peaks
+    def fitGaussian(t,A0,t0,sigma):
+        return A0*np.exp(-np.power(t-t0,2)/np.power(sigma,2))
+    
+    # determine guess for fit
+    n = len(counts)
+    x_hist = np.zeros((n),dtype=float) 
+    for ii in range(n):
+        x_hist[ii] = (caixas[ii+1]+caixas[ii])/2
+    mean = sum(x_hist*counts)/sum(counts)                  
+    sigma = sum(counts*(x_hist-mean)**2)/sum(counts)
+    guess =  [np.amax(counts),mean,sigma]
+
+    # initialize fit flag
+    FitStatus = False
+
+    # initialize dicionary
+    ans = dict()
+
+    # try to fit
+    try:    
+        popt , pcov = curve_fit(fitGaussian, x_hist, counts, p0 = guess)
+    except:
+        FitStatus = True
+        popt = guess
+
+    ans[key+"| A0"] = popt[0]
+    ans[key+"| mean"] = popt[1]
+    ans[key+"| sigma"] = popt[2]
+    ans[key+"| A0 guess"] = guess[0]
+    ans[key+"| mean guess"] = guess[1]
+    ans[key+"| sigma guess"] = guess[2]
+
+    return counts , caixas ,  ans , FitStatus
 
 import os
 

@@ -42,19 +42,18 @@ class Correlation(DataBuilder):
 
     Mandatory parameters
     --------------------
-    atoms : pandas dataframe de 4 colonnes comportant le numéro de cycle, et les temps et positions d'arrivée des atomes. Les colonnes devront s'appeler "Cycle" ; "X" ; "Y" et "T".
+    atoms : pandas dataframe of 4 columns containing the cycle number, and the arrival times and positions of the atoms. The columns should be named "Cycle" ; "X" ; "Y" and "T".
 
-    n_cycles : le nombre de fichiers / cycles.
+    n_cycles : the number of files/cycles.
 
     Main attributs
     --------------------
-    atoms : pandas dataframe de 4 colonnes comportant le numéro de cycle, et les vitesses des atomes selon les 3 axes Vx, Vy et Vz
-
+    atoms : pandas dataframe of 4 columns containing the cycle number, and the velocities of the atoms according to the 3 axes Vx, Vy and Vz
 
 
     Other attributs
     --------------------
-    boxes : dictionnaire donnant position et taille des boîtes 1 et 2 pour les corrélations.
+    boxes : dictionary giving position and size of boxes 1 and 2 for correlations.
         Forme : { "1": {"Vx": {"size": 10, "position": 0},
                         "Vy": {"size": 3, "position": 0},
                         "Vz": {"size": 0.9, "position": 56},   },
@@ -63,20 +62,22 @@ class Correlation(DataBuilder):
                         "Vz": {"size": 0.9, "position": 80},   },}
 
     ROI : dictionnaire, Region Of Interest
-        définir une ROI adaptée permet de réduire la taille des dataframe utilisés (en mm/s)
-        ATTENTION : l'application de la méthode apply_ROI() agit sur le dataframe atoms donc si vous vous rendez compte que votre ROI est trop petite, il faut recharger le dataframe atoms.
-        Format : {"Vx": {"max":120, "min":-120}}
+        defining a suitable ROI allows you to reduce the size of the dataframes used (in mm/s)
+        WARNING: applying the apply_ROI() method acts on the atoms dataframe so if you realize that your ROI is too small, you must reload the atoms dataframe.
+        Format: {"Vx": {"max":120, "min":-120}}
 
     ROD : dictionnaire, Region Of Desinterest
-        pour ne sélectionner que les atomes en dehors de la ROD. Même remarque que pour ROI et même format.
+        to select only atoms outside the ROD. Same remark as for ROI and same format.
 
-    bec_arrival_time : float, temps d'arrivée du condensat en ms
+    bec_arrival_time : float, condensate arrival time in ms
 
-    raman_kick : float, kick raman en mm/s
+    raman_kick : float, kick raman in mm/s
 
     var1 et var2 : Variable object (see class below), the parameters of the boxes that we are going to change to make the correlations.
 
-    round_decimal : il s'est avéré (LabJournal du 24/05/2022) que python fait des arrondis un peu bizarre lorsqu'il calcule Vz1 + Vz2 : j'arrondi donc tous les nombres concernant Vz1 et Vz2 (ou plutot les varaibels self.var1.name) à la décimale  round_decimal ( par défaut 5) (--> voir la méthode copute_result)
+    round_decimal : it turned out (LabJournal of 05/24/2022) that python does some weird rounding when it calculates Vz1 + Vz2: 
+                    I therefore round all the numbers concerning Vz1 and Vz2 (or rather the self.var1.name variables) to the decimal place 
+                    round_decimal (default 5) (--> see the copute_result method)
 
 
     Some Methods
@@ -226,7 +227,7 @@ class Correlation(DataBuilder):
         atoms_in_box = self.merge_dataframe_on_cycles(cycle_dataframe, atoms_in_box)
         return atoms_in_box
 
-    def counts_atoms_in_boxes_one_variable(self, df, var, box, column_name="N_1"):
+    def counts_atoms_in_boxes_one_variable(self, df, var, box, column_name = "N_1"):
         """
         Takes as arguments a dataframe of atoms, a variable and a box. 
         For each "value" of "variable", it redefines the size/position of the box and retrieves the number of atoms in the box each cycle. 
@@ -275,7 +276,7 @@ class Correlation(DataBuilder):
     def compute_correlations(self):
         """
         
-        This function manages the different scanning scenarios.        
+        This function computes the correlations and manages the different scanning scenarios.        
         
         """
 
