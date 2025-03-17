@@ -99,7 +99,6 @@ class Correlation(DataBuilder):
         super().__init__(atoms, **kwargs)
         self.var1 = None
         self.var2 = None
-        self.remove_shot_noise = True
         self.round_decimal = 7
         self.boxes = {
             "1": {
@@ -426,62 +425,74 @@ class Correlation(DataBuilder):
 
     def compute_opposite_momenta_correlations(self):
         """
-        Calcule des corrélation dans self.result lorsqu'on ne veut scanner qu'une variable et faire des corrélations entre k et -k. Les paramètres qui sont bougés doivent être définis dans var1.
+        Compute correlations in self.result when you only want to scan one variable and make correlations between k and -k. 
+        The parameters that are moved must be defined in var1.
         """
+
+        # set var1 as master
         box = self.var1.box
+        
         if box == "1":
             box = "2"
         else:
             box = "1"
+        
+        # define var2 so that its box lies in the opposite momentum region
         axe = self.var1.axe
         type = self.var1.type
         name = self.var1.name
         values = self.var1.values
-        self.define_variable2(
-            box=box, axe=axe, type=type, name="-" + name, values=-1 * values
-        )
+        self.define_variable2(box=box, axe=axe, type=type, name="-" + name, values=-1 * values)
 
-        # On fait maintenant la même chose que dans compute_correlations_different_box_scanned() jusqu'à step 2
-        #### STEP 1 : on récupère le nombre d'atome dans les boites associées à var1 et var2. Disons que intuivement, var1 corresponde à la boîte 1 et var2 à la boîte 2 mais ce n'est pas nécessaire dans le code.
-        # --> Start with var1
-        # On ne récupère que les atomes présents dans la boîte selon les deux axes qui ne varient pas. Par exemple, si on est en train de faire varier la position de la boite selon Vx, on récupère les atomes qui vérifient déjà les bonnes conditions selon Vy et Vz pour alléger les calculs.
+        # Now we do the same thing as in compute_correlations_different_box_scanned()
+
+        """ STEP 1: we retrieve the number of atoms in the boxes associated with var1 and var2. 
+        Let's say that intuitively, var1 corresponds to box 1 and var2 to box 2 but this is not necessary in the code. """
+
+        # Start with var1
+        # We only retrieve the atoms present in the box according to the two axes that do not vary. 
+        # For example, if we are varying the position of the box according to Vx, we retrieve the atoms that already verify the right conditions according to Vy and Vz to lighten the calculations.
         box = self.boxes[self.var1.box].copy()
-        # On enlève l'axe concerné par le scan
+        # We remove the axis concerned by the scan
         posi_and_size = box.pop(self.var1.axe)
-        # l'axe concerné par le scan est donc
+        # the axis concerned by the scan is therefore
         scanned_box = {self.var1.axe: posi_and_size}
-        # On a donc deux boîtes maintenant : une avec deux axes (box) qui ne sont pas modifié à chaque position/taille de boîte et une autre (scanned_box) avec un seul axe qui correspond à l'axe scanné var1.axe
+        # So we have two boxes now: one with two axes (box) that are not modified at each box position/size and another (scanned_box) with a single axis that corresponds to the scanned axis var1.axis
         df_atoms_var1 = self.get_atoms_in_box(self.atoms, box)
-        # Result var1 est un dataframe avec le nombre d'atomes dans la boîte à chaque cycle pour les différentes positions de la boîte. Il a donc 3 colonnes dont les entêtes sont "Cycle", "N_i" avec i = 1 ou 2 selon la boîte et le nom de la variables scannée par exemple "ΔVx". Voir la documentation de counts_atoms_in_boxes_one_variable pour plus de détails.
-        result_var1 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
-        )
-        # --> Do the same with var2
+        # Result var1 is a dataframe with the number of atoms in the box at each cycle for the different positions of the box. 
+        # So it has 3 columns with headers "Cycle", "N_i" with i = 1 or 2 depending on the box and the name of the scanned variable for example "ΔVx". 
+        # See the documentation of counts_atoms_in_boxes_one_variable for more details.
+        result_var1 = self.counts_atoms_in_boxes_one_variable(df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box)
+
+        # We do the same with var2
         box = self.boxes[self.var2.box].copy()
         posi_and_size = box.pop(self.var2.axe)
         scanned_box = {self.var2.axe: posi_and_size}
         df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
-        result_var2 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
-        )
-        #### STEP2
+        result_var2 = self.counts_atoms_in_boxes_one_variable(df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box)
+
+        """  STEP2  """
         result_var1["abs(varname)"] = np.abs(result_var1[self.var1.name])
         result_var2["abs(varname)"] = np.abs(result_var2[self.var2.name])
-        # On fusionne maintenant les dataframe sur deux clés et non plus sur une seule.
+
+        # We now merge the dataframes on two keys and no longer on just one.
         total = pd.merge(result_var1, result_var2)
 
-        #### STEP3 : computes quantites of interest
-        self.compute_result(total)
+        """ STEP3 : computes quantites of interest """
+        self.compute_result(total) 
 
     def define_new_variable_with_one_value(self, var, new_var_number):
-        """Cette fonction génère la variable 1 ou 2 (correspondant à var_number) en copiant les paramètres de var. Par exemple, on scanne la variable 1, la taille de boîtes selon Vz, cette fonction va définir la variable 2 comme scannant la taille des boites dans la boite opposée à la variable 1 avec un seul paramètre, celui définit dans box. Cela permet d'utiliser systématiquement la fonction compute_correlations_different_box_scanned même lorsuq'on a une seule boîte définie.
+        """ This function generates variable 1 or 2 (corresponding to var_number) by copying the parameters of var. 
+        For example, if we scan variable 1, the size of boxes according to Vz, this function will define variable 2 as scanning the size of 
+        the boxes in the box opposite to variable 1 with a single parameter, the one defined in box. 
+        This allows to systematically use the compute_correlations_different_box_scanned function even when we have only one box defined.
 
         Parameters
         ----------
-        var : objet de la classe Variable
+        var : object of the Variable class
 
-        var_number : entier 1 ou 2
-            Si c'est 1, on va définir une nouvelle variable 1, si c'est 2, on va définir la nouvelle variable 2.
+        var_number : integer 1 or 2
+            If it is 1, we will define a new variable 1, if it is 2, we will define the new variable 2.
         """
         if new_var_number not in [1, 2]:
             raise (
@@ -514,21 +525,23 @@ class Correlation(DataBuilder):
 
     def quantity_of_interest(self, dataframe=""):
         """
-        Prend en argument un dataframe dont les colonnes sont le nombre d'atomes dans les boîtes 1 et 2 à chaque cycle1 Retourne une liste de flottants avec les différentes valeurs d'intérêt. Si dataframe = "", renvoie une liste de strings avec le nom de chaque quantité calculée.
-        Pour rajouter des valeurs d'intérêt à calculer, il suffit de rajouter dans la liste column_names le nom de la variable et de l'ajouter dans result.
+        Takes as argument a dataframe whose columns are the number of atoms in boxes 1 and 2 at each cycle1 
+        Returns a list of floats with the different values ​​of interest. If dataframe = "", returns a list of strings with the name of each calculated quantity.
+        To add values ​of interest to calculate, simply add the name of the variable to the column_names list and add it to result.
 
         Parameters
         ----------
-        dataframe : pandas dataframe avec (au moins) 3 colonnes
-                "Cycle" le numéro de cycle
-                "N_1", avec le nombre d'atomes dans la boîte 1
-                "N_2", avec le nombre d'atomes dans la boîte 2
+        dataframe : pandas dataframe with (at least) 3 columns
+        "Cycle" the cycle number
+        "N_1", with the number of atoms in box 1
+        "N_2", with the number of atoms in box 2
 
         Returns
         ----------
-        column_names (si aucun dataframe n'est donné) : liste de string avec le nom des valeurs calculées
-        computed_quantities (si un dataframe est donné) : liste de flottants avec la quantité d'intérêt calculée.
+        column_names (if no dataframe is given): list of strings with the name of the calculated values
+        computed_quantities (if a dataframe is given): list of floats with the calculated quantity of interest.
         """
+        
         column_names = [
             "N_1",
             "N_2",
@@ -599,15 +612,14 @@ class Correlation(DataBuilder):
             "normalized variance" : normalized variance, variance divided by the sum of the populations: variance / <N1 + N2>
             "<N_1>*<N_2>" : product of the average number of atoms
         """
-
+        
+        """ compute some usefull quantities for future calculation and add to dataset"""
         total["N_1*N_2"] = total["N_1"] * total["N_2"]
         total["N_1**2"] = total["N_1"] ** 2
         total[":N_1**2:"] = total["N_1"] ** 2 - total["N_1"]
         total["N_2**2"] = total["N_2"] ** 2
         total[":N_2**2:"] = total["N_2"] ** 2 - total["N_2"]
-        total[":N_1^2xN_2^2:"] = (
-            total["N_1"] * (total["N_1"] - 1) * total["N_2"] * (total["N_2"] - 1)
-        )
+        total[":N_1^2xN_2^2:"] = total["N_1"] * (total["N_1"] - 1) * total["N_2"] * (total["N_2"] - 1)
         total["N_1-N_2"] = total["N_1"] - total["N_2"]
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
@@ -620,32 +632,26 @@ class Correlation(DataBuilder):
         total["N_1**2*N_2**2"] = total["N_1"] ** 2 * total["N_2"] ** 2
         total["N_1**2*N_2"] = total["N_1"] ** 2 * total["N_2"]
         total["N_1*N_2**2"] = total["N_1"] * total["N_2"] ** 2
-        total["Jz fluctu"] = (
-            1
-            / 2
-            * (
-                np.sqrt((total["N_1+N_2"] - 1) * np.heaviside(total["N_1+N_2"], 0))
-                * total["N_1-N_2"]
-            )
-        )
+        total["Jz fluctu"] = 1/2*(np.sqrt((total["N_1+N_2"] - 1) * np.heaviside(total["N_1+N_2"], 0))* total["N_1-N_2"])
         total["Jz fluctu^2"] = total["Jz fluctu"] ** 2
 
-        ##### nth order correlations
+        """ compute nth order correlations """
+        # 1th order correlation
         total[":N_1^1:"] = total["N_1"]
         total[":N_2^1:"] = total["N_2"]
+        # nth order correlation
         for i in range(2, self.correlation_order_max + 1):
             total[f":N_1^{i}:"] = total[f":N_1^{i-1}:"] * (total["N_1"] - i + 1)
             total[f":N_2^{i}:"] = total[f":N_2^{i-1}:"] * (total["N_2"] - i + 1)
+
+        # update object dataset
         self.total = total
         
         # we average the data over the cycles (we therefore group them by different values ​​of var1 and var2)
-        self.result = total.groupby(
-            [self.var1.name, self.var2.name], as_index=False
-        ).mean()
+        self.result = total.groupby([self.var1.name, self.var2.name], as_index=False).mean()
+        # compute std
         if self.compute_errors:
-            self.errors = total.groupby(
-                [self.var1.name, self.var2.name], as_index=False
-            ).std()
+            self.errors = total.groupby([self.var1.name, self.var2.name], as_index=False).std()
         column_name = "N_1*N_2"
         df = self.result[self.result[column_name] < 0]
         if len(df) > 1:
@@ -672,38 +678,30 @@ class Correlation(DataBuilder):
 
         # print("Total dataframe is summed already")
 
+        """ compute Variance, g^2 , ... """
+
         # ---------------
         # Variance
         # ---------------
-        self.result["variance"] = (
-            self.result["(N_1-N_2)^2"] - (self.result["N_1-N_2"]) ** 2
-        )
-
-        self.result["normalized variance"] = self.result["variance"] / (
-            self.result["N_1"] + self.result["N_2"]
-        )
+        self.result["variance"] = self.result["(N_1-N_2)^2"] - self.result["N_1-N_2"]**2
+        self.result["normalized variance"] = self.result["variance"] / (self.result["N_1"] + self.result["N_2"])
 
         # ---------------
-        # Calcul de Denis's criterion (no projector aka no post-selection)
+        # Calculate de Denis's criterion (no projector aka no post-selection)
         # ---------------
-        self.result["denis2"] = (
-            self.result["Jz fluctu^2"] - self.result["Jz fluctu"] ** 2
-        ) / self.result["N_1*N_2"]
+        self.result["denis2"] = (self.result["Jz fluctu^2"] - self.result["Jz fluctu"] ** 2) / self.result["N_1*N_2"]
 
         # ---------------
-        # Calculs de g^2
+        # Calculate de g^2
         # ---------------
-        self.result["g^2"] = self.result["N_1*N_2"] / (
-            self.result["N_1"] * self.result["N_2"]
-        )
+        self.result["g^2"] = self.result["N_1*N_2"] / (self.result["N_1"] * self.result["N_2"])
+        
         # -----------------
-        # Calcul de g^n local
+        # Calculate de g^n local
         # -----------------
         for i in range(2, self.correlation_order_max + 1):
             for j in [1, 2]:
-                self.result[f"g_{j}^({i})"] = (
-                    self.result[f":N_{j}^{i}:"] / self.result[f"N_{j}"] ** i
-                )
+                self.result[f"g_{j}^({i})"] = self.result[f":N_{j}^{i}:"] / self.result[f"N_{j}"] ** i
                 if self.compute_errors:
                     self.result[f"U(g_{j}^({i}))"] = (
                         self.result[f"g_{j}^({i})"]
@@ -730,17 +728,14 @@ class Correlation(DataBuilder):
         # -------------------------------
         # Calculs de delta, qty Parentani
         # -------------------------------
-        self.result["Delta"] = -self.result["N_1*N_2"] / 2 + (
-            self.result["N_1"] * self.result["N_2"]
-        )
-        self.result["-Delta"] = -self.result["Delta"]
+        self.result["Delta"] = - self.result["N_1*N_2"] / 2 + self.result["N_1"] * self.result["N_2"]
+        self.result["-Delta"] = - self.result["Delta"]
 
         # ---------------
         # Calculs de g^4
         # ---------------
-        self.result["g^4"] = self.result[":N_1^2xN_2^2:"] / (
-            self.result["N_1"] ** 2 * self.result["N_2"] ** 2
-        )
+        self.result["g^4"] = self.result[":N_1^2xN_2^2:"] / (self.result["N_1"] ** 2 * self.result["N_2"] ** 2)
+
         # normalement ça doit être les mêmes...
         self.result["g^4 bis"] = (
             self.result["N_1**2*N_2**2"]
@@ -769,19 +764,9 @@ class Correlation(DataBuilder):
         # ---------------
         # Cuachy-Schwarz
         # ---------------
-        self.result["C-S"] = self.result["N_1*N_2"] / (
-            np.sqrt(
-                (self.result["N_1**2"] - self.result["N_1"])
-                * (self.result["N_2**2"] - self.result["N_2"])
-            )
-        )
+        self.result["C-S"] = self.result["N_1*N_2"] / np.sqrt((self.result["N_1**2"] - self.result["N_1"])* (self.result["N_2**2"] - self.result["N_2"]))
 
-        self.result["C-S difference"] = self.result["N_1*N_2"] - (
-            np.sqrt(
-                (self.result["N_1**2"] - self.result["N_1"])
-                * (self.result["N_2**2"] - self.result["N_2"])
-            )
-        )
+        self.result["C-S difference"] = self.result["N_1*N_2"] - np.sqrt((self.result["N_1**2"] - self.result["N_1"])* (self.result["N_2**2"] - self.result["N_2"]))
 
         self.result["G^2(k1,k1)"] = self.result["N_1**2"] - self.result["N_1"]
         self.result["G^2(k2,k2)"] = self.result["N_2**2"] - self.result["N_2"]
@@ -795,13 +780,11 @@ class Correlation(DataBuilder):
             self.result["M^2 jasukula"] - self.result["M jaskula"] ** 2
         )
 
-        # on enlève le shot noise si cela est demandé par l'utilisateur.
+        # we remove the shot noise if requested by the user.
         if self.remove_shot_noise:
             if self.var1.type == "position":
                 VJ = self.var1.axe  # I assume that we scanned the same axe
-                local_condition = (
-                    self.result[self.var1.name] == self.result[self.var2.name]
-                )
+                local_condition = self.result[self.var1.name] == self.result[self.var2.name]
                 not_scanned_axes = ["Vx", "Vy", "Vz"]
                 not_scanned_axes.remove(self.var1.axe)
                 if self.var1.axe != self.var2.axe:
@@ -831,12 +814,8 @@ class Correlation(DataBuilder):
                     #         "[WARNING] Shot Noise has not been taken off weird because boxes do not have the same size. Please be carefull when delaing with local correlations !"
                     #     )
                 else:
-                    self.result.loc[local_condition, "g^2"] = (
-                        self.result["N_1*N_2"] - self.result["N_1"]
-                    ) / (self.result["N_1"] * self.result["N_2"])
-                    self.result.loc[local_condition, "N_1*N_2"] = (
-                        self.result["N_1*N_2"] - self.result["N_1"]
-                    )
+                    self.result.loc[local_condition, "g^2"] = (self.result["N_1*N_2"] - self.result["N_1"]) / (self.result["N_1"] * self.result["N_2"])
+                    self.result.loc[local_condition, "N_1*N_2"] = self.result["N_1*N_2"] - self.result["N_1"]
                     ## Recompute Cauchy-Schwarz
                     self.result["C-S"] = self.result["N_1*N_2"] / (
                         np.sqrt(
@@ -877,9 +856,7 @@ class Correlation(DataBuilder):
                         self.result["N_1"] * self.result["N_2"]
                     )
 
-        # ---------------
-        # Déviations standards
-        # ---------------
+        """ Compute standard deviations of g2, variance, ... """
 
         self.result["N_1 std"] = np.sqrt(
             self.result["N_1**2"] - self.result["N_1"] ** 2
@@ -980,7 +957,7 @@ class Correlation(DataBuilder):
         )
 
         # ---------------
-        # On exprime les densités avec des unités
+        # Densities are expressed with units
         # ---------------
         try:
             self.result["N_1 (at/(mm/s)^3)"] = self.result["N_1"] / (
@@ -1016,7 +993,7 @@ class Correlation(DataBuilder):
         except KeyError:
             pass
         # ---------------
-        # On rajoute la différence et la moyenne des var1 et var2
+        # We add the difference and the average of var1 and var2
         # ---------------
         self.result[f"({self.var1.name}+{self.var2.name})/2"] = np.round(
             (self.result[self.var1.name] + self.result[self.var2.name]) / 2,
@@ -1119,7 +1096,7 @@ class Correlation(DataBuilder):
         # self.total["My_tmp_index"] = np.tile(np.arange(n_tmp_index), n_cycles)
 
     ###########################################################
-    ############### FONCTION D'AFFICHAGE  #####################
+    ############### Plot Functions  #####################
     ###########################################################
 
     def show_densities(self, cmap="Blues", bins=100, return_fig=False, **kwargs):
@@ -1258,16 +1235,14 @@ class Correlation(DataBuilder):
 
         return (hist_values, X_values, Y_values)
 
-    def get_atoms_distribution(
-        self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY
-    ):
+    def get_atoms_distribution(self, nbMax, nbPt, posZ, sizeZ, posX, sizeX, posY, sizeY):
         """
-        Permet de tracer la distribution du nombre d'atomes moyenne sur tous les cycles, soit dans une boîte soit dans une moyenne de boîtes
+        Allows to plot the distribution of the number of atoms averaged over all cycles, either in a box or in an average of boxes
         Parameters
         ----------
-        posZ, sizeZ, posX, sizeX, posY, sizeY : paramètres de la boîte initiale
-        nbMax : nombre d'atomes simultanés détectés à considérer
-        nbPt : nombre de boîtes sur lesquelles on moyenne (la 1e boîte est celle centrée sur PosZ et de taille sizeZ, puis les autres boîtes sont les voisines selon Vz dans le sens des Vz croissants et de taille sizeZ
+        posZ, sizeZ, posX, sizeX, posY, sizeY: parameters of the initial box
+        nbMax: number of simultaneous atoms detected to consider
+        nbPt: number of boxes on which we average (the 1st box is the one centered on PosZ and of size sizeZ, then the other boxes are the neighbors according to Vz in the direction of increasing Vz and of size sizeZ
 
         """
         n_cycles = self.n_cycles
@@ -1483,25 +1458,32 @@ class Correlation(DataBuilder):
 
 class Variable:
     """
-    Définie la classe Variable.
+    Defines the Variable class. This class contains the information of the box to count/integrate atoms and compute correlations
     """
 
     def __init__(self, **kwargs):
-        self.box = "1"  # le numéro de la boîte du paramètre scanné (1 ou 2)
-        self.axe = "Vx"  # l'axe du paramètre scanné (Vx, Vy ou Vz)
-        self.type = "size"  # le type : size ou position
-        self.name = "ΔVx"  # son nom pour la colonne dans le dataframe
-        self.min = 0  # sa valeur minimale, maximale et le nombre d'éléments
-        self.max = 2
-        self.step = 4
-        self.values = []  # ou bien les valeurs qu'il prend (liste ou numpy array)
+        self.box = "1"  # the box number of the scanned parameter (1 or 2)
+        self.axe = "Vx"  # the axis of the scanned parameter (Vx, Vy or Vz)
+        self.type = "size"  # type: size or position, that is if we scan size of box or position
+        self.name = "ΔVx"  # its name for the column in the dataframe
+
+        """ The scan can be defined in two ways: either we give a list of values or we provide min, max and step for scan"""
+        # min, max and step of scan
+        self.min = 0  # start of scan
+        self.max = 2 # end of scan
+        self.step = 4 # set for scan
+        # list of points for scan        
+        self.values = []  # list of points
         self.round_decimal = 7
         self.__dict__.update(kwargs)
+        # if no list is provided, we create the list based on min, max and step defined by user
         if len(self.values) == 0:
-            self.built_values()
+            self.built_values() # create list
+        # get new min, nax and step in case they are not defined or numpy does something funny
         self.get_values_caracteristics()
 
     def built_values(self):
+        """ Creates list of values to scan using min, max and step defined by user """
         mini = min(self.min, self.max)
         maxi = max(self.min, self.max)
         self.values = np.arange(mini, maxi, self.step)
@@ -1518,6 +1500,7 @@ class Variable:
         return name
 
     def get_values_caracteristics(self):
+        """ gets min, max and step of self.values """
         self.values = np.array(self.values)
         self.min = np.min(self.values)
         self.max = np.max(self.values)
@@ -1525,7 +1508,7 @@ class Variable:
 
     def get_value_i(self, i):
         """
-        Renvoie la i-ième value de self.values
+        Returns the i-th value of self.values
         """
         return self.values[i]
 
