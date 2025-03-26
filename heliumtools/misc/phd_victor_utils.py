@@ -24,6 +24,7 @@ from heliumtools.misc.logger import getLogger, logging
 from heliumtools.fit.oscillations import Oscillation1DFit
 from heliumtools.misc.gather_data import export_data_set_to_pickle
 from heliumtools.bec import Gaussian_BEC
+from matplotlib.gridspec import GridSpec
 
 m_he = 4 * m_p
 from skimage import measure  # for contour finding
@@ -48,6 +49,526 @@ def gaussian_with_temp_v2(x, x0_l, sigma_l, A_l, x0_r, sigma_r, A_r, T, Ath, Ala
         + phonon_pair(x, x0_r, sigma_r, A_r)
         + Alas * np.where(x < 0, 1, 0)
     )
+
+
+class Exponential_density(Correlation):
+    mode_size = 0.5
+    popt_name = ["t0", "nth", "Gain", "A", "f"]
+    bounds = ((-5, 0, 0, 0, 0, 0), (50, 50, 3, 1, 8, 6.2))
+
+    def __init__(self, atoms, metadata, **kwargs):
+        metadata["freq (kHz)"] = metadata["ODTv | parametric excitation | freq (kHz)"]
+        metadata["Time (ms)"] = (
+            metadata[
+                "ODTv | parametric excitation | additional oscillation number (dimensionless)"
+            ]
+            / metadata["ODTv | parametric excitation | freq (kHz)"]
+        )
+        for X in ["", " (52)", " (45)"]:
+            metadata["Radius" + X] = np.sqrt(
+                metadata["BEC Width std Y" + X] ** 2
+                + metadata["BEC Width std X" + X] ** 2
+            )
+            metadata["1/Radius**2" + X] = 100 / metadata["Radius" + X] ** 2
+            metadata["1/RxRy" + X] = 100 / (
+                metadata["BEC Width std Y" + X] * metadata["BEC Width std X" + X]
+            )
+            metadata["sqrt(RxRy" + X + ")"] = np.sqrt(
+                metadata["BEC Width std Y" + X] * metadata["BEC Width std X" + X]
+            )
+            metadata["RxRy" + X] = (
+                metadata["BEC Width std Y" + X] * metadata["BEC Width std X" + X]
+            )
+        metadata = metadata.reset_index(drop=True).select_dtypes(["number"])
+        metadata["N_add"] = metadata[
+            "ODTv | parametric excitation | additional oscillation number (dimensionless)"
+        ]
+
+        ddd = metadata.groupby("N_add").count()
+
+        for nadd in ddd.index:
+            # print(nadd)
+            metadata.loc[metadata["N_add"] == nadd, "Ncycle/N_add"] = int(
+                ddd.loc[nadd, "Cycle"]
+            )
+
+        super().__init__(atoms, **kwargs)
+        self.metadata = metadata
+
+    def compute_growth(self):
+        self.compute_correlations()
+        df0 = self.total.merge(
+            self.metadata[["Cycle", "N_add", "Ncycle/N_add", "Time (ms)"]], on="Cycle"
+        )
+        df = df0.groupby(["Vz1", "Vz2", "N_add"]).mean().reset_index()
+        df_std = df0.groupby(["Vz1", "Vz2", "N_add"]).std().reset_index()
+        for j in ["N_1", "N_2"]:
+            df["U(" + j + ")"] = df_std[j]
+        df["max"] = df["N_1"] + df["N_2"]
+        # for j in df["N_add"].unique():
+        #     data = df[df["N_add"]==j]
+        #     data.idxmax()
+        self.result = df.sort_values("max", ascending=False).drop_duplicates(["N_add"])
+        self.result["dVz"] = np.abs(self.result["Vz1"] - self.result["Vz2"])
+        self.result["g^2"] = (
+            self.result["N_1*N_2"] / self.result["N_1"] / self.result["N_2"]
+        )
+        self.result["xi"] = (
+            self.result["(N_1-N_2)^2"] - self.result["N_1-N_2"] ** 2
+        ) / (self.result["N_1"] + self.result["N_1"])
+        self.result = self.result.sort_values("N_add").reset_index(drop=True)
+
+    def add_result_to_dataset(
+        self, dataset, columns=["dVz", "Time (ms)", "N_1", "N_2", "U(N_1)", "U(N_2)"]
+    ):
+        to_export = {}
+        for col in columns:
+            to_export[col] = self.result[col].astype(float).to_list()
+        dataset.set(exponential_growth=to_export)
+        dataset.set(box_size=self.boxes["1"]["Vz"]["size"])
+
+    def compute_growth_bootstrap(self, N_bootstrap):
+        self.save_copy_of_total()
+        res = []
+        for i in range(N_bootstrap):
+            self.bootstrap_total()
+            df0 = self.total.merge(
+                self.metadata[["Cycle", "N_add", "Ncycle/N_add", "Time (ms)"]],
+                on="Cycle",
+            )
+            df = df0.groupby(["Vz1", "Vz2", "N_add"]).mean().reset_index()
+            df_std = df0.groupby(["Vz1", "Vz2", "N_add"]).std().reset_index()
+            for j in ["N_1", "N_2"]:
+                df["U(" + j + ")"] = df_std[j]
+            df["max"] = df["N_1"] + df["N_2"]
+            # for j in df["N_add"].unique():
+            #     data = df[df["N_add"]==j]
+            #     data.idxmax()
+            self.result = df.sort_values("max", ascending=False).drop_duplicates(
+                ["N_add"]
+            )
+            self.result["dVz"] = np.abs(self.result["Vz1"] - self.result["Vz2"])
+            res.append(self.result)
+        self.recover_true_total()
+        self.result = pd.concat(res).groupby("N_add")
+        self.result_std = self.result.std().reset_index()
+        self.result = self.result.mean().reset_index()
+        self.result = self.result.sort_values("N_add").reset_index(drop=True)
+
+    def num_of_phonons(self, t, t0, nth, Gain, A, ampli):
+        return nth + ampli * (2 * nth + 1) * np.sinh(Gain * (t - t0) / 2) ** 2 * (
+            1 + A * np.cos(2 * np.pi * t)
+        )
+
+    def num_of_phonons2(self, t, t0, nth, Gain, A, f, phi):
+        return (
+            0.5
+            * (nth + (2 * nth + 1) * np.sinh(Gain * (t - t0) / 2) ** 2)
+            * (1 + A * np.cos(f * 2 * np.pi * t + phi))
+        )
+
+    def num_of_phonons3(self, t, gain, offset, amplitude1, amplitude2):
+        return offset + (amplitude2 * np.cos(2 * np.pi * t) + 1) * amplitude1 * np.exp(
+            gain * t
+        )
+
+    def show_growth(
+        self, do_fit=False, fit_roi={}, p0=[-2, 0.01, 1.3, 0.6, 2, 0], v_max_histo=100
+    ):
+        if do_fit:
+            meta = apply_ROI(self.metadata, fit_roi)
+            meta_m = meta.groupby("Time (ms)").mean().reset_index()
+            meta_std = meta.groupby("Time (ms)").std().reset_index()
+        else:
+            meta_m = self.metadata.groupby("Time (ms)").mean().reset_index()
+            meta_std = self.metadata.groupby("Time (ms)").std().reset_index()
+        self.bec_oscillation_fit_results = {}
+        fig = plt.figure(figsize=(12, 5.2), layout="constrained")
+        gs = GridSpec(
+            4,
+            6,
+            figure=fig,
+        )
+        ax1 = fig.add_subplot(gs[0:2, 0:2])
+        ax4 = fig.add_subplot(gs[0:2, 2:4])
+        ax2 = fig.add_subplot(gs[0:2, 4:6])
+        ## first plot : oscillation of the Width
+        color_list = ["goldenrod", "teal", "brown"]
+        in_color_list = ["bisque", "paleturquoise", "lightcoral"]
+        for i, X in enumerate(
+            [
+                "BEC Width std Y",
+                "BEC Width std X",
+                "BEC Width std Y (45)",
+                "BEC Width std X (45)",
+                "BEC Width std Y (52)",
+                "BEC Width std X (52)",
+                "Radius",
+                "1/Radius**2",
+                "1/RxRy",
+                "1/RxRy (45)",
+                "1/RxRy (52)",
+                "RxRy",
+                "RxRy (45)",
+                "RxRy (52)",
+            ]
+        ):
+            x = meta_m["Time (ms)"].to_numpy()
+            y = meta_m[X].to_numpy()
+            fit = Oscillation1DFit(x=x, z=y)
+            fit.do_guess()
+            fit.guess[2] = 2
+            try:
+                fit.do_fit(
+                    sigma=meta_std[X].to_numpy(),
+                    absolute_sigma=True,
+                )
+            except Exception as e:
+                try:
+                    fit.do_fit()
+                except Exception as e2:
+                    fit.popt = fit.guess
+                    fit.perr = fit.guess
+                    print(f"ERREUR DE FIT POUR {X}")
+                    print(e2)
+            ampli = 100 * np.abs(fit.popt[1] / fit.popt[0])
+            error = ampli * np.sqrt(
+                fit.perr[1] ** 2 / fit.popt[1] ** 2
+                + fit.perr[0] ** 2 / fit.popt[0] ** 2
+            )
+            label = r"f ={:.2f}({:.0f}) kHz ; A = {:.0f}({:.0f})%".format(
+                fit.popt[2], 100 * fit.perr[2], ampli, error
+            )
+            self.bec_oscillation_fit_results[f"freq {X}"] = float(fit.popt[2])
+            self.bec_oscillation_fit_results[f"U(freq {X})"] = float(fit.perr[2])
+            self.bec_oscillation_fit_results[f"ampli {X}"] = float(ampli)
+            self.bec_oscillation_fit_results[f"U(ampli {X})"] = float(error)
+            print(X, label)
+
+        for i, X in enumerate(
+            ["BEC Width std Y (52)", "BEC Width std X (52)", "sqrt(RxRy)"]
+        ):
+
+            x = meta_m["Time (ms)"].to_numpy()
+            y = meta_m[X].to_numpy()
+            fit = Oscillation1DFit(x=x, z=y)
+            fit.do_guess()
+            fit.guess[2] = 2
+            try:
+                fit.do_fit(
+                    sigma=meta_std[X].to_numpy(),
+                    absolute_sigma=True,
+                )
+            except Exception as e:
+                try:
+                    fit.do_fit()
+                except Exception as e2:
+                    fit.popt = p0
+                    fit.perr = p0
+                    print(f"ERREUR DE FIT POUR {X}")
+            x2 = np.linspace(np.min(x), np.max(x), 1000)
+            ax1.errorbar(
+                meta_m["Time (ms)"],
+                meta_m[X],
+                meta_std[X],
+                fmt=markers[i],
+                color=color_list[i],
+                markerfacecolor=in_color_list[i],
+            )
+            ampli = 100 * np.abs(fit.popt[1] / fit.popt[0])
+            error = ampli * np.sqrt(
+                fit.perr[1] ** 2 / fit.popt[1] ** 2
+                + fit.perr[0] ** 2 / fit.popt[0] ** 2
+            )
+            label = r"f ={:.2f}({:.0f}) kHz ; A = {:.0f}({:.0f})%".format(
+                fit.popt[2], 100 * fit.perr[2], ampli, error
+            )
+            ax1.plot(x2, fit.eval(x2), label=label, color=color_list[i])
+            # ax1.errorbar(meta_m["Time (ms)"],  meta_m[X], meta_std[X], fmt = markers[i],color = "goldenrod", markerfacecolor= "peachpuff")
+            # ax1.plot(x2, fit.eval(x2), label = r"f ={:.2f}({:.0f}) kHz".format(fit.popt[2], 100*fit.perr[2]), color = "peru")
+
+        ax1.legend(loc=4)
+        ax1.grid(True, alpha=0.5)
+        ax1.set_xlabel("Time (ms)")
+        ax1.set_ylabel("BEC Width (mm)")
+        X = "1/Radius**2"
+        X = "1/RxRy"
+        x = meta_m["Time (ms)"].to_numpy()
+        y = meta_m[X].to_numpy()
+        fit = Oscillation1DFit(x=x, z=y)
+        fit.do_guess()
+        try:
+            fit.do_fit(
+                sigma=meta_std[X].to_numpy(),
+                absolute_sigma=True,
+            )
+        except Exception as e:
+            try:
+                fit.do_fit()
+            except Exception as e2:
+                fit.popt = p0
+                fit.perr = p0
+                print(f"ERREUR DE FIT POUR {X}")
+
+        x2 = np.linspace(np.min(x), np.max(x), 1000)
+        ampli = 100 * np.abs(fit.popt[1] / fit.popt[0])
+        error = ampli * np.sqrt(
+            fit.perr[1] ** 2 / fit.popt[1] ** 2 + fit.perr[0] ** 2 / fit.popt[0] ** 2
+        )
+        label = r"f ={:.2f}({:.0f}) kHz ; A = {:.0f}({:.0f})%".format(
+            fit.popt[2], 100 * fit.perr[2], ampli, error
+        )
+        ax = ax4
+        ax.set_ylabel("$g_1 \propto 1/\sigma^2$")
+        ax.grid(True, alpha=0.5)
+        ax.errorbar(
+            x,
+            meta_m[X],
+            yerr=meta_std[X],
+            fmt="s",
+            color=color_list[2],
+            markerfacecolor=in_color_list[2],
+        )
+        ax.plot(
+            x2,
+            fit.eval(x2),
+            color=color_list[2],
+            label=label,
+        )
+        ax.set_ylim(bottom=0)
+        ax.set_xlabel("Time (ms)")
+        ax.legend()
+
+        ## 2D histogram
+        N_OSCI = list(np.sort(self.metadata["Time (ms)"].unique()))
+
+        dn = N_OSCI[1] - N_OSCI[0]
+        ax = ax2
+        bins_ad = np.array(N_OSCI + [N_OSCI[-1] + dn]) - dn / 2
+        my_at = self.atoms.merge(self.metadata[["Time (ms)", "Cycle"]], on="Cycle")
+        bins_v = np.arange(-15, 15.1, 0.1)
+        H, xedges, yedges = np.histogram2d(
+            my_at["Time (ms)"], my_at["Vz"], bins=(bins_ad, bins_v)
+        )
+        H = H.T  # Histogram does not follow Cartesian convention (see Notes),
+        # we must average histogram over the number of repetition
+        for i, n in enumerate(N_OSCI):
+            norm = len(self.metadata[self.metadata["Time (ms)"] == n]) * (
+                bins_v[1] - bins_v[0]
+            )
+
+            H[:, i] = H[:, i] / norm
+
+        # normalize with the number of
+        ## first plot
+        X, Y = np.meshgrid(xedges, yedges)
+        pcm = ax.pcolormesh(X, Y, H, vmax=v_max_histo, cmap="binary")
+        # cbar = fig.colorbar(pcm)
+        # cbar.ax.set_title(r"$n(v)$", fontsize = "medium")
+        ax.set_ylabel("Speed (mm/s)")
+        ax.set_xlabel("Time (ms)")
+
+        ### oscillations en fonction du temps
+        axes = [
+            fig.add_subplot(gs[2:4, 0:3]),
+            fig.add_subplot(gs[2:4, 3:6]),
+        ]
+
+        self.compute_growth()
+        for i in range(2):
+
+            if np.mean(self.result["Vz1"]) > 0:
+                labs = ("+", "-")
+            else:
+                labs = ("-", "+")
+
+            axes[i].errorbar(
+                self.result["Time (ms)"],
+                self.result["N_1"],
+                fmt="o",
+                yerr=self.result["U(N_1)"] / np.sqrt(self.result["Ncycle/N_add"]),
+                markeredgecolor="steelblue",
+                color="steelblue",
+                markerfacecolor="lightblue",
+                label=labs[0],
+            )
+            axes[i].errorbar(
+                self.result["Time (ms)"],
+                self.result["N_2"],
+                fmt="o",
+                yerr=self.result["U(N_2)"] / np.sqrt(self.result["Ncycle/N_add"]),
+                color="coral",
+                markeredgecolor="coral",
+                markerfacecolor=(1, 1, 1, 0.0),
+                label=labs[1],
+            )
+            axes[i].grid(True, alpha=0.5)
+        print(p0)
+        if do_fit:
+            fit_data = apply_ROI(self.result, fit_roi)
+            xth = np.linspace(
+                np.min(fit_data["Time (ms)"]), np.max(fit_data["Time (ms)"]), 100
+            )
+            try:
+                popt, pcov = curve_fit(
+                    self.num_of_phonons2,
+                    xdata=fit_data["Time (ms)"].to_numpy(),
+                    ydata=fit_data["N_1"],
+                    sigma=fit_data["U(N_1)"] / np.sqrt(fit_data["Ncycle/N_add"]),
+                    absolute_sigma=True,
+                    bounds=self.bounds,
+                    p0=p0,
+                )
+
+                perr = np.sqrt(np.diag(pcov))
+                self.poptblue = popt
+                print("=" * 30)
+                for p, pe, col in zip(popt, perr, self.popt_name):
+                    print(r"{} = {:.3f}({:.2f}) ms".format(col, p, pe))
+
+                for i in range(2):
+                    axes[i].plot(
+                        xth,
+                        self.num_of_phonons2(xth, *popt),
+                        color="steelblue",
+                    )
+            except Exception as e:
+                print(e)
+                for i in range(2):
+                    axes[i].plot(
+                        xth,
+                        self.num_of_phonons2(xth, *p0),
+                        color="steelblue",
+                    )
+            try:
+                popt2, pcov2 = curve_fit(
+                    self.num_of_phonons2,
+                    xdata=fit_data["Time (ms)"].to_numpy(),
+                    ydata=fit_data["N_2"],
+                    sigma=fit_data["U(N_2)"] / np.sqrt(fit_data["Ncycle/N_add"]),
+                    absolute_sigma=True,
+                    bounds=self.bounds,
+                    p0=p0,
+                )
+                self.poptorange = popt2
+                for i in range(2):
+                    axes[i].plot(
+                        xth, self.num_of_phonons2(xth, *popt2), color="coral", ls="--"
+                    )
+                perr2 = np.sqrt(np.diag(pcov2))
+                print("=" * 30)
+                for p, pe, col in zip(popt2, perr2, self.popt_name):
+                    print(r"{} = {:.3f}({:.2f}) ms".format(col, p, pe))  # , perr2[0]))
+
+            except Exception as e:
+                print(e)
+            # mode_size = 0.5
+            # roi_fit = {"N_add":[2, 6]}
+            # fit_data = apply_ROI(df2, roi_fit)
+            # popt, pcov = curve_fit(num_of_phonons2,
+            #                     xdata = fit_data["N_add"].to_numpy(),
+            #                     ydata = fit_data["Vz"]/dvz*mode_size,
+            #                     p0 = p0)
+            # xth = np.linspace(np.min(fit_data["N_add"]), np.max(fit_data["N_add"]), 100)
+            # axes[i].plot(xth,num_of_phonons2(xth, *popt)/mode_size, color ="steelblue",)
+            # axes[i].errorbar(df1["N_add"], df1["Vz"]/dvz, fmt = "s",
+            #                 color = "coral",markeredgecolor = "coral",
+            #                 yerr = df1["Model error"],markerfacecolor= (1,1,1,0.),label = "+")
+            # fit_data1 = apply_ROI(df1, roi_fit)
+            # popt2, pcov2 = curve_fit(num_of_phonons2,
+            #                     xdata = fit_data1["N_add"].to_numpy(),
+            #                     ydata = fit_data1["Vz"]/dvz*mode_size,
+            #                     p0 = p0)
+            # axes[i].plot(xth,num_of_phonons2(xth, *popt2)/mode_size, color ="coral",ls = "--")
+        axes[1].set_yscale("log")
+        axes[0].legend()
+        axes[0].set_ylabel("Detected atoms (at/mm/s)")
+        axes[1].set_ylabel("Detected atoms (at/mm/s)")
+        axes[1].set_xlabel("Time (ms)")
+        axes[0].set_xlabel("Time (ms)")
+
+    def fit_growth_for_various_boxes(
+        self,
+        vz_size_list=[0.5, 1, 2],
+        fit_roi={"N_add": [0, 30]},
+        p0=[-2, 0.01, 1.200, 0.6, 2, 0],
+    ):
+        # t,t0, nth, Gain, A,f
+        all_columns = (
+            ["dVz"]
+            + [col + "_1" for col in self.popt_name]
+            + ["U(" + col + "_1)" for col in self.popt_name]
+            + [col + "_2" for col in self.popt_name]
+            + ["U(" + col + "_2)" for col in self.popt_name]
+        )
+        self.fit_result = pd.DataFrame(columns=all_columns)
+        for i, dv in enumerate(vz_size_list):
+            self.boxes["1"]["Vz"]["size"] = dv
+            self.boxes["2"]["Vz"]["size"] = dv
+            self.fit_result.loc[i, "dVz"] = dv
+            self.compute_growth()
+            fit_data = apply_ROI(self.result, fit_roi)
+
+            try:
+                popt, pcov = curve_fit(
+                    self.num_of_phonons2,
+                    xdata=fit_data["Time (ms)"].to_numpy(),
+                    ydata=fit_data["N_1"],
+                    sigma=fit_data["U(N_1)"] / np.sqrt(fit_data["Ncycle/N_add"]),
+                    absolute_sigma=True,
+                    bounds=self.bounds,
+                    p0=p0,
+                )
+                perr = np.sqrt(np.diag(pcov))
+                for p, pe, col in zip(popt, perr, self.popt_name):
+                    self.fit_result.loc[i, col + "_1"] = p
+                    self.fit_result.loc[i, "U(" + col + "_1)"] = pe
+
+            except Exception as e:
+                print(e)
+            try:
+                popt2, pcov2 = curve_fit(
+                    self.num_of_phonons2,
+                    xdata=fit_data["Time (ms)"].to_numpy(),
+                    ydata=fit_data["N_2"],
+                    sigma=fit_data["U(N_2)"] / np.sqrt(fit_data["Ncycle/N_add"]),
+                    absolute_sigma=True,
+                    bounds=self.bounds,
+                    p0=p0,
+                )
+                perr2 = np.sqrt(np.diag(pcov2))
+                for p, pe, col in zip(popt2, perr2, self.popt_name):
+                    self.fit_result.loc[i, col + "_2"] = p
+                    self.fit_result.loc[i, "U(" + col + "_2)"] = pe
+            except Exception as e:
+                print(e)
+        #     plt.errorbar(self.result["N_add"], self.result["N_1"], fmt = "o",
+        #                     yerr = self.result["U(N_1)"]/np.sqrt(self.result["Ncycle/N_add"]),markeredgecolor = "steelblue",
+        #                     color = "steelblue", markerfacecolor= "lightblue",)
+        #     plt.errorbar(self.result["N_add"], self.result["N_2"], fmt = "o",
+        #                     yerr = self.result["U(N_2)"]/np.sqrt(self.result["Ncycle/N_add"]),color = "coral",markeredgecolor = "coral",
+        #                     markerfacecolor= (1,1,1,0.),)
+        # plt.show()
+        self.fit_result["nth_per_mode_1"] = (
+            self.fit_result["nth_1"] / self.fit_result["dVz"] * self.mode_size
+        )
+        self.fit_result["nth_per_mode_2"] = (
+            self.fit_result["nth_2"] / self.fit_result["dVz"] * self.mode_size
+        )
+        self.fit_result["U(nth_per_mode_1)"] = (
+            self.fit_result["U(nth_1)"] / self.fit_result["dVz"] * self.mode_size
+        )
+        self.fit_result["U(nth_per_mode_2)"] = (
+            self.fit_result["U(nth_2)"] / self.fit_result["dVz"] * self.mode_size
+        )
+
+
+class Exponential_density2(Exponential_density):
+    popt_name = ["t0", "nth", "Gain"]
+    bounds = ((-5, 0, 0), (50, 50, 3))
+
+    def num_of_phonons2(self, t, t0, nth, Gain):
+        return 0.5 * (nth + (2 * nth + 1) * np.sinh(Gain * (t - t0) / 2) ** 2)
 
 
 def get_g2(data: pd.DataFrame, axis: str, ROI: dict) -> pd.DataFrame:
@@ -184,6 +705,21 @@ def fit_pair_density_v3(
         ax.set_xlabel("Vz (mm/s)")
         ax.set_ylabel("Atomic density (at/mm/s)")
         ax.set_ylim(top=1.2 * np.max(hist), bottom=0)
+        right_at = (
+            res["Width right (mm/s)"]
+            * res["Amplitude right (at/mm/s)"]
+            * np.sqrt(2 * np.pi)
+        )
+        left_at = (
+            res["Width left (mm/s)"]
+            * res["Amplitude left (at/mm/s)"]
+            * np.sqrt(2 * np.pi)
+        )
+        print(
+            "Number of atoms: {:.2f} and {:.2f}  --> g^(2) max = {:.2f} and {:.2f}".format(
+                left_at, right_at, 2 + 1 / left_at, 2 + 1 / right_at
+            )
+        )
     except:
         pass
     dty_color = ["goldenrod", "teal"]
@@ -249,24 +785,7 @@ def fit_pair_density_v3(
                 )
             except:
                 pass
-    try:
-        right_at = (
-            res["Width right (mm/s)"]
-            * res["Amplitude right (at/mm/s)"]
-            * np.sqrt(2 * np.pi)
-        )
-        left_at = (
-            res["Width left (mm/s)"]
-            * res["Amplitude left (at/mm/s)"]
-            * np.sqrt(2 * np.pi)
-        )
-        print(
-            "Number of atoms: {:.2f} and {:.2f}  --> g^(2) max = {:.2f} and {:.2f}".format(
-                left_at, right_at, 2 + 1 / left_at, 2 + 1 / right_at
-            )
-        )
-    except:
-        pass
+
     return res
 
 
@@ -896,7 +1415,7 @@ def add_FCS_on_ax(
             color=thermal,
             alpha=0.1,
         )
-        a.plot(x, poissonian_distribution(x, mean), color="teal", ls="--")
+        a.plot(x, poissonian_distribution(x, mean), color=poisson, ls="--")
         dN_p = np.sqrt(mean) / mean / np.sqrt(correl.n_cycles)
         ax.fill_between(
             x,
@@ -916,10 +1435,8 @@ def add_FCS_on_ax(
             label=r"$\bar N =${:.1f}".format(mean),
         )
         a.grid(True, alpha=0.5)
-    print(dN_th)
     # ax.plot(x,pth_plot, label = r"$\bar M_{{modes}}=${:.1f}({})".format(n_modes, round(10*deltan_modes)), ls = "--", color = "black", alpha = 0.7)
     df["PobaErr2"] = np.sqrt(thermal_distribution(df["N"], mean) / correl.n_cycles)
-
     # ax_ins.errorbar(df["N"], df["Probability"], yerr = df["PobaErr2"],
     #             fmt = "o", color = "steelblue", markerfacecolor= "lightblue",
     #             markersize = 4,
@@ -932,10 +1449,10 @@ def add_FCS_on_ax(
     ax_ins.set_yticklabels(ytick_lab, fontsize="small")
     ax.set_yscale("log")
     # ax_ins.set_yticklabels(ax_ins.get_yticks(), fontsize='small')
-    print(ax_ins.get_ylim())
 
     # ax_ins.set_xticks(ax.get_xticks())
     ax.set_ylim(bottom=0.5 * np.min(df["Probability"]))
+    return mean, df
 
 
 def show_correlations_heatmaps(corr):
@@ -1647,7 +2164,7 @@ class Correlation1D(Correlation):
 
     def get_cross_correlation(self, show=True):
         middle = np.mean(self.width)
-        dW = 2 * (np.max(self.width) - np.min(self.width))
+        dW = np.max(self.width) - np.min(self.width)
         maxi = self.length + dW
         ### Corrélation locales du pic croisé
         self.define_variable1(
@@ -1910,3 +2427,241 @@ def set_boxes_from_fit_density(corr, density_fit, factor={"Vx": 1, "Vy": 1, "Vz"
         else:
             corr.boxes["1"][vj]["position"] = density_fit[f"Position left (mm/s)"]
             corr.boxes["2"][vj]["position"] = density_fit[f"Position right (mm/s)"]
+
+
+def get_contour(x, y, values, contour_value=0):
+    contours = measure.find_contours(values, contour_value)
+    contour = contours[0]
+    return x[0, contour[:, 1].astype(int)], y[contour[:, 0].astype(int), 0]
+
+
+def ppt_criterion_bool(n1, n2, c, d):
+    """Renvoi l'opposé du signe de ppt. Si 'état est intriqué, renvoie 1, 0 si séparable"""
+    ppt = PPT_criterion(n1, n2, c, d)
+    return np.sign(-ppt)
+
+
+# def get_g2(n1, n2, c, d):
+#     """renvoie la valeur de la fonction de corrélation croisée d'ordre 2"""
+#     return 1 +(c**2+d**2)/(n1*n2)
+
+
+def criterion_ppt_victor(n1, n2, c, d):
+    matrix = np.ones((n1 * n2 * c * d).shape)
+    g2mini = g2_entanglement(n1, n2)
+    g2 = get_g2(n1, n2, c, d, 0, 0)
+    ppt_victor = g2 - g2mini
+    return np.sign(ppt_victor)
+
+
+def criterion_classical(n1, n2, c, d):
+    g2maxi = g2_separable(n1, n2)
+    g2 = get_g2(n1, n2, c, d, 0, 0)
+    criterion = g2maxi - g2
+    return np.sign(criterion)
+
+
+def g2_entanglement(n1, n2):
+    try:
+        res = np.ones((n1 * n1).shape)
+        res = 2 + (1 / 2 - n1 * n2) / (2 * n1 * n2 + n1 + n2 + 1 / 2)
+        res[n1 * n2 >= 1 / 2] = 2
+    except:
+        res = 2 + (1 / 2 - n1 * n2) / (2 * n1 * n2 + n1 + n2 + 1 / 2)
+        if n1 * n2 >= 1 / 2:
+            res = 2
+    return res
+
+
+def g2_separable(n1, n2):
+    res = (-1 + 8 * n1 * n2 * (3 + 4 * n2 + 4 * n1 + 6 * n1 * n2)) / (
+        8 * n1 * (1 + 2 * n1) * n2 * (1 + 2 * n2)
+    )
+    try:
+        res[n1 * n2 < 1 / 4] = 2
+    except:
+        if n1 * n2 < 1 / 4:
+            res = 2
+    return res
+
+
+def log_neg(n1, n2, c, d):
+    """return the log negativity"""
+    # we just need the sympletic eigenvalues of the Partial transpose matrix
+    # i.e. we just flip the role of c and d.
+    num, nup = symplectic_spectrum(n1, n2, d, c)
+    # num[num ==0] = 8 # if the population is zero, we do not take the logarithm so ust put a random value
+    logneg = -np.log2(num)
+    logneg[logneg < 0] = 0
+    return logneg
+
+
+def symplectic_spectrum(n1, n2, c, d):
+    """As we currently have the covariance matrix in the normal form, the symplectic spectrum is 'easy' to compute. See Weedbrook et al (2012), page 9.
+    Be carrefull to only give states that are real because I do not check that."""
+    # I use Weedbrook notations
+    delta = 2 - 8 * c**2 + 8 * d**2 + 4 * n1 * (1 + n1) + 4 * n2 * (1 + n2)
+    delta2_moins4detC2 = 64 * d**2 * (1 + n1 + n2) ** 2 + 16 * (n1 - n2) ** 2 * (
+        -4 * c**2 + (1 + n1 + n2) ** 2
+    )
+    # check Heisenberg principle
+    detV = (
+        16 * c**4
+        + (-4 * d**2 + (1 + 2 * n1) * (1 + 2 * n2)) ** 2
+        - 8 * c**2 * (4 * d**2 + (1 + 2 * n1) * (1 + 2 * n2))
+    )
+    must_be_true = detV >= 1
+    return np.sqrt(0.5 * (delta - np.sqrt(delta2_moins4detC2))), np.sqrt(
+        0.5 * (delta + np.sqrt(delta2_moins4detC2))
+    )
+
+
+def criterion_parentani(n1, n2, c, d):
+    """retourne le critère de Parentani"""
+    return np.sign(c**2 - n1 * n2)
+
+
+def heisenberg(n1, n2, c, d):
+    """retourne si un état est réel ou pas (ingalité de Robertson-Schrodinger)"""
+    return np.sign(
+        16
+        * (
+            c**4
+            - c**2 * (2 * d**2 + n1 + n2 + 2 * n1 * n2)
+            + (d**2 - n1 * n2) * (d**2 - (1 + n1) * (1 + n2))
+        )
+    )
+
+
+def Simon_criterion(n1, n2, c, d, a1=0, a2=0, phi1=0, phi2=0, theta1=0, theta2=0):
+    """return the Pminus quantity by Simon (2000). We write the covariance matrix using Victor's PhD thesis notations."""
+    detAdetB = (-4 * a1**2 + (1 + 2 * n1) ** 2) * (-4 * a2**2 + (1 + 2 * n2) ** 2)
+    traceBazar = 8 * (
+        4 * a1 * c * d * (1 + 2 * n2) * np.cos(phi1 + phi2 - theta1)
+        + 4 * a1 * a2 * c**2 * np.cos(2 * phi2 - theta1 - theta2)
+        + (1 + 2 * n1)
+        * ((c**2 + d**2) * (1 + 2 * n2) + 4 * a2 * c * d * np.cos(phi1 - phi2 + theta2))
+        + 4 * a1 * a2 * d**2 * np.cos(2 * phi1 - theta1 + theta2)
+    )
+    detAplusdetB = 2 - 4 * a1**2 - 4 * a2**2 + 4 * n1 * (1 + n1) + 4 * n2 * (1 + n2)
+    detC = -4 * (c - d) * (c + d)
+    big_numbers = detAdetB - traceBazar + detC**2
+    Pminus = big_numbers - detAplusdetB - 2 * np.abs(detC) + 1
+    schrodingerRobertson = big_numbers + 1 - 2 * detC - detAplusdetB
+    # Pminus = detAdetB + (1 - np.abs(detC))**2  - traceBazar - detAplusdetB
+    # result = 16 * (c**4 + d**4 - a2**2 * n1 - d**2 * n1 -
+    #            a2**2 * n1**2 + (n1 + n1**2 - d**2 * (1 + 2 * n1)) * n2 +
+    #            n1 * (1 + n1) * n2**2 - c**2 * (1 + 2 * d**2 + n1 + n2 + 2 * n1 * n2) +
+    #            a1**2 * (a2**2 - n2 * (1 + n2)) -
+    #            2 * a1 * c * d * (1 + 2 * n2) * np.cos(phi1 + phi2 - theta1) -
+    #            2 * a2 * (a1 * c**2 * np.cos(2 * phi2 - theta1 - theta2) +
+    #                      d * (c * (1 + 2 * n1) * np.cos(phi1 - phi2 + theta2) +
+    #                           a1 * d * np.cos(2 * phi1 - theta1 + theta2))))
+    return schrodingerRobertson, Pminus
+
+
+def logarithm_negativity(n1, n2, c, d, a1=0, a2=0, phi1=0, phi2=0, theta1=0, theta2=0):
+    """Compute the logarithm negativity. See Adesso, Serafini and Illuminati (2004)."""
+
+    determinant_cov_matrix = (
+        -4 * (a2 + 2 * a2 * n1) ** 2
+        + (4 * (c - d) ** 2 - (1 + 2 * n1) * (1 + 2 * n2))
+        * (4 * (c + d) ** 2 - (1 + 2 * n1) * (1 + 2 * n2))
+        + 4 * a1**2 * (4 * a2**2 - (1 + 2 * n2) ** 2)
+        - 32 * a1 * c * d * (1 + 2 * n2) * np.cos(phi1 + phi2 - theta1)
+        - 32
+        * a2
+        * (
+            a1 * c**2 * np.cos(2 * phi2 - theta1 - theta2)
+            + d
+            * (
+                c * (1 + 2 * n1) * np.cos(phi1 - phi2 + theta2)
+                + a1 * d * np.cos(2 * phi1 - theta1 + theta2)
+            )
+        )
+    )
+    deltatilde = (
+        2
+        - 4 * a1**2
+        - 4 * a2**2
+        + 8 * c**2
+        - 8 * d**2
+        + 4 * n1 * (1 + n1)
+        + 4 * n2 * (1 + n2)
+    )
+    nu_m = np.sqrt(
+        deltatilde - np.sqrt(deltatilde**2 - 4 * determinant_cov_matrix)
+    ) / np.sqrt(2)
+    logneg = -np.log2(nu_m)
+    try:
+        logneg[logneg < 0] = 0
+    except TypeError:
+        logneg = max(0, logneg)
+
+    return logneg
+
+
+def initialize_squeezed(nth1, nth2, r, rI):
+    """retourne les paramètres de la matrice de covariance pour un état thermique single-mode squézé sur le mode A avec le paramètre rI puis two-mode squeezé avec le paramètre r."""
+    n1 = (
+        -1
+        + np.cosh(2 * rI) * (1 + 2 * nth1) * np.cosh(r) ** 2
+        + (1 + 2 * nth2) * np.sinh(r) ** 2
+    ) / 2
+    a1 = np.cosh(r) ** 2 * (1 + 2 * nth1) * np.sinh(2 * rI) / 2
+    n2 = (
+        -1
+        + np.cosh(2 * rI) * (1 + 2 * nth1) * np.sinh(r) ** 2
+        + (1 + 2 * nth2) * np.cosh(r) ** 2
+    ) / 2
+    a2 = np.sinh(r) ** 2 * (1 + 2 * nth1) * np.sinh(2 * rI) / 2
+    c = 0.25 * (1 + 2 * nth2 + (1 + 2 * nth1) * np.cosh(2 * rI)) * np.sinh(2 * r)
+    d = (1 + 2 * nth1) * np.cosh(r) * np.cosh(rI) * np.sinh(r) * np.sinh(rI)
+    return n1, n2, c, d, a1, a2
+
+
+def Cauchy_Schwarz_ratio(n1, n2, c, d, a1, a2):
+    G11 = 2 * n1**2 + a1**2
+    G22 = 2 * n2**2 + a2**2
+    G12 = n1 * n2 + c**2 + d**2
+    return G12 / np.sqrt(G22 * G11)
+
+
+def PPT_criterion(n1, n2, c, d):
+    """calcul le critère PPT donné n1, n2, c et d.
+
+    Returns
+    -------
+    P minus value from Simon (2000)
+    """
+    return 8 * (
+        2 * c**4
+        - d**2
+        + 2 * (d**2 - (1 + n1) * n2) * (d**2 - n1 * (1 + n2))
+        - c**2 * (4 * d**2 + (1 + 2 * n1) * (1 + 2 * n2))
+        - np.abs(c**2 - d**2)
+    )
+
+
+def normalized_variance(n1, n2, c, d, a1, a2):
+    G11 = 2 * n1**2 + a1**2
+    G22 = 2 * n2**2 + a2**2
+    G12 = n1 * n2 + c**2 + d**2
+    return 1 + (G11 + G22 - 2 * G12) / (n1 + n2) - (n1 - n2) ** 2 / (n1 + n2)
+
+
+def get_g2(n1, n2, c, d, a1, a2):
+    return 1 + (c**2 + d**2) / (n1 * n2)
+
+
+def get_covariance_matrix(n1val, n2val, cval, dval, a1val, a2val):
+    mu = np.zeros(4)
+    cov = np.array(
+        [
+            [2 * n1val + 1 - 2 * a1val, 2 * (dval + cval), 0, 0],
+            [2 * (dval + cval), 1 + 2 * n2val - 2 * a2val, 0, 0],
+            [0, 0, 2 * n1val + 1 + 2 * a1val, 2 * (dval - cval)],
+            [0, 0, 2 * (dval - cval), 1 + 2 * n2val + 2 * a2val],
+        ]
+    )
+    return mu, cov

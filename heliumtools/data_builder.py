@@ -99,7 +99,6 @@ class DataBuilder:
         for column in self.atoms.columns:
             if column not in ["X", "Y", "T", "Cycle"]:
                 self.atoms.drop(column, inplace=True, axis=1)
-
         if (
             type(self.bec_arrival_time) == int
             or type(self.bec_arrival_time) == float

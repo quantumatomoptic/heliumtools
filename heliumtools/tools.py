@@ -1,6 +1,7 @@
 import pandas as pd
 import logging
 from heliumtools.misc.logger import getLogger
+import numpy as np
 
 log = getLogger(__name__)
 # set the desired level of warning : DEBUG / INFO / WARNING
@@ -8,6 +9,23 @@ log.setLevel(logging.INFO)
 
 
 def data_filter(data, bec_arrival_times, filters):
+    """filters the dataframe bec_arrival_time based on the filters. It then filter out the "Cycles" of data which are NOT anymore in bec_arrival_time.
+    Exemple: data_filter(data, bec_arrival_times, {"BEC Arrival time":[307, 308]}) will select all cycles in bec_arrival_times which are within [307,308] ms. We then select only the Cycles of data which have the cycles present in bec_arrival_time.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        A DataFrame containing a columns "Cycle" to compare with bec_arrival_time (often an 'atom' dataframe)
+    bec_arrival_times : pandas.DataFrame
+        _description_
+    filters : dic
+        ROI type dictionary e.g. {"key":[min, max]}, or {"key":{"center":mean, "size":size}} and so on....
+
+    Returns
+    -------
+    (pandas.DataFrame, pandas.DataFrame)
+        data and bec_arrival_times dataframe that have been filtered out.
+    """
     data = data.reset_index(drop=True)
     bec_arrival_times = bec_arrival_times.reset_index(drop=True)
     selec_bec_arrival_times = apply_ROI(bec_arrival_times, filters)
@@ -21,14 +39,14 @@ def apply_ROD(df, ROD):
 
     Parameters
     ----------
-    df : pandas dataframe
+    df : pandas.DataFrame
         DataFrame with all atoms.
     ROI : dic
-        dictionary for which every entry (for exemple 'T') matches a column of the df dataframe. The function returns a dictionary with the same number of columns as df but for which every line is NOT in a range required by the ROD dictionary, i.e. a maximum and a minimum value. Since a recent update, each entry of the dictionary can be a tuple or a list with two number or a dictionary with entries "min/max" or 'range'.
+        dictionary for which every entry (for exemple 'T') matches a column of the df dataframe, e.g. {"key":[min, max]}, or {"key":{"center":mean, "size":size}} and so on....
 
     Returns
     -------
-    pandas dataframe
+    pandas.DataFrame
         initial dataframe in which all lines ARE NOT in the range of each entry of the ROD dictionary.
     """
     if not ROD:
@@ -41,7 +59,9 @@ def apply_ROD(df, ROD):
 
             df = df[~((df[key] >= minimum) & (df[key] < maximum))]
         else:
-            print(f"[WARNING] The key {key} of the ROI is not in the other dataframe.")
+            log.warning(
+                f"[heliumtools.tools.apply_ROD] The key {key} of the ROD is not in the other dataframe."
+            )
     return df
 
 
@@ -54,7 +74,7 @@ def apply_ROI(atoms, ROI):
     atoms : pandas dataframe
         DataFrame with all atoms.
     ROI : dic
-        dictionary for which every entry (for exemple 'T') matches a column of the atoms dataframe. The function returns a dictionary with the same number of columns as atoms but for which every line is in a range required by the ROI dictionary, i.e. a maximum and a minimum value. Since a recent update, each entry of the dictionary can be a tuple or a list with two number or a dictionary with entries "min/max" or 'range'.
+        dictionary for which every entry (for exemple 'T') matches a column of the atoms dataframe. e.g. {"key":[min, max]}, or {"key":{"center":mean, "size":size}} and so on....
 
     Returns
     -------
@@ -75,25 +95,35 @@ def apply_ROI(atoms, ROI):
     return atoms
 
 
-def get_roi_min_max(roi, axis):
-    """This function returns the maximum and minimum value of a roi type dictionary for a given entry axis.
+def get_roi_min_max(roi, key):
+    """Base function that returns the maximum and minimum value of a roi type dictionary for a given entry key. This function is called by the apply_ROI and ROD methods.
+    Current implemented ROI format:
+        {"key":{"range":[-3,3]}}
+        {"key":{"minimum":-3, "maximum":3}}
+        {"key":{"min":-3, "max":3}}
+        {"key":{"center":0, "size":6}}
+        {"key":{"position":0, "size":6}}
+        {"key":[-3,3]}
+        {"key":(-3,3)}
 
     Parameters
     ----------
     roi : dictionary
         ROI type dictionary
-    axis : str
+    key : str
         key of the dictionary from which we we want the minimum and maximum value
 
     Returns
     -------
     tuples
-        maximum and minimum value of the key axis of the roi.
+        maximum and minimum value of the key of the roi.
     """
-    if axis not in roi:
-        print(f"[WARNING] : the axis {axis} is not in the ROI.")
+    if key not in roi:
+        log.warning(
+            f"[heliumtools.tools.get_roi_min_max] the axis {key} is not in the {ROI}."
+        )
         return (-np.inf, np.inf)
-    value = roi[axis]
+    value = roi[key]
     if "range" in value:
         minimum = np.min(value["range"])
         maximum = np.max(value["range"])
@@ -109,24 +139,53 @@ def get_roi_min_max(roi, axis):
     elif "center" in value and "size" in value:
         minimum = value["center"] - 0.5 * value["size"]
         maximum = value["center"] + 0.5 * value["size"]
-    elif type(value) == list or type(value) == tuple:
+    elif type(value) == list or type(value) == tuple or type(value) == np.ndarray:
         minimum = min(value)
         maximum = max(value)
     else:
-        print(
-            "[WARNING] The ROI format was not recognized. Please read the apply_ROI documentation. We expect a dictionary with all values being either a dictionary or a list. "
+        log.warning(
+            "[heliumtools.tools.get_roi_min_max] The ROI format of {} at the key {key} was not recognized. Please read the get_roi_min_max documentation. We expect a dictionary with all values being either a dictionary or a list. ".format(
+                roi, key
+            )
         )
+        return (-np.inf, np.inf)
     return (minimum, maximum)
 
 
-def get_roi_size(roi, axis):
-    """Returns the size of a ROI like dictionary along a given axis."""
+def get_roi_size(roi, axis) -> float:
+    """Return the size of a roi along a given axis.
+
+    Parameters
+    ----------
+    roi : dictionary
+        ROI type dictionary
+    key : str
+        key of the dictionary from which we we want the minimum and maximum value
+
+    Returns
+    -------
+    float
+        Returns the size of a ROI like dictionary along a given axis.
+    """
     (minimum, maximum) = get_roi_min_max(roi, axis)
     return maximum - minimum
 
 
-def get_roi_center(roi, axis):
-    """Returns the center of a ROI like dictionary along a given axis."""
+def get_roi_center(roi, axis) -> float:
+    """Return the center of a roi along a given axis.
+
+    Parameters
+    ----------
+    roi : dictionary
+        ROI type dictionary
+    key : str
+        key of the dictionary from which we we want the minimum and maximum value
+
+    Returns
+    -------
+    float
+        Returns the center of a ROI like dictionary along a given axis.
+    """
     (minimum, maximum) = get_roi_min_max(roi, axis)
     return (maximum + minimum) / 2
 
