@@ -386,23 +386,24 @@ def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 
 
 
 def oneD_density_fitted_plot(
-    corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30], mode_volume=1 * 10 * 10
+    corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30], mode_volume = 1*10*10
 ):
-    """Trace la densité 1D des paires selon z.
+    """ Plot the 1D density of pairs along z.
 
     Parameters
     ----------
     corr : Correlation
     miniVz : float, optional
-        vitesse minimal pour fit de la position de la paire, by default 20
+        minimum speed to fit the pair position, by default 20
     maxiVz : float, optional
-        vitesse maximale pour le fit de la position de la paire, by default 35
+        maximum speed for pair position fit, by default 35
     vperp_list : list, optional
-        liste des vitesses transverses pour l'affichage, by default [10, 20, 30]
-    mode_volume : volume of a mode in (mm/s)^3
+        list of transverse velocities for display, by default [10, 20, 30]
+    mode_volume : float
+        volume of a mode in (mm/s)^3
     Returns
     -------
-    rien
+    None
     """
     miniVz = 18
     maxiVz = 35
@@ -414,15 +415,16 @@ def oneD_density_fitted_plot(
     def gaussian(x, mean, amplitude, standard_deviation):
         return amplitude * np.exp(-((x - mean) ** 2) / (2 * standard_deviation**2))
 
-    #### Figure du nombre moyen d'atomes par boite :
+    #### Figure of the average number of atoms per box:
     total_df = []
     corr.define_variable1(
-        box="1", axe="Vz", type="position", name="Vz", min=-40, max=40, step=boxZsize
+        box = "1", axe = "Vz", type = "position", name = "Vz", min = -40, max = 40, step = boxZsize
     )
+
     fig, ax = plt.subplots(figsize=(4.3, 3.9), dpi=110)
+
+    # for each transverse box
     for i, vperp_max in enumerate(vperp_list):
-        # box_volume = vperp_max * vperp_max * np.pi * boxZsize / mode_volume
-        # my_box = {"Vperp": {"minimum": -1, "maximum": vperp_max}}
         my_box = {
             "Vx": {"size": vperp_max, "position": 0},
             "Vy": {"size": vperp_max, "position": 0},
@@ -442,7 +444,7 @@ def oneD_density_fitted_plot(
             lim_x = ax.get_xlim()
             lim_y = ax.get_ylim()
 
-        ###### Fits de la paire 1
+        ###### Fits pair 1
         try:
             hist1, bins1 = np.histogram(
                 atoms["Vz"], bins=np.arange(peak1[0], peak1[1], boxZsize)
@@ -469,7 +471,8 @@ def oneD_density_fitted_plot(
             )
         except Exception as exc:
             print(f"failed to fit pair 1. Error is {exc}")
-        ###### Fits de la paire 2
+
+        ###### Fits pair 2
         try:
             hist1, bins1 = np.histogram(
                 atoms["Vz"], bins=np.arange(peak2[0], peak2[1], boxZsize)

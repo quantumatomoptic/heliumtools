@@ -443,6 +443,8 @@ class Dataset:
         try:
             os.remove(os.path.join(self.__name__, "metadata.pkl"))
             os.remove(os.path.join(self.__name__, "data.pkl"))
+            os.remove(os.path.join(self.__name__, "metadata.csv"))
+            os.remove(os.path.join(self.__name__, "data.csv"))
             self.__sequences__ = []
             self.save_parameters()
             log.warning("I suppressed all data and metadatas of the dataset.")

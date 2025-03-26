@@ -12,3 +12,4 @@ Contributors
 
 * Victor Gondret
 * Charlie Leprince
+* Rui

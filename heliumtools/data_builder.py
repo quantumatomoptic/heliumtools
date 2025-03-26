@@ -28,7 +28,7 @@ from .misc.gather_data import apply_ROI, apply_ROD
 
 class DataBuilder:
     """
-    Classe DataBuilder. Takes as an input a pandas dataframe with 4 columns Cycle, X, Y et T and built a dataframe in mm/s for all speeds.
+    Classe DataBuilder. Takes as an input a pandas dataframe with 4 columns Cycle, X, Y et T and builds a dataframe in mm/s for all speeds.
 
     Mandatory parameters
     --------------------
@@ -92,7 +92,8 @@ class DataBuilder:
 
     def build_the_atoms_dataframe(self):
         """
-        Cette méthode construit le dataframe contenant l'ensemble des positions des atomes : elle construit le dataframe self.atoms, dont les vitesses sont exprimées en mm/s à partir du dataframe initial.
+        This method builds the dataframe containing all the positions of the atoms: 
+        it builds the dataframe self.atoms, whose speeds are expressed in mm/s from the initial dataframe.
         """
         # Cleaning the self.atoms dataframe : must contains only 4 columns (to avoid mixing when merging.)
         for column in self.atoms.columns:
@@ -302,19 +303,50 @@ class DataBuilder:
         """
         self.atoms = apply_ROD(self.atoms, self.ROD)
 
-    def rotate_inertial_frame(self, angle: float):
-        """rotate the atoms dataframe in the (Vx, Vy) plane with an angle.
+    import numpy as np
+
+    def rotate_inertial_frame(self, anglexy=0, anglexz=0, angleyz=0):
+        """
+        Rotate the atoms dataframe in 3D space using rotation matrices.
 
         Parameters
         ----------
-        angle : float
-            rotation angle, in degree
+        anglexy : float
+            Clockwise rotation angle in the XY plane, in degrees.
+        anglexz : float
+            Clockwise rotation angle in the XZ plane, in degrees.
+        angleyz : float
+            Clockwise rotation angle in the YZ plane, in degrees.
         """
+        # Convert degrees to radians for rotation calculations
+        anglexy_rad = np.radians(anglexy)
+        anglexz_rad = np.radians(anglexz)
+        angleyz_rad = np.radians(angleyz)
+
+        # Extract original velocity components
         X = self.atoms["Vx"]
         Y = self.atoms["Vy"]
-        self.atoms["Vx"] = X * np.cos(2 * np.pi * angle / 360) + Y * np.sin(
-            2 * np.pi * angle / 360
-        )
-        self.atoms["Vy"] = -Y * np.sin(2 * np.pi * angle / 360) + Y * np.cos(
-            2 * np.pi * angle / 360
-        )
+        Z = self.atoms["Vz"]  # Assuming you also have a Z component
+
+        # Rotation in XY Plane
+        cos_xy = np.cos(anglexy_rad)
+        sin_xy = np.sin(anglexy_rad)
+        X_new = X * cos_xy + Y * sin_xy
+        Y_new = -X * sin_xy + Y * cos_xy
+
+        # Rotation in XZ Plane
+        cos_xz = np.cos(anglexz_rad)
+        sin_xz = np.sin(anglexz_rad)
+        Z_new = Z * cos_xz - X_new * sin_xz
+        X_new = X_new * cos_xz + Z * sin_xz
+
+        # Rotation in YZ Plane
+        cos_yz = np.cos(angleyz_rad)
+        sin_yz = np.sin(angleyz_rad)
+        Y_new = Y_new * cos_yz + Z_new * sin_yz
+        Z_new = -Y_new * sin_yz + Z_new * cos_yz
+
+        # Update the atoms DataFrame with new velocity components
+        self.atoms["Vx"] = X_new
+        self.atoms["Vy"] = Y_new
+        self.atoms["Vz"] = Z_new
