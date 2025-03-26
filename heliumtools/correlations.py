@@ -226,40 +226,49 @@ class Correlation(DataBuilder):
 
     def counts_atoms_in_boxes_one_variable(self, df, var, box, column_name="N_1"):
         """
-        Prend en argument un dataframe d'atomes, une variable et une boîte. Pour chaque "value" de  "variable", elle redéfinie la taille/position de la boîte et récupère le nombre d'atomes dans la boîte à chaque cycle. Elle renvoie un dataframe de 3 colonnes : une avec les cycles de nom "Colonne", une avec le nombre d'atome au cycle donné (de nom column_name) et une avec la valeur de la position/taille de la boîte (de nom var.name)
+        Takes a dataframe of atoms, a variable, and a box as arguments.
+        For each "value" of "variable", it redefines the size/position of the box
+        and retrieves the number of atoms in the box for each cycle.
+        It returns a dataframe with three columns:
+        - One with the cycle numbers named "Cycle"
+        - One with the number of atoms in the box for a given cycle (named column_name)
+        - One with the value of the box's position/size (named var.name)
 
         Parameters
         ----------
-        df : pandas dataframe, dataframe avec les atomes
+        df : pandas DataFrame
+            Dataframe containing the atoms.
         var : Variable
-        box : dictionnaire, position et taille de la boîte sur 1 à 4 axes.
-            Exemple {"Vx": {"size": 10, "position": 0}}
-        column
+        box : dict
+            Dictionary containing the position and size of the box along 1 to 4 axes.
+            Example: {"Vx": {"size": 10, "position": 0}}
+        column_name : str, optional
+            Name of the column for the atom count (default is "N_1").
 
         Returns
         ----------
-        result : pandas dataframe
-            dataframe avec 3 colonnes :
-                "Cycle" : avec le numéro du cycle
-                column_name (ex : "N1") : avec le nombre d'atome dans la boîte
-                var.name (ex : "ΔVx"): avec la valeur de la position/taille de la boîte.
+        result : pandas DataFrame
+            Dataframe with three columns:
+                - "Cycle": containing the cycle number.
+                - column_name (e.g., "N1"): containing the number of atoms in the box.
+                - var.name (e.g., "ΔVx"): containing the value of the box's position/size.
         """
-        # On parcourt les différentes valeurs de la Variable var (tqdm --> waiting bar)
+        # Iterate through the different values of the variable (tqdm -> progress bar)
         # for i in tqdm(range(var.n_step), desc="Gathering {}".format(var.name)):
         for i in range(var.n_step):
-            # On change la boîte selon la i-ème valeur de var
+            # Update the box according to the i-th value of var
             box[var.axe][var.type] = var.get_value_i(i)
-            # On récupère le dataframe avec le nombre d'atome dans la boîte à chaque cycle
+            # Retrieve the dataframe with the number of atoms in the box for each cycle
             dataframe = self.obtain_number_of_atoms_per_cycle_in_box(
                 df, box, column_name=column_name
             )
             dataframe[var.name] = var.get_value_i(i)
-            # On ajoute la colonne avec la valeur de variable
+            # Add the column with the variable's value
             if i == 0:
                 result = dataframe
             else:
                 result = pd.concat([result, dataframe])
-        # les index se répètent : c'est bof : je les réinitialise.
+        # Reset the index since they repeat, which is undesirable
         result.reset_index(drop=True)
         return result
 
@@ -594,6 +603,7 @@ class Correlation(DataBuilder):
         self.result = total.groupby(
             [self.var1.name, self.var2.name], as_index=False
         ).mean()
+
         if self.compute_errors:
             self.errors = total.groupby(
                 [self.var1.name, self.var2.name], as_index=False
@@ -673,7 +683,8 @@ class Correlation(DataBuilder):
                     self.result[f"U(g_{j}^({i}))"] = (
                         self.result[f"g_{j}^({i})"]
                         * np.sqrt(
-                           i* (self.result[f"N_{j}"] ** 2 + self.result[f"N_{j}"])
+                            i
+                            * (self.result[f"N_{j}"] ** 2 + self.result[f"N_{j}"])
                             / self.result[f"N_{j}"] ** 2
                         )
                         / np.sqrt(self.n_cycles)
@@ -710,8 +721,10 @@ class Correlation(DataBuilder):
         g2 = self.result["g^2"]
         g4 = self.result["g^4"]
         # Calcul de theta
-        self.result["theta_g^4"] = (g4 - (16 * g2 + 4 * (g2 - 1)**2 - 12)) / (2 * (g2 - 1)**2)
-         
+        self.result["theta_g^4"] = (g4 - (16 * g2 + 4 * (g2 - 1) ** 2 - 12)) / (
+            2 * (g2 - 1) ** 2
+        )
+
         # ---------------
         # Calculs de corrélations locales
         # ---------------

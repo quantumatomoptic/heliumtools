@@ -63,9 +63,10 @@ class Dataset:
         self.fit_arrival_times = False
         self.fit_histogram_width = 0.01
         self.fit_width_saturation = 0  # saturation for the fit of the BEC
-        self._check_dataset_location()
-        self.load_parameters()
-        self.save_parameters()
+        exist = self._check_dataset_location()
+        if exist:
+            self.load_parameters()
+            self.save_parameters()
 
     def set(self, **kwargs):
         """set a new attribut for the dataset class. Cannot take numpy.64 array."""
@@ -210,19 +211,30 @@ class Dataset:
             log.error(msg)
 
     def _check_dataset_location(self):
-        if not os.path.exists(self.__name__):
-            try:
-                os.mkdir(self.__name__)
-                msg = "Dataset was initialized in folder {}".format(self.__name__)
-                log.info(msg)
-            except Exception as e:
 
-                msg = "Dataset initialization failed in folder {}. ".format(
+        if not os.path.exists(self.__name__):
+            log.error(
+                "Datasets does not exists in {}.\nYou can create a Dataset using the self.ceate_dataset() function.".format(
                     self.__name__
                 )
-                msg += "Please check the error log. \n " + str(e)
-                log.critical(msg)
-                raise ValueError(msg)
+            )
+            log.info(
+                "You can create a Dataset using the self.ceate_dataset() function."
+            )
+            return False
+        return True
+
+    def ceate_dataset(self):
+        try:
+            os.mkdir(self.__name__)
+            msg = "Dataset was initialized in folder {}".format(self.__name__)
+            log.info(msg)
+        except Exception as e:
+
+            msg = "Dataset initialization failed in folder {}. ".format(self.__name__)
+            msg += "Please check the error log. \n " + str(e)
+            log.critical(msg)
+            raise ValueError(msg)
 
     def get_dataset_properties(self):
         log.info("Requiring dataset properties...")

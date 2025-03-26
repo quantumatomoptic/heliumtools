@@ -1,7 +1,7 @@
-/home/victor/Data/2024/10/02/015
-/home/victor/DataReconstructed/2024/10/02/015
+/mnt/helium/Sauvegarde manip/gus_data/2024/11/14/013
+/home/victor/DataReconstructed/2024/11/14/013
 2
-4
+15
 2
 
 
