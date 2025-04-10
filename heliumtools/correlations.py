@@ -1070,7 +1070,7 @@ class Correlation(DataBuilder):
         self.cycles_array = copy.deepcopy(self.cycles_array_copy)
 
     def bootstrap_total(self):
-        """bootstrap the dataframe total in an efficient way. See 03/01/24 for details.
+        """ bootstrap the dataframe total in an efficient way. See 03/01/24 for details.
         We get a matrix from the total dataframe and then we bootstrap it as it is MUCH MORE faster than with pandas.
         """
         if self.is_there_a_copy_of_total is False:

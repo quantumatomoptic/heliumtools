@@ -525,19 +525,8 @@ def oneD_density_fitted_plot(
     plt.show()
 
 
-def heatmap_with_boxes(
-    ax,
-    df,
-    columns: str,
-    index: str,
-    values: str,
-    boxes=[{}],
-    boxes_color=["r"],
-    cbar_bool=True,
-    **kwargs,
-):
-    """function that draws the heatmap of the dataframe onto a given ax. It adds the
-    box on the plot if keys of the box match index and columns.
+def heatmap_with_boxes(ax,df,columns: str,index: str,values: str, boxes=[{}],boxes_color=["r"],cbar_bool=True,**kwargs):
+    """ function that draws the heatmap of the dataframe onto a given ax. It adds the box on the plot if keys of the box match index and columns.
     Any additional keyword argument is pass to the imshow
 
     Parameters
@@ -562,14 +551,19 @@ def heatmap_with_boxes(
     matplotlib.axes
         the matplotlib ax modified
     """
+    # try to plot
     try:
         data = df.pivot(index=index, columns=columns, values=values)
-        # la matrice est par défaut orientée dans les axes croissants.
+        # the matrix is ​​by default oriented in the increasing axes.
         data = np.flip(data.to_numpy(), axis=0)
+
+        # get limits for axis x and y
         xmin = np.min(df[columns])
         xmax = np.max(df[columns])
         ymin = np.min(df[index])
         ymax = np.max(df[index])
+
+        # plot 
         img = ax.imshow(data, extent=[xmin, xmax, ymin, ymax], **kwargs)
         if cbar_bool:
             cbar = plt.colorbar(img, ax=ax)

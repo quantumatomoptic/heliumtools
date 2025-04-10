@@ -137,9 +137,6 @@ class Correlation1D(Correlation):
         self.df_atoms_var1.reset_index(drop=True,inplace=True)
         self.df_atoms_var2.reset_index(drop=True,inplace=True)
 
-        # set copy flag to false since we are computing dataframes 
-        # self.is_there_a_copy_of_total = False
-
     def compute_correlations_superimpose(self):
         """ From the dataframes built in self.compute_superimpose(), this function calculates correlations in three different regions: local correlation
         in the positive momentum region (k,k), local correlation in the negative momentum region (-k,-k) and finally cross corrlation in the cross region (k,-k). 
@@ -174,10 +171,10 @@ class Correlation1D(Correlation):
 
         # we start by counting the atoms in the 2D boxes [var1,var2] for each region
         for attr_result, attr_atoms in zip(["cross_result", "loc1_result", "loc2_result"],["cross", "loc1", "loc2"]):
-            # get atom dataframe ["cross", "loc1", "loc2"] from the object.
-            df_atoms = getattr(self, attr_atoms)
             # get density dataframe ["cross_result", "loc1_result", "loc2_result"] from the object.
             df_result = getattr(self, attr_result)
+            # get atom dataframe ["cross", "loc1", "loc2"] from the object.
+            df_atoms = getattr(self, attr_atoms)
 
             # we are carefull to not count the same atom twice, by only selecting rows with atoms different labels corresponding to different axis var1 and Var2.
             # we count the atom number in each 2D box with sides [var1,var2]
@@ -200,6 +197,9 @@ class Correlation1D(Correlation):
             # calculate G2 and g2
             df_result["G2"] = df_result["G2"]/self.n_cycles
             df_result["g^2"] = df_result["G2"]/ (df_result["N_" + self.var2.box]*df_result["N_" + self.var1.box])
+
+            # replace NaN by zeros
+            df_result = df_result.replace(np.nan, 0.0)
 
             # Assign the merged DataFrame back to the attribute
             setattr(self, attr_result,df_result)
@@ -557,21 +557,22 @@ def fit2D(func,df,key,xname,yname,guess,show = False):
     x_1d = X.reshape((1, np.prod(size)))
     y_1d = Y.reshape((1,np.prod(size)))
     # stack axis
-    xdata = np.vstack((x_1d, y_1d))
+    xy_stack = np.vstack((x_1d, y_1d))
     # flatten data to fit
-    zdata = zdata.flatten()
+    zflat = zdata.flatten()
     # try to fit
     try:
-        popt , pcov = curve_fit(func,xdata,zdata,p0=guess)
+        popt , pcov = curve_fit(func,xy_stack,zflat,p0=guess)
     except:
         popt = guess
         pcov = []
     
+    # plot data, fit, interpolation and data-fit
     if show:
         fig, ax = plt.subplots(ncols = 4,sharey = True,sharex=True,figsize = (20,4))
 
         """ plot original data """
-        X , Y = np.meshgrid(x, y)
+        X , Y = np.meshgrid(xdata, ydata)
         plot1 = ax[0].pcolormesh(X, Y, zdata)
         ax[0].set_xlabel('Vz1')
         ax[0].set_ylabel('Vz2')
@@ -579,8 +580,10 @@ def fit2D(func,df,key,xname,yname,guess,show = False):
         cb1 = fig.colorbar(plot1,ax=ax[0])
 
         """ plot fit result """
-        x2 = np.linspace(np.amin(x),np.amax(x),500)
-        y2 = np.linspace(np.amin(y),np.amax(y),500)
+
+        # compute fit function
+        x2 = np.linspace(np.amin(xdata),np.amax(xdata),500)
+        y2 = np.linspace(np.amin(ydata),np.amax(ydata),500)
         X1, X2 = np.meshgrid(x2, y2)
         Z = func([X1,X2],*popt)
 
@@ -591,7 +594,9 @@ def fit2D(func,df,key,xname,yname,guess,show = False):
         cb2.mappable.set_clim(*cb1.mappable.get_clim())
 
         """ plot interpolation of data """
-        func = RegularGridInterpolator((x,y),np.transpose(zdata),method = "linear")
+
+        # compute 2D interpolation
+        func = RegularGridInterpolator((xdata,ydata),np.transpose(zdata),method = "cubic")
         Z = func((X1,X2))
 
         plot3 = ax[2].pcolormesh(X1, X2, Z)
@@ -604,7 +609,7 @@ def fit2D(func,df,key,xname,yname,guess,show = False):
         Deltaz = np.abs(Gaussian2D([X,Y],*popt) - zdata)/Gaussian2D([X,Y],*popt)
         plot4 = ax[3].pcolormesh(X, Y, Deltaz)
         ax[3].set_xlabel('Vz1')
-        ax[3].set_title("data - fit")
+        ax[3].set_title("(data - fit)/fit")
         ax[3].set_xlim(-14,-10)
         ax[3].set_ylim(10,14)
         cb4 = fig.colorbar(plot4,ax=ax[3])
