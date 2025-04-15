@@ -23,7 +23,7 @@ A fast histogram was implemented better than numpy in [1]. However, the problem 
 
 ---- Améliorations
 
-I came across [4] where someone (from CERN) is also not happy with numpy's N-dimensional histograms. 
+I came across [4] where someone (from CERN) is also not happy with numpy's N-dimensional histograms.
 I tested it on my machine and the program runs 10 times faster. However, this is not enough for me to run correlations on my computer.
 
 [1] https://pypi.org/project/fast-histogram/
@@ -49,14 +49,12 @@ from .data_builder import DataBuilder
 
 
 class CorrelationHe2Style(DataBuilder):
-    
     """
-    CorrelationHe2Style class that inherits from the DatBuilder class. 
+    CorrelationHe2Style class that inherits from the DatBuilder class.
     It computes correlations by finding pairs of atoms that satisfy a given momentum relation, e.g conservation of momentum.
     """
 
     def __init__(self, atoms, **kwargs):
-        
         """
         Object initialization, sets parameters as the user defined, build the atoms dataframe and apply ROD and ROI.
         """
@@ -88,7 +86,7 @@ class CorrelationHe2Style(DataBuilder):
 
     def update_atoms_in_beams(self):
         """
-        This method updates/determines the atoms in beams A and B. 
+        This method updates/determines the atoms in beams A and B.
         It also transforms velocities from float64 to float32 and int to int32 so that calculations are faster.
         """
 
@@ -135,33 +133,47 @@ class CorrelationHe2Style(DataBuilder):
         return df_merged
 
     def initialize_voxel_map_properties(self):
-        """ Create voxels and dataframe self.result
+        """Create voxels and dataframe self.result
         self.result = "Vx", "Vy", "Vz",   ...
-                 1        9       0       1018  ...      
-                 2        8       0       1019  ...      
-                 1        9       0       1018  ...      
-                 2        8       0       1019  ... 
+                 1        9       0       1018  ...
+                 2        8       0       1019  ...
+                 1        9       0       1018  ...
+                 2        8       0       1019  ...
         Vx, Vy and Vz are the center values of the voxel. self.only_one_beam = True the rest of the collumns are "G2AA" and "G2AA denominator" to compute the local correlation.
-        If self.only_one_beam = False the rest of the collumns are quantities need for the cross correlation """
+        If self.only_one_beam = False the rest of the collumns are quantities need for the cross correlation
+        """
 
         # tuple with size of the map in each direction, e.g x, y and z
-        self.voxel_map_size = tuple([int(self.voxel_numbers[axis]) for axis in self.axis])
+        self.voxel_map_size = tuple(
+            [int(self.voxel_numbers[axis]) for axis in self.axis]
+        )
 
         # compute range of map in each diraction
         self.voxel_map_range = tuple(
-            [(-self.voxel_numbers[axis] * self.voxel_size[axis] / 2,self.voxel_numbers[axis] * self.voxel_size[axis] / 2) for axis in self.axis]
-            )
-        
+            [
+                (
+                    -self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
+                    self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
+                )
+                for axis in self.axis
+            ]
+        )
+
         # compute center of voxels
         voxel_centers = []
         for axis in self.axis:
-            mini = -self.voxel_numbers[axis] * self.voxel_size[axis] / 2 + self.voxel_size[axis] / 2
+            mini = (
+                -self.voxel_numbers[axis] * self.voxel_size[axis] / 2
+                + self.voxel_size[axis] / 2
+            )
             maxi = +self.voxel_numbers[axis] * self.voxel_size[axis] / 2
-            voxel_centers.append(np.arange(mini, maxi, step = self.voxel_size[axis]))
+            voxel_centers.append(np.arange(mini, maxi, step=self.voxel_size[axis]))
             if len(voxel_centers[-1]) != self.voxel_numbers[axis]:
                 print(len(voxel_centers[-1]))
-                raise Exception("Something strange appended in the voxel map initialization.")
-            
+                raise Exception(
+                    "Something strange appended in the voxel map initialization."
+                )
+
         # create the result dataframe
         data = np.array(
             [
@@ -174,13 +186,13 @@ class CorrelationHe2Style(DataBuilder):
         self.result = pd.DataFrame(data=data, columns=self.axis)
 
         # add collumns dependening if we want to compute the local correlation or the cross correlation
-        if self.only_one_beam is True: # local correlation
+        if self.only_one_beam is True:  # local correlation
             for column in [
                 "G2AA",
                 "G2AA denominator",
             ]:
                 self.result[column] = np.zeros(len(self.result))
-        else: # cross correlation
+        else:  # cross correlation
             for column in [
                 "G2AA",
                 "G2BB",
@@ -193,8 +205,10 @@ class CorrelationHe2Style(DataBuilder):
             ]:
                 self.result[column] = np.zeros(len(self.result))
 
-    def get_G2(self, atX: pd.DataFrame, atY: pd.DataFrame, local=True, numerator=True) -> pd.DataFrame:
-        """Function that compute the 3D velocity difference between all atoms in the crossed atX x atY dataframe (atoms in beam X, Y being A or B). 
+    def get_G2(
+        self, atX: pd.DataFrame, atY: pd.DataFrame, local=True, numerator=True
+    ) -> pd.DataFrame:
+        """Function that compute the 3D velocity difference between all atoms in the crossed atX x atY dataframe (atoms in beam X, Y being A or B).
         If local is True, it computes the difference while if local is False, it computes the sum.
 
 
@@ -295,13 +309,13 @@ class CorrelationHe2Style(DataBuilder):
 
     def compute_numerator(self):
         # split cycles into chuncks so the compute does not crash
-        cycles_array_splitted = np.array_split(self.cycles_array, int(self.n_cycles / self.computer_performance))
+        cycles_array_splitted = np.array_split(
+            self.cycles_array, int(self.n_cycles / self.computer_performance)
+        )
         # print split number
-        print(int(self.n_cycles / self.computer_performance))
-
         # for each chunks of cycles
         for cycles in cycles_array_splitted:
-            """ Beam A """
+            """Beam A"""
             # get beam cycles in the chunck
             atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
             # compute numerator for G2
@@ -370,11 +384,12 @@ class CorrelationHe2Style(DataBuilder):
             )
 
     def compute_correlations(self):
-        """ Main function of the code. The idea behind the code is as follows:
-            -> we iterate through the cycles of the sequence and, for each cycle, retrieve the atoms in ROI1 and ROI2.
-            -> for each cycle, we calculate the difference (local correlations) or the sum (cross-correlation) of all atom pairs.
-            -> we then create a 3D histogram of this set. We add it to the total histogram. """
-        
+        """Main function of the code. The idea behind the code is as follows:
+        -> we iterate through the cycles of the sequence and, for each cycle, retrieve the atoms in ROI1 and ROI2.
+        -> for each cycle, we calculate the difference (local correlations) or the sum (cross-correlation) of all atom pairs.
+        -> we then create a 3D histogram of this set. We add it to the total histogram.
+        """
+
         """ This function initializes """
         self.initialize_voxel_map_properties()
         self.update_atoms_in_beams()
@@ -452,6 +467,8 @@ class CorrelationHe2Style(DataBuilder):
                 data[g2 + " error bis"] = (
                     np.sqrt(data_err[G2 + " variance"]) / data[G2 + " denominator"]
                 )
+            else:
+                data[g2 + " error"] = 1 / np.sqrt(data[G2])
         return data
 
     ################################################
@@ -1128,7 +1145,7 @@ def get_g2(data: pd.DataFrame, axis: str, ROI: dict) -> pd.DataFrame:
             data[G2 + " variance"] = data[G2 + " std"] ** 2
     data = data.groupby(axis).sum().reset_index()
     data_err = data.groupby(axis).mean().reset_index()
-    for (G2, g2) in zip(["G2AA", "G2BB", "G2AB"], ["g2 aa", "g2 bb", "g2 ab"]):
+    for G2, g2 in zip(["G2AA", "G2BB", "G2AB"], ["g2 aa", "g2 bb", "g2 ab"]):
         data[g2] = data[G2] / data[G2 + " denominator"]
         if G2 + " std" in data.columns:
             data[g2 + " error"] = (
