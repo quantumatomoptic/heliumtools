@@ -4,12 +4,16 @@ from heliumtools.misc.some_plots_volume1 import heatmap_with_boxes
 
 from scipy.optimize import curve_fit
 from scipy.interpolate import RegularGridInterpolator
+from scipy.special import erf
 
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
+# see https://gregorygundersen.com/blog/2020/12/29/multivariate-skew-normal/
+# see https://stackoverflow.com/questions/52975883/creating-a-multivariate-skew-normal-distribution-python
+# see https://stats.stackexchange.com/questions/250874/bivariate-skewed-normal-distribution
 
 class Correlation1D(Correlation):
 
@@ -201,6 +205,8 @@ class Correlation1D(Correlation):
             # replace NaN by zeros
             df_result = df_result.replace(np.nan, 0.0)
 
+            df_result["<N1><N2>"] = df_result["N_1"]*df_result["N_2"]
+
             # Assign the merged DataFrame back to the attribute
             setattr(self, attr_result,df_result)
         
@@ -312,7 +318,7 @@ class Correlation1D(Correlation):
             # self.cross_1Dresult, self.loc1_1Dresult and  self.loc2_1Dresult
             setattr(self, attr_result,df_1Dresult)
             
-    def fitCorrelations(self):
+    def fit1DCorrelations(self):
         """ Function that fits local and cross correlations 
         Return
         --------------
@@ -478,7 +484,6 @@ class Correlation1D(Correlation):
             # assign dataframe as atribute
             setattr(self, attr_atoms,df_atoms)  
 
-
     def bootstrap_dataframe_atoms(self):
         """ bootstrap the dataframes self.atoms  in an efficient way.  """
 
@@ -500,44 +505,224 @@ class Correlation1D(Correlation):
         # merge dataset "dfTemp" with "self.atoms_copy" dataframe so that we keep only cycles in "newCycles" and preserve the size of the dataframe
         self.atoms =  pd.merge(dfTemp, self.atoms_copy, on="Cycle").reset_index().drop(["index","Original Cycle","Cycle"], axis=1).rename(columns={'OCycles':'Cycle'})
 
-# gaussian mathematical 1D function
-def gaussian(x, A, sigma, x0):
-    return 1 + A * np.exp(-(x-x0)**2/ ( 2*sigma**2))
 
-# combination of 2D gaussian functions
-def Gaussian2D(XY,x0,y0,A0,sigmax,sigmay,offset,A1,A2):
-    x = XY[0]
-    y = XY[1]
-    f1 = A0*np.exp(-np.power((x-x0)/sigmax,2))*np.exp(-np.power((y-y0)/sigmay,2))
-    f2 = A1*np.exp(-np.power((x-x0)/sigmax,2))
-    f3 = A2*np.exp(-np.power((y-y0)/sigmay,2))
-    return offset + f1 + f2 + f3
-
-# function to fit 2D data
-def fit2D(func,df,key,xname,yname,guess,show = False):
-    """ Given a scalar function func of 2 varibales, fits it to 2D data
+def FitG2andProd(df,xname,yname,func,Npar,guess,limits,title,show = False):
+    """ Fits a function func to functions G2 and <N1><N2> at the same time to ensure that they have the same offset
     Parameters
     --------------
-    func : function passed to curve_fit
-        func should be a function of two variables, x and y, that should be passed as an array [x,y]. Rest of the arguments for func are considered to be fit parameters
     df : pandas dataframe
         dataframe with data to fit
-    key : str
-        name of the collumn with data to fit
     xname : str
         name of collumn with x-axis values
     yname : str
         name of collumn with y-axis values
+    func : function used to fit G2 and <N1><N2>
+        func should be a function of two variables, x and y, that should be passed as an array [x,y]. Rest of the arguments for func are considered to be fit parameters
+        e.g: func can be a gaussian
+    Npar : float
+        total number of fit parameters to be passed to function func
     guess : 1D numpy array
         initial guess for fit parameters
+    limits : 2D numpy array
+        limits is of the form [limit_x,limit_y]. limit_x are the limits of the region of interest of the fit on the x-axis. Equivalent for limit_y on the y-axis.
+    title : str
+        title of plot
     show : bool
         True if you want to plot fit results. False otherwise.
     Returns
     --------------
-    popt : 1D numpy array
-        optimized fit parameters found by the fit
+    poptG2 : 1D numpy array
+        optimized fit parameters found by the fit for G2
+    poptProd : 1D numpy array
+        optimized fit parameters found by the fit for <N1><N2>
     pcov : 2D numpy array
-        covariance matrix of fit parameters
+        covariance matrix of fit parameters (both G2 and <N1><N2> )
+    """
+
+    # name of quantities to fit
+    keys = ["G2","<N1><N2>"]
+
+    # initialize arrays to fit
+    comboAxis = [[],[]]
+    comboData = []
+
+    # apply limits to data
+    limit_x = limits[0]
+    limit_y = limits[1]
+    dfFilter = df.loc[(df[xname] > limit_x[0]) & (df[xname] < limit_x[1]) & (df[yname] > limit_y[0]) & (df[yname] < limit_y[1]) ]
+        
+    # for eack key get data
+    for j in range(0,len(keys)):
+        # get axis and data values for G2
+        xdata , ydata , zdata , xy_stack , zflat = FlattendData(dfFilter,keys[j],xname,yname)
+        # concatenate data to fit
+        comboAxis = np.concatenate((comboAxis,xy_stack),axis=1)
+        comboData = np.concatenate((comboData,zflat))
+
+    # create Fit function object
+    FitObject = fitClass(func,Npar)
+    popt , pcov = curve_fit(FitObject.combinedFunction,comboAxis,comboData,p0=guess)
+    
+    # try to fit data
+    try:
+        popt , pcov = curve_fit(FitObject.combinedFunction,comboAxis,comboData,p0=guess)
+    except:
+        print("Fit failed: Couldn't fit both at the same time!")
+        popt = guess
+        pcov = []
+
+    # seperate parameters of G2 from <N1><N2>
+    poptG2 = np.concatenate((popt[:int((Npar-1)/2)],[popt[-1]]))
+    poptProd = popt[int((Npar-1)/2):]
+
+    popt = [poptG2,poptProd]
+          
+    # if user wants plot
+    if show:
+        fig, ax = plt.subplots(nrows=len(keys),ncols = 4,sharey = True,sharex=True,figsize = (20,9))
+
+        # for eack key get data
+        for j in range(0,len(keys)):
+            # get axis and data values for G2
+            xdata , ydata , zdata , xy_stack , zflat = FlattendData(df,keys[j],xname,yname)
+
+            """ plot original data """
+            X , Y = np.meshgrid(xdata, ydata)
+            plot1 = ax[j,0].pcolormesh(X, Y, zdata)
+            ax[j,0].set_xlabel('Vz1')
+            ax[j,0].set_ylabel('Vz2')
+            ax[j,0].set_title(keys[j]+": data")
+            cb1 = fig.colorbar(plot1,ax=ax[j,0])
+            ax[j,0].contour(X, Y, zdata,levels = 3,colors = "white",linestyles = "dashed",linewidths = 0.8)
+
+
+            """ plot fit result """
+            # compute fit function
+            x2 = np.linspace(np.amin(xdata),np.amax(xdata),500)
+            y2 = np.linspace(np.amin(ydata),np.amax(ydata),500)
+            X1, X2 = np.meshgrid(x2, y2)
+            Z = func([X1,X2],*popt[j])
+            # plot
+            plot2 = ax[j,1].pcolormesh(X1, X2, Z)
+            ax[j,1].set_xlabel('Vz1')
+            ax[j,1].set_title(keys[j]+": fit")
+            cb2 = fig.colorbar(plot2,ax=ax[j,1])
+            cb2.mappable.set_clim(*cb1.mappable.get_clim())
+            ax[j,1].contour(X1, X2, Z,levels = 3,colors = "white",linestyles = "dashed",linewidths = 0.8)
+
+            """ plot interpolation of data """
+            # compute 2D interpolation
+            funcInter = RegularGridInterpolator((xdata,ydata),np.transpose(zdata),method = "cubic")
+            Z = funcInter((X1,X2))
+            # plot
+            plot3 = ax[j,2].pcolormesh(X1, X2, Z)
+            ax[j,2].set_xlabel('Vz1')
+            ax[j,2].set_title(keys[j]+": interpolation")
+            cb3 = fig.colorbar(plot3,ax=ax[j,2])
+            cb3.mappable.set_clim(*cb1.mappable.get_clim())
+            ax[j,2].contour(X1, X2, Z,levels = 3,colors = "white",linestyles = "dashed",linewidths = 0.8)
+
+            """ plot difference between data and fit """
+            Deltaz = np.abs(func([X,Y],*popt[j]) - zdata)/func([X,Y],*popt[j])
+            plot4 = ax[j,3].pcolormesh(X, Y, Deltaz,vmin = 0.0,vmax = 0.25)
+            ax[j,3].set_xlabel('Vz1')
+            ax[j,3].set_title(keys[j]+": (data - fit)/fit")
+            cb4 = fig.colorbar(plot4,ax=ax[j,3])
+            ax[j,3].contour(X, Y, zdata,levels = 3,colors = "white",linestyles = "dashed",linewidths = 0.8)
+        
+        fig.suptitle(title)
+        plt.show()
+
+    return poptG2 , poptProd , pcov
+
+
+# Fit class: defined so that the code can be used in a more dynamic way
+class fitClass:
+    """
+
+    Parameters
+    ----------
+    func : python function
+        function used to fit. It is assumed that the offset fit parameter is the last input parameter of the function.
+    Npar : int
+        total number of fit parameters to be passed to function func
+    """
+
+    # initialize class object
+    def __init__(self,func,Npar):
+        self.func = func
+        self.Npar = Npar
+
+    # function used to fit G2 and <N1><N2> at the same time so they have the same offset
+    def combinedFunction(self,comboAxis,*fitParameters):
+        """ function used to fit both G2 and <N1><N2> at the same time so they have the same offset. Each value has independent amplitude,
+        center and widths, but the same function is used to fit both quantities.
+        Parameters
+        --------------
+        comboAxis : 1D numpy array
+            array with concatenated of two individual arrays with values of axis for G2 and <N1><N2>. G2 values should be first.
+            Each individual array should be a stack of x and y-axis values and it is assumed that they have equal length.
+        fitParameters : list
+            list of fit parameters passed on to func to fit G2 data and on to func to fit <N1><N2> data.
+            G2 parameters, except the offset, should be first, then the <N1><N2> paramaters and finally the offset which will be the same for both.
+            E.g: if func has 3 fit parameters as input, with offset parameter as last, then fitParameters should be of length 2 + 2 + 1 = 5, with offset parameter as the last parameter.
+        Returns
+        --------------
+            Concatenated array with G2 and <N1><N2> values. G2 values are first.
+        """
+
+        # pack input parameters
+        par = [*fitParameters]
+
+        # get fit parameters for G2
+        fitG2 = par[:int((self.Npar-1)/2)]
+        fitG2 = np.concatenate((fitG2,[par[-1]]))
+
+        # get fit parameters for <N1><N2>
+        fitProd = par[int((self.Npar-1)/2):]
+
+        # get length of individual arrays
+        length = int(np.shape(comboAxis)[1]/2)
+        # get stacked axis-values for G2
+        xy_G2 = comboAxis[:,:length]
+        # get stacked axis-values for <N1><N2>
+        xy_Prod = comboAxis[:,length:]
+
+        # calculate flatten G2 array 
+        G2 = self.func(xy_G2,*fitG2)
+
+        # calculate flatten <N1><N2> array
+        Prod = self.func(xy_Prod,*fitProd)
+
+        # return concatenated function values
+        return np.concatenate((G2,Prod))
+    
+
+# function that flattens data so that we can fit a 2D function to it
+def FlattendData(df,key,xname,yname):
+    """ Transforms dataframe collumns into numpy arrays and fllatens them so they can be used to fit a 2D fucntion.
+    Parameters
+    --------------
+    df : pandas dataframe
+        dataframe with data to fit
+    key : str
+        name of the collumn with data to fit. This is the z-axis of the function
+    xname : str
+        name of collumn with x-axis values
+    yname : str
+        name of collumn with y-axis values
+    Returns
+    --------------
+    xdata : 1D numpy array
+        x-axis values
+    ydata : 1D numpy array
+        y-axis values
+    zdata : 2D numpy array
+        data values
+    xy_stack: stacked numpy array
+        flattened and stacked array with x-axis and y-axis values for fit
+    z_1D : 1D numpy array
+        flattened array with z-axis values for fit
     """
 
     # from dataframe get 2D table of key data with rows = yname and collumns = xname
@@ -559,16 +744,60 @@ def fit2D(func,df,key,xname,yname,guess,show = False):
     # stack axis
     xy_stack = np.vstack((x_1d, y_1d))
     # flatten data to fit
-    zflat = zdata.flatten()
+    z_1D = zdata.flatten()
+
+    return xdata , ydata , zdata , xy_stack , z_1D
+
+# function to fit 2D data
+def fit2D(func,df,key,xname,yname,guess,limits,title,show = False):
+    """ Given a scalar function func of 2 varibales, fits it to 2D data
+    Parameters
+    --------------
+    func : function passed to curve_fit
+        func should be a function of two variables, x and y, that should be passed as an array [x,y]. Rest of the arguments for func are considered to be fit parameters
+    df : pandas dataframe
+        dataframe with data to fit
+    key : str
+        name of the collumn with data to fit
+    xname : str
+        name of collumn with x-axis values
+    yname : str
+        name of collumn with y-axis values
+    guess : 1D numpy array
+        initial guess for fit parameters
+    limits : 2D numpy array
+        limits is of the form [limit_x,limit_y]. limit_x are the limits of the region of interest of the fit on the x-axis. Equivalent for limit_y on the y-axis.
+    show : bool
+        True if you want to plot fit results. False otherwise.
+    Returns
+    --------------
+    popt : 1D numpy array
+        optimized fit parameters found by the fit
+    pcov : 2D numpy array
+        covariance matrix of fit parameters
+    """
+
+    # apply limits to data
+    limit_x = limits[0]
+    limit_y = limits[1]
+    dfFilter = df.loc[(df[xname] > limit_x[0]) & (df[xname] < limit_x[1]) & (df[yname] > limit_y[0]) & (df[yname] < limit_y[1]) ]
+
+    # get axis and data values and flatten them to fit 2D function
+    xdata , ydata , zdata , xy_stack , zflat = FlattendData(dfFilter,key,xname,yname)
+    
     # try to fit
     try:
         popt , pcov = curve_fit(func,xy_stack,zflat,p0=guess)
     except:
+        print("Fit failed !!")
         popt = guess
         pcov = []
     
     # plot data, fit, interpolation and data-fit
     if show:
+        # get axis and data values and flatten them to fit 2D function
+        xdata , ydata , zdata , xy_stack , zflat = FlattendData(df,key,xname,yname)
+
         fig, ax = plt.subplots(ncols = 4,sharey = True,sharex=True,figsize = (20,4))
 
         """ plot original data """
@@ -578,6 +807,7 @@ def fit2D(func,df,key,xname,yname,guess,show = False):
         ax[0].set_ylabel('Vz2')
         ax[0].set_title("data")
         cb1 = fig.colorbar(plot1,ax=ax[0])
+        ax[0].contour(X, Y, zdata,levels = 3,colors = "white",linestyles = "dashed",linewidths = 0.8)
 
         """ plot fit result """
 
@@ -592,33 +822,68 @@ def fit2D(func,df,key,xname,yname,guess,show = False):
         ax[1].set_title("fit")
         cb2 = fig.colorbar(plot2,ax=ax[1])
         cb2.mappable.set_clim(*cb1.mappable.get_clim())
+        ax[1].contour(X1, X2, Z,levels = 3,colors = "white",linestyles = "dashed",linewidths = 0.8)
 
         """ plot interpolation of data """
 
         # compute 2D interpolation
-        func = RegularGridInterpolator((xdata,ydata),np.transpose(zdata),method = "cubic")
-        Z = func((X1,X2))
+        funcInter = RegularGridInterpolator((xdata,ydata),np.transpose(zdata),method = "cubic")
+        Z = funcInter((X1,X2))
 
         plot3 = ax[2].pcolormesh(X1, X2, Z)
         ax[2].set_xlabel('Vz1')
         ax[2].set_title("interpolation")
         cb3 = fig.colorbar(plot3,ax=ax[2])
         cb3.mappable.set_clim(*cb1.mappable.get_clim())
+        ax[2].contour(X1, X2, Z,levels = 3,colors = "white",linestyles = "dashed",linewidths = 0.8)
 
         """ plot difference between data and fit """
-        Deltaz = np.abs(Gaussian2D([X,Y],*popt) - zdata)/Gaussian2D([X,Y],*popt)
-        plot4 = ax[3].pcolormesh(X, Y, Deltaz)
+        Deltaz = np.abs(func([X,Y],*popt) - zdata)/func([X,Y],*popt)
+        plot4 = ax[3].pcolormesh(X, Y, Deltaz,vmin = 0.0,vmax = 0.25)
         ax[3].set_xlabel('Vz1')
         ax[3].set_title("(data - fit)/fit")
-        ax[3].set_xlim(-14,-10)
-        ax[3].set_ylim(10,14)
+        #ax[3].set_xlim(-14,-10)
+        #ax[3].set_ylim(10,14)
         cb4 = fig.colorbar(plot4,ax=ax[3])
+        ax[3].contour(X, Y, zdata,levels = 3,colors = "white",linestyles = "dashed",linewidths = 0.8)
 
+        fig.suptitle(title)
         plt.show()
-
-
-    
-
-
     
     return popt , pcov
+
+# rotates axis by an angle theta
+def rotation(X,Y,theta):
+    V = X*np.cos(theta)+Y*np.sin(theta)
+    U = -X*np.sin(theta)+Y*np.cos(theta)
+    return V , U
+
+# gaussian mathematical 1D function
+def gaussian(x, A, sigma, x0):
+    return 1 + A * np.exp(-(x-x0)**2/ ( 2*sigma**2))
+
+# combination of 2D gaussian functions
+def Gaussian2D(XY,x0,y0,A0,sigmax,sigmay,offset):
+    x = XY[0]
+    y = XY[1]
+    f1 = A0*np.exp(-np.power((x-x0)/sigmax,2))*np.exp(-np.power((y-y0)/sigmay,2))
+    return offset + f1
+
+# another definition of combination of Gaussian functions
+def ProdGaussian(XY,x0,y0,A0,A1,A2,sigmax,sigmay,offset):
+    x = XY[0]
+    y = XY[1]
+    c0 = A0*np.exp(-np.power((x-x0)/sigmax,2))*np.exp(-np.power((y-y0)/sigmay,2))
+    c1 = A1*np.exp(-np.power((x-x0)/sigmax,2))
+    c2 = A2*np.exp(-np.power((y-y0)/sigmay,2))
+    return c0 + c1 + c2 + offset
+
+
+# another definition for prod of gaussian functions
+def SkewGaussian(XY,x0,y0,A0,A1,A2,sigmax,sigmay,alphax,alphay,offset):
+    x = XY[0]
+    y = XY[1]
+    c0 = A0*np.exp(-np.power((x-x0)/sigmax,2))*np.exp(-np.power((y-y0)/sigmay,2))*(1+erf(alphax*(x-x0)))*(1+erf(alphay*(y-y0)))
+    c1 = A1*np.exp(-np.power((x-x0)/sigmax,2))*(1+erf(alphax*(x-x0)))
+    c2 = A2*np.exp(-np.power((y-y0)/sigmay,2))*(1+erf(alphay*(y-y0)))
+    return c0 + c1 + c2 + offset
