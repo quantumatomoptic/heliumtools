@@ -12,8 +12,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import copy
 
-# testststs
-
 class Correlation1D(Correlation):
 
     def __init__(self, atoms, **kwargs):
@@ -442,50 +440,6 @@ class Correlation1D(Correlation):
                 ax.set_xlabel(axis_key)
 
         plt.show()
-                
-    def fitProdAndG2(self,funcG2,funcProd,guessG2,guessProd,limits,show = False):
-        """ Fits a function funcG2 to function G2 and funcProd and <N1><N2> at the same time 
-        to ensure that they have the same offset,  in each region.
-        Parameters
-        --------------
-        funcG2 : dictionary of functions used to fit G2
-            each function in funcG2 should be a function of two variables, x and y, that should be passed as an array [x,y]. 
-            Rest of the arguments for funcG2 are considered to be fit parameters. E.g: funcG2 can be a Skew2DGaussian
-        funcProd : disctionary of functions used to fit <N1><N2>
-            Same type of as funcG2. E.g: func can be a ProdGaussian
-        guessG2 : dictionary of 1D numpy array
-            each array is the initial guess for fit parameters of G2, offset included
-        guessProd : dictionary of 1D numpy array
-            each array is the initial guess for fit parameters of <N1><N2>, offset included
-        limits : dictionary of 2D numpy array
-            each element of limits is of the form [limit_x,limit_y]. limit_x are the limits of the region of interest of the fit on the x-axis. 
-            Equivalent for limit_y on the y-axis.
-        show : bool
-            True if we want to plot fit result. False otherwise
-        """
-
-        # create datastructure to store data
-        self.poptG2 = dict()
-        self.poptProd = dict()
-        for region in self.regions:
-            self.poptG2[region] = []
-            self.poptProd[region] = []
-
-        # for each region, fit G2 and <N1><N2>
-        for j, (region,df) in enumerate(zip(self.regions,
-                                            [self.cross_result, self.loc1_result,self.loc2_result])):
-
-            # combined fit of G2 and <N1><N2> so that they have equal offset
-            poptG2 , poptProd , pcov = FitG2andProd(df,self.var1.name,self.var2.name,
-                                                    funcG2[region],funcProd[region],
-                                                    guessG2[region],guessProd[region],limits[region],region,show)
-            # store values of fit parameters
-            self.poptG2[region] = poptG2
-            self.poptProd[region] = poptProd
-
-        # add fit functions to class
-        self.funcG2 = funcG2
-        self.funcProd = funcProd
 
     def fitDCEpeaksAndG2(self,funcG2,funcN1,funcN2,guessG2,guessN1,guessN2,limits,show = False):
         """ Fits a function funcG2 to function G2, funcN1 to <N1> and funcN2 to <N2> at the same time 
@@ -539,21 +493,6 @@ class Correlation1D(Correlation):
         self.funcG2 = funcG2
         self.funcN1 = funcN1
         self.funcN2 = funcN2
-
-    def ProdFitted(self,XY,region):
-        """ Using the fit results of <N1><N2>, it computes <N1><N2>.
-        Parameters
-        --------------
-        XY : numpy array
-            axis values. XY should of the format [x,y] where x and y ate the x and y axis values.
-        region : str
-            region where <N1><N2> is to be computed. Options are "cross", "loc1" and "loc2"
-        --------------
-        Returns
-        --------------
-            <N1><N2> function
-        """
-        return self.funcProd[region](XY,*self.poptProd[region])
     
     def DCEN1(self,XY,region):
         """ Using the fit results, it computes <N1>.
@@ -614,21 +553,6 @@ class Correlation1D(Correlation):
             G2 function
         """
         return self.funcG2[region](XY,*self.poptG2[region])
-
-    def g2Fitted(self,XY,region):
-        """ Using the fit results of G2 and <N1><N2>, it computes g2.
-        Parameters
-        --------------
-        XY : numpy array
-            axis values. XY should of the format [x,y] where x and y ate the x and y axis values.
-        region : str
-            region where g2 is to be computed. Options are "cross", "loc1" and "loc2"
-        --------------        
-        Returns
-        --------------
-            g2 function
-        """
-        return self.G2Fitted(XY,region)/self.ProdFitted(XY,region)
     
     def g2DCE(self,XY,region):
         """ Using the fit results of G2, <N1> and <N2>, it computes g2.
@@ -645,11 +569,13 @@ class Correlation1D(Correlation):
         """
         return self.G2Fitted(XY,region)/self.DCEProd(XY,region)
 
-    def G2Integrated(self,axis,V0,U0,theta,width,region):
-        """ Using the fit results, it integrates "G2" over the diagonal or anti-diagonal depending on the region chosen.
+    def DCEintegrated(self,func,axis,V0,U0,theta,width,region):
+        """ Using the fit results, it integrates "G2", <N1><N2>, ... over the diagonal or anti-diagonal depending on the region chosen.
         If region is "cross" then we integrate over the diagonal, otherwise we integrate over the anti-diagonal.
         Parameters
         --------------
+        func : str
+            which function to integrate. Options are: "G2Fitted", "ProdFitted", "DCEProd" , "g2Fitted" and "g2DCE"
         axis : numpy array
             axis values: points along which integral is computed
         V0 , U0 : float
@@ -663,223 +589,33 @@ class Correlation1D(Correlation):
         --------------        
         Returns
         --------------
-            G2 integrated integrated
+        numpy array
+            integrated func
         """
 
-        # G2 integrated
-        G2_1D = np.zeros(len(axis),dtype=float)
+        # integrate "G2Fitted"
+        if func == "G2Fitted":
+            return IntegrateOverDiag(self.G2Fitted,axis,V0,U0,theta,width,region)
 
-        # if region is cross, we integrate along the diagonal
-        if region == "cross":
-            # integrate along v = Vz1 + Vz2
-            v = V0 + axis
-            # for each value of axis
-            for i in range(0,len(v)):
-                # integrate G2
-                IntFunc = lambda u : RotateFunction([v[i],u],theta,self.G2Fitted,[region])
-                integral = quad(IntFunc , U0-width/2, U0+width/2)
-                G2_1D[i] = integral[0]/width
-        # else, we integrate along the anti-diagonal
-        else:
-            # integrate along u = Vz2 - Vz1
-            u = U0 + axis
-            # for each value of axis
-            for i in range(0,len(u)):
-                # integrate G2
-                IntFunc = lambda v : RotateFunction([v,u[i]],theta,self.G2Fitted,[region])
-                integral = quad(IntFunc , V0-width/2, V0+width/2)
-                G2_1D[i] = integral[0]/width
-
-        return G2_1D
-    
-    def ProdIntegrated(self,axis,V0,U0,theta,width,region):
-        """ Using the fit results, it integrates "<N1><N2>" over the diagonal or anti-diagonal depending on the region chosen.
-        If region is "cross" then we integrate over the diagonal, otherwise we integrate over the anti-diagonal.
-        Parameters
-        --------------
-        axis : numpy array
-            axis values: points along which integral is computed
-        V0 , U0 : float
-            center of integration region in rotated frame
-        theta : float
-            angle that diagonal does with x-axis
-        width : float
-            width of region of integration
-        region : str
-            region where integral is to be computed. Options are "cross", "loc1" and "loc2"
-        --------------        
-        Returns
-        --------------
-            <N1><N2> integrated integrated
-        """
-
-        # G2 integrated
-        Prod_1D = np.zeros(len(axis),dtype=float)
-
-        # if region is cross, we integrate along the diagonal
-        if region == "cross":
-            # integrate along v = Vz1 + Vz2
-            v = V0 + axis
-            # for each value of axis
-            for i in range(0,len(v)):
-                # integrate G2
-                IntFunc = lambda u : RotateFunction([v[i],u],theta,self.ProdFitted,[region])
-                integral = quad(IntFunc , U0-width/2, U0+width/2)
-                Prod_1D[i] = integral[0]/width
-        # else, we integrate along the anti-diagonal
-        else:
-            # integrate along u = Vz2 - Vz1
-            u = U0 + axis
-            # for each value of axis
-            for i in range(0,len(u)):
-                # integrate G2
-                IntFunc = lambda v : RotateFunction([v,u[i]],theta,self.ProdFitted,[region])
-                integral = quad(IntFunc , V0-width/2, V0+width/2)
-                Prod_1D[i] = integral[0]/width
-
-        return Prod_1D
-    
-    def DCEProdIntegrated(self,axis,V0,U0,theta,width,region):
-        """ Using the fit results of <N1> and <N2>, it integrates "<N1><N2>" over the diagonal or anti-diagonal 
-        depending on the region chosen.
-        If region is "cross" then we integrate over the diagonal, otherwise we integrate over the anti-diagonal.
-        Parameters
-        --------------
-        axis : numpy array
-            axis values: points along which integral is computed
-        V0 , U0 : float
-            center of integration region in rotated frame
-        theta : float
-            angle that diagonal does with x-axis
-        width : float
-            width of region of integration
-        region : str
-            region where integral is to be computed. Options are "cross", "loc1" and "loc2"
-        --------------        
-        Returns
-        --------------
-            <N1><N2> integrated integrated
-        """
+        # integrate "ProdFitted"
+        elif func == "ProdFitted":
+            return IntegrateOverDiag(self.ProdFitted,axis,V0,U0,theta,width,region)
         
-        # <N1><N2> integrated
-        Prod_1D = np.zeros(len(axis),dtype=float)
+        # integrate "DCEProd"
+        elif func == "DCEProd":
+            return IntegrateOverDiag(self.DCEProd,axis,V0,U0,theta,width,region)
 
-        # if region is cross, we integrate along the diagonal
-        if region == "cross":
-            # integrate along v = Vz1 + Vz2
-            v = V0 + axis
-            # for each value of axis
-            for i in range(0,len(v)):
-                # integrate G2
-                IntFunc = lambda u : RotateFunction([v[i],u],theta,self.DCEProd,[region])
-                integral = quad(IntFunc , U0-width/2, U0+width/2)
-                Prod_1D[i] = integral[0]/width
-        # else, we integrate along the anti-diagonal
+        # integrate "g2Fitted"
+        elif func == "g2Fitted":
+            return IntegrateOverDiag(self.g2Fitted,axis,V0,U0,theta,width,region)
+
+        # integrate "g2DCE"
+        elif func == "g2DCE":
+            return IntegrateOverDiag(self.g2DCE,axis,V0,U0,theta,width,region)
+
         else:
-            # integrate along u = Vz2 - Vz1
-            u = U0 + axis
-            # for each value of axis
-            for i in range(0,len(u)):
-                # integrate G2
-                IntFunc = lambda v : RotateFunction([v,u[i]],theta,self.DCEProd,[region])
-                integral = quad(IntFunc , V0-width/2, V0+width/2)
-                Prod_1D[i] = integral[0]/width
-
-        return Prod_1D
-        
-    def g2Integrated(self,axis,V0,U0,theta,width,region):
-        """ Using the fit results, it integrates "g2" over the diagonal or anti-diagonal depending on the region chosen.
-        If region is "cross" then we integrate over the diagonal, otherwise we integrate over the anti-diagonal.
-        Parameters
-        --------------
-        axis : numpy array
-            axis values: points along which integral is computed
-        V0 , U0 : float
-            center of integration region in rotated frame
-        theta : float
-            angle that diagonal does with x-axis
-        width : float
-            width of region of integration
-        region : str
-            region where integral is to be computed. Options are "cross", "loc1" and "loc2"
-        --------------        
-        Returns
-        --------------
-            g2 integrated integrated
-        """
-
-        # G2 integrated
-        g2_1D = np.zeros(len(axis),dtype=float)
-
-        # if region is cross, we integrate along the diagonal
-        if region == "cross":
-            # integrate along v = Vz1 + Vz2
-            v = V0 + axis
-            # for each value of axis
-            for i in range(0,len(v)):
-                # integrate G2
-                IntFunc = lambda u : RotateFunction([v[i],u],theta,self.g2Fitted,[region])
-                integral = quad(IntFunc , U0-width/2, U0+width/2)
-                g2_1D[i] = integral[0]/width
-        # else, we integrate along the anti-diagonal
-        else:
-            # integrate along u = Vz2 - Vz1
-            u = U0 + axis
-            # for each value of axis
-            for i in range(0,len(u)):
-                # integrate G2
-                IntFunc = lambda v : RotateFunction([v,u[i]],theta,self.g2Fitted,[region])
-                integral = quad(IntFunc , V0-width/2, V0+width/2)
-                g2_1D[i] = integral[0]/width
-
-        return g2_1D
-    
-    def g2DCEIntegrated(self,axis,V0,U0,theta,width,region):
-        """ Using the fit results of <N1><N2>, it integrates "g2" over the diagonal or anti-diagonal depending on the region chosen.
-        If region is "cross" then we integrate over the diagonal, otherwise we integrate over the anti-diagonal.
-        Parameters
-        --------------
-        axis : numpy array
-            axis values: points along which integral is computed
-        V0 , U0 : float
-            center of integration region in rotated frame
-        theta : float
-            angle that diagonal does with x-axis
-        width : float
-            width of region of integration
-        region : str
-            region where integral is to be computed. Options are "cross", "loc1" and "loc2"
-        --------------        
-        Returns
-        --------------
-            g2 integrated integrated
-        """
-
-        # G2 integrated
-        g2_1D = np.zeros(len(axis),dtype=float)
-
-        # if region is cross, we integrate along the diagonal
-        if region == "cross":
-            # integrate along v = Vz1 + Vz2
-            v = V0 + axis
-            # for each value of axis
-            for i in range(0,len(v)):
-                # integrate G2
-                IntFunc = lambda u : RotateFunction([v[i],u],theta,self.g2DCE,[region])
-                integral = quad(IntFunc , U0-width/2, U0+width/2)
-                g2_1D[i] = integral[0]/width
-        # else, we integrate along the anti-diagonal
-        else:
-            # integrate along u = Vz2 - Vz1
-            u = U0 + axis
-            # for each value of axis
-            for i in range(0,len(u)):
-                # integrate G2
-                IntFunc = lambda v : RotateFunction([v,u[i]],theta,self.g2DCE,[region])
-                integral = quad(IntFunc , V0-width/2, V0+width/2)
-                g2_1D[i] = integral[0]/width
-
-        return g2_1D
+            print("Function not recognized !")
+            return []
             
     def bootstrap_dataframes(self):
         """ bootstrap the dataframes [self.df_atoms_var1, self.df_atoms_var2]  in an efficient way.  """
@@ -946,6 +682,57 @@ class Correlation1D(Correlation):
         self.atoms =  pd.merge(dfTemp, self.atoms_copy, on="Cycle").reset_index().drop(["index","Original Cycle","Cycle"], axis=1).rename(columns={'OCycles':'Cycle'})
 
 
+# returns integration of a function over diagonal or anti-diagonal
+def IntegrateOverDiag(func,axis,V0,U0,theta,width,region):
+    """ Using the fit results, it integrates func over the diagonal or anti-diagonal depending on the region chosen.
+    If region is "cross" then we integrate over the diagonal, otherwise we integrate over the anti-diagonal.
+    Parameters
+    --------------
+    func: pyhton function
+        function to be integrated, e.g corr.G2Fitted()
+    axis : numpy array
+        axis values: points along which integral is computed
+    V0 , U0 : float
+        center of integration region in rotated frame
+    theta : float
+        angle that diagonal does with x-axis
+    width : float
+        width of region of integration
+    region : str
+        region where integral is to be computed. Options are "cross", "loc1" and "loc2"
+    --------------        
+    Returns
+    --------------
+    Integration1D : numpy array
+        integrated func
+    """
+
+    # G2 integrated
+    Integration1D = np.zeros(len(axis),dtype=float)
+
+    # if region is cross, we integrate along the diagonal
+    if region == "cross":
+        # integrate along v = Vz1 + Vz2
+        v = V0 + axis
+        # for each value of axis
+        for i in range(0,len(v)):
+            # integrate G2
+            IntFunc = lambda u : RotateFunction([v[i],u],theta,func,[region])
+            integral = quad(IntFunc , U0-width/2, U0+width/2)
+            Integration1D[i] = integral[0]/width
+    # else, we integrate along the anti-diagonal
+    else:
+        # integrate along u = Vz2 - Vz1
+        u = U0 + axis
+        # for each value of axis
+        for i in range(0,len(u)):
+            # integrate G2
+            IntFunc = lambda v : RotateFunction([v,u[i]],theta,func,[region])
+            integral = quad(IntFunc , V0-width/2, V0+width/2)
+            Integration1D[i] = integral[0]/width
+
+    return Integration1D
+
 # returns a rotated function
 def RotateFunction(VU,theta,func,parmaters):
     """ computes the the function func, defined in cartesisan axis x and y, in the rotated axis
@@ -969,7 +756,6 @@ def g2Rotated(VU,theta,poptProd,poptG2,funcG2,funcProd):
     # compute normalized g2    
     g2 = G2/Prod
     return g2
-
 
 # function to fit G2 and <N1> and <N2> at the same time
 def FitG2andDCEPeaks(df,xname,yname,funcG2,funcN1,funcN2,guessG2,guessN1,guessN2,limits,title = "title",show = False):
@@ -1730,7 +1516,7 @@ def rotation(X,Y,theta):
 
 # gaussian mathematical 1D function
 def gaussian(x, A, sigma, x0):
-    return 1 + np.abs(A) * np.exp(-(x-x0)**2/ ( 2*sigma**2))
+    return 1 + np.abs(A) * np.exp(-(x-x0)**2/ (2*sigma**2))
 
 
 # function to fit <N1> pair density
