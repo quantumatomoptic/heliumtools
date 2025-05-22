@@ -194,19 +194,18 @@ class Correlation(DataBuilder):
         return df_merged
 
     def obtain_number_of_atoms_per_cycle_in_box(self, df, box, column_name="N_1"):
-        """
-        Retourne un dataframe de deux colonnes : une colonne avec le numéro du cycle (nom de colonne "Cycle") et une colonne avec nombre d'atomes compté dans la boite au cycle correspondant (nom de colonne column_name)
-
+        """ Returns a two-column dataframe: one column with the cycle number (column name "Cycle") and one column with the number of atoms counted in the box 
+        for the corresponding cycle (column name column_name).
         Parameters
         ----------
-            df : pandas dataframe, les données complets avec (au moins) 4 colonnes :'Cycle', 'Vx', 'Vy', 'Vz'
-            box : position et taille de la boîte sur 1 à 4 axes. Exemple {"Vx": {"size": 10, "position": 0}}
-            column_name : nom de la colonne du dataframe renvoyé
+        df: pandas dataframe, the complete dataframe with (at least) four columns: 'Cycle', 'Vx', 'Vy', 'Vz'
+        box: position and size of the box on axes 1 to 4. Example: {"Vx": {"size": 10, "position": 0}}
+        column_name: name of the column in the returned dataframe.
 
         Returns
         -------
-            atoms_in_box : dataframe de deux colonnes avec le numéro du cycle et le nombre d'atomes dans la boîte.
-            Le nom de la deuxième colonne (nombre d'atome dans la boîte) est l'argument column_name (N1 par défaut).
+        atoms_in_box: two-column dataframe with the cycle number and the number of atoms in the box.
+        The name of the second column (number of atoms in the box) is the column_name argument (N1 by default).
         """
 
         df = self.get_atoms_in_box(df, box)
@@ -676,6 +675,11 @@ class Correlation(DataBuilder):
         self.result["normalized variance"] = self.result["variance"] / (
             self.result["N_1"] + self.result["N_2"]
         )
+
+        # ---------------
+        # Calculate average density <N1><N2Z
+        # ---------------
+        self.result["<N1><N2>"] = self.result["N_1"]*self.result["N_2"]
 
         # ---------------
         # Calculate g^2
