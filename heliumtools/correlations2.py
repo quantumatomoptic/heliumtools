@@ -541,7 +541,7 @@ class CorrelationHe2Style(DataBuilder):
             y = self.axis[(i + 1) % 3]
             ax = axes[i]
             sns.histplot(
-                self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.coolwarm
+                self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.Blues
             )  # , palette = "twilight")
 
             def draw_box(cX, σX, cY, σY, **kwargs):
