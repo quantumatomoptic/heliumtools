@@ -3,6 +3,7 @@ from scipy.constants import hbar, m_p, h
 from heliumtools.misc.logger import getLogger, logging
 import scipy
 import numpy as np
+import warnings
 
 log = getLogger(__name__)
 # set the desired level of warning : DEBUG / INFO / WARNING
@@ -278,7 +279,9 @@ class Gaussian_BEC(BEC):
         asn1 = 0.5 * (mc2 / hbaromega) ** 2 * (1 + np.sqrt(1 + (hbaromega / mc2) ** 2))
         self.asn1 = asn1
 
-    def set_sound_speed_from_parametric_resonance(self, v_ph):
+    def set_sound_speed_from_parametric_resonance(
+        self, v_ph, method="center", precision=0.03
+    ):
         """From the Bogoliubov phonon speed of sound, it compute the speed of sound from which
         the class infers the asn1 parameter and set the BEC properties.
 
@@ -286,12 +289,103 @@ class Gaussian_BEC(BEC):
         ----------
         v_ph : float
             The phonon speed of the resonance Bogoliubov pairs (m/s, SI units)
+        method : which method to use to define the sound speed?
+        precision: the precision for asn1 we want to reach
         """
-        k = self._m / hbar * v_ph
-        cs = float(
-            np.sqrt(self._omega_perp**2 - (hbar * k**2 / (2 * self._m)) ** 2) / k
-        )  # m/s
-        self.set_sound_speed(cs)
+        if method == "center":
+            k = self._m / hbar * v_ph
+            cs = float(
+                np.sqrt(self._omega_perp**2 - (hbar * k**2 / (2 * self._m)) ** 2) / k
+            )  # m/s
+            self.set_sound_speed(cs)
+            return
+        ## define the
+        z = np.linspace(-self._length / 2, self._length / 2, 201)
+        if method in "mean density gain":
+            with warnings.catch_warnings():
+                # delete warnings from RunTime category
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                ## -- idea of the function -
+                # we use a dichotomic approach to set a high and a low value of asn1. Then we change the value of asn1 to converge to its good value.
+
+                ## first we use the basic method, which underestimate asn1
+                self.set_sound_speed_from_parametric_resonance(v_ph)
+                asn1_min = self.asn1
+                vph_min = (
+                    self.get_mean_excited_quasiparticle_speed_from_parametric_resonance(
+                        method=method
+                    )
+                )
+                vph_max = vph_min
+                ## we then find asn1_max before we start the dichotomy
+                iterations = 0
+                while vph_max > v_ph:
+                    self.asn1 = 2 * self.asn1
+                    vph_max = self.get_mean_excited_quasiparticle_speed_from_parametric_resonance(
+                        method=method
+                    )
+                    iterations += 1
+                    if iterations > 10:
+                        print("Fuck you!! What are you doing??")
+                        return
+                asn1_max = self.asn1
+                iterations = 0
+                max_iterations = 30
+                # log.info(f"Dichotomy start with {asn1_max} and {asn1_min}")
+                while (asn1_max - asn1_min > precision) and iterations < max_iterations:
+                    iterations += 1
+                    self.asn1 = (asn1_max + asn1_min) / 2
+                    new_speed = self.get_mean_excited_quasiparticle_speed_from_parametric_resonance(
+                        method=method
+                    )
+                    if new_speed < v_ph:
+                        asn1_max = self.asn1
+                    else:
+                        asn1_min = self.asn1
+                self.asn1 = (asn1_max + asn1_min) / 2
+            return
+        log.warning("Your method was not recognized. Setting to default.")
+
+    def get_mean_excited_quasiparticle_speed_from_parametric_resonance(
+        self, method="mean"
+    ):
+        """this function compute the mean value of the quasiparticle speed that is excited from parametric resonance. The method to compute the mean is
+        mean OR density OR gain.
+
+        method: the method to use to do the average - either mean, density or gain.
+
+        See the COSQUA gazette, volume 11 or the notebook BEC_class.ipynb of heliumtools/examples.
+        """
+        z = np.linspace(-self._length / 2, self._length / 2, 201)
+        energy = (
+            hbar * self._omega_perp
+        )  # the quasiparticle energy is the transverse trap frequency
+        asn1 = self.evaluate_1D_density(z)  ## in unit of asn1
+        g1n1 = (
+            asn1 * 2 * energy / np.sqrt(1 + 4 * asn1)
+        )  # effective 1D coupling constant = mc^2
+        epsilonk = np.sqrt(g1n1**2 + energy**2) - g1n1
+        k = np.sqrt(epsilonk * 2 * self._m) / hbar
+        v = np.sqrt(epsilonk * 2 * self._m) / self._m
+        xi = (
+            (1 + 4 * self.evaluate_1D_density(z)) ** (1 / 4)
+            / np.sqrt(2 * self.evaluate_1D_density(z))
+            * self._a_perp
+        )
+        gain_function = 1 / (1 + k**2 * xi**2 / 4)
+        if method == "mean":
+            return np.mean(v)
+        if method == "density":
+            return np.mean(v * asn1 / np.mean(asn1))
+        if method == "gain":
+            return np.mean(v * gain_function / np.mean(gain_function))
+        if method == "max":
+            return np.max(v)
+        else:
+            log.warning(
+                f"Your method {method} was not recognized. \nPlease choose among mean, density and gain."
+            )
+            return np.mean(v)
 
     def evaluate_local_speed_of_sound(self, z=np.array([])) -> np.array:
         """return the BEC 1D speed of sound in the LDA evaluated at position z.
@@ -412,7 +506,7 @@ class Gaussian_BEC(BEC):
             self._a_perp * (1 + 4 * self._asn1) ** 0.25
         )  # bec transverse sigma
         self._mc2 = self._m * self._c_s**2  # mc² phonon energy
-        self._xi = hbar / (self._m * self._c_s * np.sqrt(2))  # healing length
+        self._xi = hbar / (self._m * self._c_s)  # healing length
         self._g1D = self._g / (2 * np.pi * self._sigma0**2)
         self._gamma = self._m * self._g1D / hbar**2 / self._n1p  #
         # self._radial_0
