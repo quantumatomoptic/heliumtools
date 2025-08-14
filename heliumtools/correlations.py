@@ -167,20 +167,6 @@ class Correlation(DataBuilder):
         """
         df = apply_ROI(df, box)
         return df
-        # for key, value in box.items():
-        #     # Rappel : key est par ex "Vx" ; value est {"size":10, "position":0}
-        #     if "range" in value:
-        #         minimum = np.min(value["range"])
-        #         maximum = np.max(value["range"])
-        #     elif "position" in value and "size" in value:
-        #         minimum = value["position"] - np.abs(value["size"]) / 2
-        #         maximum = value["position"] + np.abs(value["size"]) / 2
-        #     elif "minimum" in value and "maximum" in value:
-        #         minimum = value["minimum"]
-        #         maximum = value["maximum"]
-        #     df = df[((df[key] >= minimum) & (df[key] < maximum))]
-
-        # return df
 
     def merge_dataframe_on_cycles(self, df1, df2):
         """

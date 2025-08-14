@@ -125,10 +125,9 @@ class CorrelationHe2Style(DataBuilder):
         """
         Merge 2 dataframes on the "Cycle" header. Set to 0 if df2 has no value at this cycle.
         """
-        df_merged = df1.merge(
-            df2, how="outer", on="Cycle"
-        )  # the "outer" option allows you to keep the cycles where
-        # there are no atoms. So Pandas adds a NaN instead.
+        df_merged = df1.merge(df2, how="outer", on="Cycle")  
+        # the "outer" option allows you to keep the cycles where there are no atoms. 
+        # So Pandas adds a NaN instead.
         df_merged = df_merged.fillna(0)
         return df_merged
 
@@ -139,44 +138,31 @@ class CorrelationHe2Style(DataBuilder):
                  2        8       0       1019  ...
                  1        9       0       1018  ...
                  2        8       0       1019  ...
-        Vx, Vy and Vz are the center values of the voxel. self.only_one_beam = True the rest of the collumns are "G2AA" and "G2AA denominator" to compute the local correlation.
-        If self.only_one_beam = False the rest of the collumns are quantities need for the cross correlation
+        Vx, Vy and Vz are the center values of the voxel. self.only_one_beam = True the rest of the collumns are 
+        "G2AA" and "G2AA denominator" to compute the local correlation.
+        If self.only_one_beam = False the rest of the collumns are quantities needed for the cross correlation
         """
 
-        # tuple with size of the map in each direction, e.g x, y and z
-        self.voxel_map_size = tuple(
-            [int(self.voxel_numbers[axis]) for axis in self.axis]
-        )
+        # tuple with number of boxels of the map in each direction, e.g x, y and z
+        self.voxel_map_size = tuple([int(self.voxel_numbers[axis]) for axis in self.axis])
 
-        # compute range of map in each diraction
-        self.voxel_map_range = tuple(
-            [
-                (
-                    -self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
-                    self.voxel_numbers[axis] * self.voxel_size[axis] / 2,
-                )
-                for axis in self.axis
-            ]
-        )
+        # compute range of map in each direction
+        self.voxel_map_range = tuple([
+            (-self.voxel_numbers[axis] * self.voxel_size[axis] / 2, self.voxel_numbers[axis] * self.voxel_size[axis] / 2) 
+            for axis in self.axis])
 
         # compute center of voxels
         voxel_centers = []
         for axis in self.axis:
-            mini = (
-                -self.voxel_numbers[axis] * self.voxel_size[axis] / 2
-                + self.voxel_size[axis] / 2
-            )
-            maxi = +self.voxel_numbers[axis] * self.voxel_size[axis] / 2
+            mini = -self.voxel_numbers[axis] * self.voxel_size[axis] / 2 + self.voxel_size[axis] / 2
+            maxi = self.voxel_numbers[axis] * self.voxel_size[axis] / 2
             voxel_centers.append(np.arange(mini, maxi, step=self.voxel_size[axis]))
             if len(voxel_centers[-1]) != self.voxel_numbers[axis]:
                 print(len(voxel_centers[-1]))
-                raise Exception(
-                    "Something strange appended in the voxel map initialization."
-                )
+                raise Exception("Something strange appended in the voxel map initialization.")
 
         # create the result dataframe
-        data = np.array(
-            [
+        data = np.array([
                 [x, y, z]
                 for x in voxel_centers[0]
                 for y in voxel_centers[1]
@@ -205,9 +191,7 @@ class CorrelationHe2Style(DataBuilder):
             ]:
                 self.result[column] = np.zeros(len(self.result))
 
-    def get_G2(
-        self, atX: pd.DataFrame, atY: pd.DataFrame, local=True, numerator=True
-    ) -> pd.DataFrame:
+    def get_G2(self, atX: pd.DataFrame, atY: pd.DataFrame, local=True, numerator=True) -> pd.DataFrame:
         """Function that compute the 3D velocity difference between all atoms in the crossed atX x atY dataframe (atoms in beam X, Y being A or B).
         If local is True, it computes the difference while if local is False, it computes the sum.
 
@@ -221,7 +205,11 @@ class CorrelationHe2Style(DataBuilder):
                  2        8       0       1019        112       1        9       0       1018
                  1        9       0       1018        112       2        8       0       1019
                  2        8       0       1019        112       2        9       0       1019
-        This dataframe represent ALL the possible atom couple (twice). However, since the operator value we want to compute is a+a+aa, we must delete rows where the left atom is the same than the right atom.
+        This dataframe represent ALL the possible atom couple (twice). However, since the operator value we want to compute is a+a+aa, 
+        we must delete rows where the left atom is the same than the right atom:
+        atXY = "Vx_x", "Vy_x", "Vz_x", "index_x", "Cycle", "Vx_y", "Vy_y", "Vz_y", "index_y",
+                 2        8       0       1019        112       1        9       0       1018
+                 1        9       0       1018        112       2        8       0       1019
         Step 2 consists in computing simply the difference in each axis [Vx, Vy, Vz] and suppress all other columns. With our exemple, we would end up with
         atXY = "Vx"  "Vy"  "Vz"
                 -1     1     0
@@ -252,8 +240,7 @@ class CorrelationHe2Style(DataBuilder):
         if numerator is True:
             atXY = atX.merge(atY, how="outer", on="Cycle")
             # atXY = atX.merge(atY, how="cross") --> not possible with variable cycles
-            atXY.drop(
-                atXY[atXY["index_x"] == atXY["index_y"]].index,
+            atXY.drop(atXY[ atXY["index_x"] == atXY["index_y"] ].index,
                 axis=0,
                 inplace=True,
             )  # suppress identical atoms because a+a+aa is zero when acting on the SAME atom.
@@ -262,20 +249,16 @@ class CorrelationHe2Style(DataBuilder):
                 if local is True:
                     atXY[axis] = atXY[axis + "_x"] - atXY[axis + "_y"]
                 else:
-                    atXY[axis] = (
-                        atXY[axis + "_x"]
-                        + self.cross_correlation_sign[axis] * atXY[axis + "_y"]
-                    )
+                    atXY[axis] = atXY[axis + "_x"] + self.cross_correlation_sign[axis] * atXY[axis + "_y"]
             # STEP 3 : 3D histogram using torch.
             # atXY = atXY.astype(np.float32)
             G2XY, edges = torch.histogramdd(
                 torch.from_numpy(np.array([atXY[ax].to_numpy() for ax in self.axis]).T),
                 bins=list(self.voxel_map_size),
-                range=r,
-            )
+                range=r)
             del atXY
             return G2XY.detach().cpu().numpy()
-        elif numerator is False:
+        else:
             ### === POSSIBILITY 1 : USE TORCH ===
             # STEP 1: create a really really big dataframe of size (big, 3), initialize as empty
             atXY = torch.zeros((len(atX) * len(atY), len(self.axis)))
@@ -308,17 +291,16 @@ class CorrelationHe2Style(DataBuilder):
             return G2XY.detach().cpu().numpy()
 
     def compute_numerator(self):
-        # split cycles into chuncks so the compute does not crash
-        cycles_array_splitted = np.array_split(
-            self.cycles_array, int(self.n_cycles / self.computer_performance)
-        )
+        # split cycles into chuncks so the computer does not crash
+        cycles_array_splitted = np.array_split(self.cycles_array, int(self.n_cycles / self.computer_performance))
+
         # print split number
         # for each chunks of cycles
         for cycles in cycles_array_splitted:
             """Beam A"""
             # get beam cycles in the chunck
             atA = self.atomsA[self.atomsA["Cycle"].isin(cycles)]
-            # compute numerator for G2
+            # compute numerator for local G2
             G2AA = self.get_G2(atA, atA, local=True, numerator=True)
             self.result["G2AA"] += G2AA.flatten()
             """ Beam B """
@@ -326,7 +308,7 @@ class CorrelationHe2Style(DataBuilder):
             if self.only_one_beam is False:
                 # get beam cycles in the chunck
                 atB = self.atomsB[self.atomsB["Cycle"].isin(cycles)]
-                # compute numerator for G2
+                # compute numerator for local G2
                 G2BB = self.get_G2(atB, atB, local=True, numerator=True)
                 self.result["G2BB"] += G2BB.flatten()
                 # compute crossed correlation A & B
@@ -540,9 +522,13 @@ class CorrelationHe2Style(DataBuilder):
             x = self.axis[i]
             y = self.axis[(i + 1) % 3]
             ax = axes[i]
+<<<<<<< HEAD
             sns.histplot(
                 self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.Blues
             )  # , palette = "twilight")
+=======
+            sns.histplot(self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.coolwarm)
+>>>>>>> e045c90 (Comments on correlations and correlations2 files)
 
             def draw_box(cX, σX, cY, σY, **kwargs):
                 ax.plot(
@@ -556,9 +542,7 @@ class CorrelationHe2Style(DataBuilder):
             sizeX = self.beams["A"][x]["size"]
             posY = self.beams["A"][y]["position"]
             sizeY = self.beams["A"][y]["size"]
-            draw_box(
-                posX, sizeX / 2, posY, sizeY / 2, color="darkgreen", label="beam A"
-            )
+            draw_box(posX, sizeX / 2, posY, sizeY / 2, color="darkgreen", label="beam A")
             # draw_box(posX, 3*sizeX / 2, posY, 3*sizeY / 2, color="darkgreen",ls = "--")
             # on affiche la boite 1
             posX = self.beams["B"][x]["position"]
