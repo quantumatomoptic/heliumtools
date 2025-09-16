@@ -24,8 +24,8 @@ class Trap(LinearPotential):
     """Harmonic trapping potential
 
     Args:
-        omegax (Union[float, Callable]): The frequency along the x axis of the harmonic oscillator. It can be set to be either a constant or a function of time.
-        omegay (Union[float, Callable]): The frequency along the y axis of the harmonic oscillator. It can be set to be either a constant or a function of time.
+        omegax (Union[float, Callable]): The frequency along the x axis of the harmonic oscillator in Hz. It can be set to be either a constant or a function of time.
+        omegay (Union[float, Callable]): The frequency along the y axis of the harmonic oscillator in Hz. It can be set to be either a constant or a function of time.
     """
 
     def __init__(self, omegax: Union[float, Callable], omegay: Union[float, Callable]):

@@ -1,10 +1,8 @@
 import sys
 import numpy as np
 import scipy.integrate as integrate
-from tqdm import tqdm, trange
-
-
-import pulses as pulses
+from scipy.interpolate import RegularGridInterpolator
+from tqdm import tqdm
 
 """ Units are mm/ms/kg """
 
@@ -12,11 +10,6 @@ class Bragg:
     
     """   Object initialization  """
     def __init__(self, **kwargs):
-
-        """
-        TODO:
-            1) 
-        """
         
         # dictionary to hold all relevant parameters in mm/ms/kg
         self.par = dict()
@@ -57,7 +50,7 @@ class Bragg:
         self.par["mHe/hbar"] = self.par["mHe"]/self.par["hbar"]
         self.par["Bragg wavevector"] = self.par["mHe/hbar"]*self.par["Bragg velocity"]
         self.par["Bragg recoil frequency"] = np.power(self.par["Bragg wavevector"],2)/(2*self.par["mHe/hbar"])
-        self.par["slope to compensate gravity"] = -self.par["Bragg wavevector"]*self.par["gravity"]
+        self.par["slope to compensate gravity"] = -self.par["Bragg wavevector"]*self.par["gravity"]/(2*np.pi)
         self.par["Phase slope"] = self.par["slope to compensate gravity"]
 
     def frequencyOrderDifference(self,n,v):
@@ -69,60 +62,31 @@ class Bragg:
             order n = 1 and order n = 0.
         v : float
             velocity of the atom in mm/ms units
+        Return 
+        -------------------------------------------
+            The 2*np.pi*frequency difference between diffraction orders
         """
+        # update parameter
+        self.update_parameters()
+
         delta0 = v*self.par["Bragg wavevector"] - self.par["Bragg recoil frequency"]
         return delta0 + 2*n*self.par["Bragg recoil frequency"]
-   
-    def braggPhase(self,t,detuning,slope):
-        """ Time dependent phase of the beams. In the experiment we can only do a linear ramp, so the phase can only be quadratic.
+    
+    def initializePulse(self,t,pulse,phase):
+        """ Function that interpolates the user defined pulse and phase for calculation. After interpolation, we have two functions,
+        self.gpacket(t) and self.braggPhase(t) used for calculation
         Parameters
         -----------------------------------
-        t : numpy array or float
+        t : numpy array
             time in ms
-        detuning : float
-            inital detuning between beams in kHz
-        slope : float
-            slope of the ramp detuning in kHz^2
-        Return
-        ----------------------------------------
-        Phase at time t
-        """
-        return detuning*t + slope*np.power(t,2)/2
-
-    def gpacket(self,t,t1,t2,OmegaM,type,splitter):
-        """ Light pulse function.
-        Parameters
-        ---------------------
-        t : float
-            time in ms
-        t1 : float
-            begining of pulse in ms
-        t2 : float
-            end of pulse in ms. Only used for sinc and square pulses.
-        OmegaM : float
-            2*pi*(Rabi frequency) in kHz.
-        type : str
-            type of pulse to use. Current implement pulses are "square", "sinc" and "reburp"
-        splitter : bool
-            True for sinc in splitter configuration. False otherwise. Only used for "sinc".
-        Return
-        -----------------------
-        Pulse value at time t
+        pulse : numpy array
+            pulse values at time t
+        phase : numpy array
+            phase of the pulse at time t
         """
 
-        # transfrom t to numpy array
-        t = np.array([t],dtype=float)
-        
-        # compute pulse
-        if type == "square":
-            return pulses.SquarePulse(t,t1,t2)[0]       
-        elif type == "sinc":
-            return pulses.SincPulse(t,t1,t2,OmegaM,splitter)[0]
-        elif type == "reburp":
-            return pulses.ReburpPulse(t,t1,OmegaM)[0]
-        else:
-            print("Waring: invalid pulse shape! Setting pulse equal to zero.")
-            return 0.0
+        self.gpacket = RegularGridInterpolator([t],pulse,method = "cubic")
+        self.braggPhase = RegularGridInterpolator([t],phase,method = "cubic")
    
     def evolutionMatrix(self,tau,xi):
         """ Evolution matrix of the differential equation in dimensionless units 
@@ -143,21 +107,16 @@ class Bragg:
 
         Nmax = self.par["diffraction orders"] # number of orders to diffract
         nuR = self.par["Rabi frequency"] # Rabi frequency
-        detuning = self.par["Detuning"] # detuning 
-        slope = self.par["Phase slope"] # slope of frequency sweep
-        t1 = self.par["Pulse beggining"] # beggining of pulse
-        t2 = self.par["Pulse beggining"] + self.par["Pulse duration"] # end of pulse
         kB = self.par["Bragg wavevector"]
         g = self.par["gravity"]
         
         orders = np.arange(-Nmax,Nmax+1) # array with all orders
-        OmegaM = 2*np.pi*nuR
         # compute pulse
-        pulse = self.gpacket(tau/nuR,t1,t2,OmegaM,self.par["Pulse type"],self.par["Splitter"])
+        pulse = self.gpacket([tau/nuR])[0]
 
         # compute pulse phase and phase due to gravity
-        phase = self.braggPhase(tau/nuR,detuning,slope) # pulse phase
-        arg = phase + kB*g/2*np.power(tau/nuR,2)
+        phase = self.braggPhase([tau/nuR])[0] # pulse phase
+        arg = phase + kB*g/2*np.power(tau/nuR,2) # add phase due to gravity
 
         """ compute matrix elements """
 
@@ -210,48 +169,72 @@ class Bragg:
         # compute matrix multiplication
         return -1j*np.einsum('nmk,mk->nk',A,psi)
     
-    def braggSolver(self,tau,xi,psi0):
+    def braggSolver(self,tau_i,tau_f,xi,psi0,saveEvery):
         """ Solve the differential equation for Bragg diffraction 
         Parameters
         ---------------------
-        tau : numpy array
-            dimensionless time at equation is to be solved
+        tau_0 : float
+            dimensionless inital time at equation is to be solved
+        tau_f : float
+            dimensionless final time
         xi : numpy array
             dimensionless momentum values at which matrix is to computed
-        psi0 : wavefunction at inital time tau. psi should have dimension (2*Nmax+1,len(xi)) 
-        where Nmax = self.par["diffraction orders"]
-        the order of psi0 should be -Nmax,-Nmax+1,...,0,...,Nmax+1,Nmax
+        psi0 : 2D-numpy array
+            wavefunction at inital time tau. psi should have dimension (2*Nmax+1,len(xi)) 
+            where Nmax = self.par["diffraction orders"]
+            the order of psi0 should be -Nmax,-Nmax+1,...,0,...,Nmax+1,Nmax
+        saveEvery : float
+            save calculation result of differential equation every saveEvery dimensionless time
         Return
         ------------------------
-        psi at time tau. psi will have dimension (len(tau),2*Nmax+1,len(xi))
+        time : 1D-numpy array
+            array with time values
+        psi : 3D-numpy complex array
+            psi at time time. psi will have dimension (len(time),2*Nmax+1,len(xi))
         the order of psi is -Nmax,-Nmax+1,...,0,...,Nmax+1,Nmax. In other words index zero is -Nmax
         """
 
-        # number of orders to diffract
-        Nmax = self.par["diffraction orders"] 
         # time step to solve differential equation
         step = self.par["time step solver"]*self.par["Rabi frequency"] 
-
-        # create wavefunction
-        psi = np.zeros((len(tau),2*Nmax+1,len(xi)),dtype=complex)
+        # create time array for computation
+        tau = np.arange(tau_i,tau_f+saveEvery,step)
+        # initialize time array to save data
+        time = []
+        # initialize wavefunction
+        psi = []
         
         # add initial time
-        psi[0] = psi0
+        time.append(tau[0])
+        psi.append(psi0)
 
+        # initialize timer
+        timer = 0.0
         # for each time
         for j in tqdm(range(1,len(tau))):
 
+            # increment timer
+            timer = timer + step
+
             # elements evaluation
-            psi1 = step*self.auxFunc(tau[j-1],        xi, psi[j-1])
-            psi2 = step*self.auxFunc(tau[j-1]+step/2, xi, psi[j-1]+psi1/2)
-            psi3 = step*self.auxFunc(tau[j-1]+step/2, xi, psi[j-1]+psi2/2)
-            psi4 = step*self.auxFunc(tau[j-1]+step,   xi, psi[j-1]+psi3)
+            psi1 = step*self.auxFunc(tau[j-1],        xi, psi0)
+            psi2 = step*self.auxFunc(tau[j-1]+step/2, xi, psi0+psi1/2)
+            psi3 = step*self.auxFunc(tau[j-1]+step/2, xi, psi0+psi2/2)
+            psi4 = step*self.auxFunc(tau[j-1]+step,   xi, psi0+psi3)
 
-            psi[j] = psi[j-1] + (psi1 + 2*psi2 + 2*psi3 + psi4)/6
+            # compute wavefunction at time tau[j]
+            psi0 = psi0 + (psi1 + 2*psi2 + 2*psi3 + psi4)/6
 
-        return psi    
+            # save every saveEvery
+            if timer >= saveEvery:
+                # save values
+                time.append(tau[j])
+                psi.append(psi0)
+                # reset timer
+                timer = 0.0
+
+        return np.array(time,dtype = float)/self.par["Rabi frequency"] , np.array(psi,dtype=complex)  
     
-    def compute_psiVelocity(self,t0,tfinal,v,psi0):
+    def compute_psiVelocity(self,t0,tfinal,v,psi0,saveEvery):
         """ Computes all the orders of the wavefunction in velocity space.
         Parameters
         ---------------------
@@ -261,8 +244,11 @@ class Bragg:
             final time in ms 
         v : numpy array
             velocity in mm/ms at which function is computed.
-        psi0 : normalized wavefunction at inital time t0. psi should have dimension (2*Nmax+1,len(v)) 
-        where Nmax = self.par["diffraction orders"]
+        psi0 : 2D-numpy array
+            normalized wavefunction at inital time t0. psi should have dimension (2*Nmax+1,len(v)) 
+            where Nmax = self.par["diffraction orders"]
+        saveEvery : float
+            save calculation result of differential equation every saveEvery ms
         Return
         ------------------------
         t : array
@@ -281,36 +267,43 @@ class Bragg:
         t1 = self.par["Pulse beggining"] # beggining of the pulse 
         t2 = t1 + self.par["Pulse duration"] # end of pulse
 
-        # create time array
-        t = np.arange(t0,t1,self.par["time step propagator"])
-        t = np.concatenate((t,np.arange(t1,t2+self.par["time step solver"],self.par["time step solver"])))
-        t = np.concatenate((t,np.arange(t2+self.par["time step solver"],tfinal,self.par["time step propagator"])))
-
-        # transform time to dimensionless units
-        tau = t*self.par["Rabi frequency"]
-        # transform velocity to dimensionless units
-        xi = self.par["mHe/hbar"]*v/self.par["Bragg wavevector"]
-
-        """ initialize wavefunction """
         # number of orders to diffract
         Nmax = self.par["diffraction orders"] 
-        # initialize psi
-        psi = np.zeros((len(tau),2*Nmax+1,len(v)),dtype=complex)
-        psi[0] = psi0
 
         """ if pulse is not on """
-        mask = (t > t0)*(t < t1)
-        psi[mask] = psi0
+        # create time array
+        time_1 = np.arange(t0,t1,self.par["time step propagator"])
+        # create wavefunction
+        psi_1 = np.zeros((len(time_1),2*Nmax+1,len(v)),dtype=complex)
+        # add initial condition
+        psi_1[:] = psi0
 
         """ if pulse is on we use self.braggSolver() to compute wavefunction """
-        mask = (t >= t1)*(t<= t2)
+        # transform velocity to dimensionless units
+        xi = self.par["mHe/hbar"]*v/self.par["Bragg wavevector"]
+        # compute intial and final times in dimensionless units
+        tau_i = t1*self.par["Rabi frequency"]
+        tau_f = t2*self.par["Rabi frequency"]
         # compute wavefunction when pulse is on
-        psi[mask] = self.braggSolver(tau[mask],xi,psi0)
-        psi0 = psi[mask][-1]
+        time_2 , psi_2 = self.braggSolver(tau_i,tau_f,xi,psi0,saveEvery*self.par["Rabi frequency"])
 
         """ if pulse is not on """
-        mask = (t > t2)*(t<=tfinal)
-        psi[mask] = psi0
+        # create time array
+        time_3 = np.arange(time_2[-1],tfinal+self.par["time step propagator"],self.par["time step propagator"])
+        # create wavefunction
+        psi_3 = np.zeros((len(time_3),2*Nmax+1,len(v)),dtype=complex)
+        # add final condition
+        psi_3[:] = psi_2[-1]
+
+        """ concatenate results """
+        psi = np.concatenate((psi_1,psi_2,psi_3),axis = 0)
+        del psi_1
+        del psi_2
+        del psi_3
+        t = np.concatenate((time_1,time_2,time_3))
+        del time_1
+        del time_2
+        del time_3
 
         return t , psi
 
@@ -326,6 +319,9 @@ class Bragg:
             array with inital wavefunction as function of v at order m.
         m : int
             inital populated order. m should be between [-Nmax,Nmax].
+        Return
+        ------------------------------------
+            Inital wavefunction
         """
         # number of orders to diffract
         Nmax = self.par["diffraction orders"] 
@@ -373,8 +369,7 @@ class Bragg:
         return psi[:,Nmax+m]
     
     def compute_psiSpace(self,psi,time,velocity,position,CP):
-        """
-        Computes the wavefunction in position space, given a psi in velocity space with 
+        """ Computes the wavefunction in position space, given a psi in velocity space with 
         dimensions (len(time),2*Nmax+1,len(velocity)) where Nmax = self.par["diffraction orders"], 
         such that the order of psi is -Nmax,-Nmax+1,...,0,...,Nmax+1,Nmax. 
         This method is also vectorized, but depending on the size psi and position arrays, the calculation may require a lot RAM and
@@ -465,7 +460,7 @@ class Bragg:
                 """ commpute terms of integral """
 
                 # compute phase
-                phase = -omegab/nuR*np.power(xi_N+orders_N,2)*tau_N
+                phase = -omegab/nuR*tau_N*np.power(xi_N+orders_N,2)
                 phase = phase + (g*kb/(2*np.power(nuR,2))*np.power(tau_N,2)+2*np.pi*x_N)*(xi_N+orders_N)
                 # compute argument of integral
                 psi_N = psi_N*np.exp(1j*phase)
@@ -483,57 +478,65 @@ class Bragg:
 
         return psiSpace*np.sqrt(kb/(2*np.pi))
     
+    def saveToFile(self,filename,psi,time,coordinates):
+        """ Saves to file.npy a wavefunction.
+        Parameters
+        ---------------------------------------
+        filename : str
+            name of file
+        psi : 3D-numpy array
+            wavefunction to save.
+        time : 1D-numpy array
+            array with time values
+        coordinates : 1D-numpy array
+            coordinates values at which psi is known
+        """
+
+        with open(filename, 'wb') as f:
+            np.save(f, psi)
+            np.save(f, time)
+            np.save(f, coordinates)
+
+        print("Data saved to file!")
     
-    # delete after testing finished
-    def test(self,tau,xi):
+    def LoafFile(self,filename):
+        """ Loads wavefunction from file.npy.
+        Parameters
+        ---------------------------------------
+        filename : str
+            name of file
+        Return 
+        ---------------------------------------
+        psi : 3D-numpy array
+            wavefunction to save.
+        time : 1D-numpy array
+            array with time values
+        coordinates : 1D-numpy array
+            coordinates values at which psi is known
+        """
 
-        Nmax = self.par["diffraction orders"] # number of orders to diffract
-        nuR = self.par["Rabi frequency"] # Rabi frequency
-        detuning = self.par["Detuning"] # detuning 
-        slope = self.par["Phase slope"] # slope of frequency sweep
-        t1 = self.par["Pulse beggining"] # beggining of pulse
-        t2 = self.par["Pulse beggining"] + self.par["Pulse duration"] # end of pulse
-        kB = self.par["Bragg wavevector"]
-        g = self.par["gravity"]
-        
-        orders = np.arange(-Nmax,Nmax+1) # array with all orders
-        OmegaM = 2*np.pi*nuR
-        # compute pulse
-        pulse = self.Gpacket(tau/nuR,t1,t2,OmegaM,self.par["Pulse type"],self.par["Splitter"])
+        with open(filename, 'rb') as f:
+            psi = np.load(f)
+            time = np.load(f)
+            coordinates = np.load(f)
 
-        # compute pulse phase and phase due to gravity
-        phase = self.BraggPhase(tau/nuR,detuning,slope) # pulse phase
-        arg = phase + kB*g/2*np.power(tau/nuR,2)
+        return psi , time , coordinates
 
-        A = np.zeros((2*Nmax+1,2*Nmax+1,len(xi)),dtype = complex)
-
-        """ compute matrix elements """
-        for n in range(-Nmax,Nmax+1,1):
-            for m in range(-Nmax,Nmax+1,1):
-                for k in range(0,len(xi)):
-                    delta0 = self.par["Bragg recoil frequency"]/nuR*(2*xi[k]-1)
-                    # for diagonal terms
-                    if n == m:
-                        A[n+Nmax,m+Nmax,k] = 2*np.pi*pulse
-                        pass
-                    elif (n-1) == m:
-                        deltan =  delta0 + 2*(m+1)*self.par["Bragg recoil frequency"]/nuR
-                        A[n+Nmax,m+Nmax,k] = np.pi*pulse*np.exp(-1j*(arg-deltan*tau))
-                    elif (n+1) == m:
-                        deltan =  delta0 + 2*m*self.par["Bragg recoil frequency"]/nuR
-                        A[n+Nmax,m+Nmax,k] = np.pi*pulse*np.exp(1j*(arg-deltan*tau))
-                        pass
-                    else:
-                        pass
-
-        return A
-
-
-
-
-
-
-
+    def MemorySize(self,shape):
+        """ Computes the memory size of a complex array 
+        Parameters 
+        ------------------------------------------------
+        shape : ND-array or N-tuple
+            shape of array to compute size
+        Return 
+        ------------------------------------------------
+            size of array in Giga-bytes
+        """
+        # size of a complex number in bytes
+        size = 16.0
+        for i in shape:
+            size = size*i
+        return size/1073741824
 
         
 

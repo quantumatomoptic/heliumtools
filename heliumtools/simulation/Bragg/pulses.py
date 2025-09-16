@@ -86,4 +86,19 @@ def ReburpPulse(t,t1,OmegaM):
     return pulse
     
 
-
+# define a linear phase ramp
+def phaseRamp(t,detuning,slope):
+    """ Time dependent phase of the beams. In the experiment we can only do a linear ramp, so the phase can only be quadratic.
+    Parameters
+    -----------------------------------
+    t : numpy array or float
+        time
+    detuning : float
+        inital detuning between beams. Should have inverse unit of time
+    slope : float
+        slope of the ramp detuning. Should have the square unit of detuning
+    Return
+    ----------------------------------------
+    Phase at time t
+    """
+    return 2*np.pi*(detuning*t + 0.5*slope*np.power(t,2))

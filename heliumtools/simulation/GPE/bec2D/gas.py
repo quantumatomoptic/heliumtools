@@ -15,6 +15,8 @@ UPDATED_PSI = 0
 UPDATED_PSIK = 1
 UPDATED_BOTH = 2
 
+# units of quantities with dimensions are SI units m/s/kg
+
 
 class Gas():
     """Quantum gas.
@@ -24,17 +26,17 @@ class Gas():
     state's wave function via imaginary time propagation.
 
     Args:
-        element (str): Optional. The element the gas is made of. Defaults to "87Rb".
+        element (str): Optional. The element the gas is made of. Defaults to "He*".
         N_particles (int): Optional. The number of particles in the gas. Defaults to :math:`10^6`.
         N_grid (int): Optional. The number of points on each side of the computational grid. Defaults to :math:`2^8`.
-        grid_size (float): Optional. The side of the computational grid. Defaults to :math:`10^{-6}`.
+        grid_size (float): Optional. The side of the computational grid in meters. Defaults to :math:`10^{-6}`.
         device (torch.device or None): Optional. The device where to store tensors. Defaults to None, meaning that GPU will be used if available.
         float_dtype (:py:attr:`torch.dtype`): Optional. The dtype used to represent floating point numbers. Defaults to :py:attr:`torch.double`.
         complex_dtype (:py:attr:`torch.dtype`): Optional. The dtype used to represent complex numbers. Defaults to :py:attr:`torch.complex128`.
-        adimensionalization_length (float): Optional. The unit of length to be used during the simulations. Defaults to :math:`10^{-6}`.
+        adimensionalization_length (float): Optional. The unit of length in meters to be used during the simulations. Defaults to :math:`10^{-6}`.
     """
 
-    def __init__(self, element: str = "87Rb", N_particles: int = int(1e6),
+    def __init__(self, element: str = "He*", N_particles: int = int(1e6),
                  N_grid: int = 2**8, grid_size: float = 1e-6,
                  device: Union[torch.device, None] = None, 
                  float_dtype: torch.dtype = torch.double, 
@@ -325,7 +327,6 @@ class Gas():
             value = value.type(self.complex_dtype)
         self._psik = normalize_wavefunction(value, self.dkx, self.dky)
         self._updated_wavefunction = UPDATED_PSIK
-
 
     @property
     def coordinates(self):
