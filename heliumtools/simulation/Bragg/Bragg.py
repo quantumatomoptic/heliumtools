@@ -4,12 +4,15 @@ import scipy.integrate as integrate
 from scipy.interpolate import RegularGridInterpolator
 from tqdm import tqdm
 
-""" Units are mm/ms/kg """
+""" Units of quantities with dimensions are mm/ms/kg """
 
 class Bragg:
     
     """   Object initialization  """
-    def __init__(self, **kwargs):
+    def __init__(self,vB,**kwargs):
+        """ vB is the Bragg velocity in mm/ms. The class has a dictionary self.par with all relevant parameters 
+        to the experiment and calculation. In case you modify "element A" of self.par, you 
+        can update the elements of self.par that depend on "element A" using the method self.update_parameters() """
         
         # dictionary to hold all relevant parameters in mm/ms/kg
         self.par = dict()
@@ -20,7 +23,7 @@ class Bragg:
         self.par["gravity"] = 9.8067e-3 # mm/ms^2
 
         """ Define experimental lattice parameters in mm/ms/kg units """
-        self.par["Bragg velocity"] = 50e-3 # Bragg velocity
+        self.par["Bragg velocity"] = vB # Bragg velocity
         self.par["Rabi frequency"] = 1 # Rabi frequency
         self.par["Detuning"] = 10.2 # define detuning in kHz
         self.par["Phase slope"] = 0.0 # slope of frequency sweep in kHz/ms
@@ -51,7 +54,6 @@ class Bragg:
         self.par["Bragg wavevector"] = self.par["mHe/hbar"]*self.par["Bragg velocity"]
         self.par["Bragg recoil frequency"] = np.power(self.par["Bragg wavevector"],2)/(2*self.par["mHe/hbar"])
         self.par["slope to compensate gravity"] = -self.par["Bragg wavevector"]*self.par["gravity"]/(2*np.pi)
-        self.par["Phase slope"] = self.par["slope to compensate gravity"]
 
     def frequencyOrderDifference(self,n,v):
         """ Frequency order difference (2 pi factor included) \delta_n = (\epsilon_{n+1} - \epsilon_{n})/hbar
@@ -197,7 +199,7 @@ class Bragg:
         # time step to solve differential equation
         step = self.par["time step solver"]*self.par["Rabi frequency"] 
         # create time array for computation
-        tau = np.arange(tau_i,tau_f+saveEvery,step)
+        tau = np.arange(tau_i,tau_f+step,step)
         # initialize time array to save data
         time = []
         # initialize wavefunction
@@ -231,6 +233,10 @@ class Bragg:
                 psi.append(psi0)
                 # reset timer
                 timer = 0.0
+
+        # append last result of calculation
+        time.append(tau[-1])
+        psi.append(psi0)
 
         return np.array(time,dtype = float)/self.par["Rabi frequency"] , np.array(psi,dtype=complex)  
     
@@ -347,7 +353,7 @@ class Bragg:
                 (len(t),2*Nmax+1,...) or (len(t),2*Nmax+1)
             where Nmax = self.par["diffraction orders"] 
             The order of psi is -Nmax,-Nmax+1,...,0,...,Nmax+1,Nmax. In other words index zero os -Nmax
-        m : float
+        m : int
             order of diffraction to get
         Return
         ------------------------
