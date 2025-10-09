@@ -40,9 +40,9 @@ class Bragg:
         self.par["time step propagator"] = 0.1
         # define time step to solve differential equation in ms when pulse is on
         if self.par["Rabi frequency"] > self.par["Bragg recoil frequency"]:
-            self.par["time step solver"] = 1/(50*self.par["Rabi frequency"])
+            self.par["time step solver"] = 1/(20*self.par["Rabi frequency"])
         else:
-            self.par["time step solver"] = 1/(50*self.par["Bragg recoil frequency"])
+            self.par["time step solver"] = 1/(20*self.par["Bragg recoil frequency"])
         
         self.update_parameters() # update dictionary
         

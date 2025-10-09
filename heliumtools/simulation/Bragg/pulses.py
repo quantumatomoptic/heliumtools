@@ -86,6 +86,18 @@ def ReburpPulse(t,t1,OmegaM):
     return pulse
     
 
+# define train of square pulses
+def TrainPulses(t,t1,t2,Ndiff,duration,PulseDelay):
+    # compute shape
+    rigolShape = np.zeros(len(t),dtype = float)
+    for i in range(0,Ndiff):
+        mask1 = (t >= t1 + i*(duration+PulseDelay))*(t<=t2)
+        mask2 = (t <= t1 + duration + i*(duration+PulseDelay))*(t<=t2)
+        mask = mask1*mask2
+        rigolShape[mask] = 1.0
+    return rigolShape
+
+
 # define a linear phase ramp
 def phaseRamp(t,detuning,slope):
     """ Time dependent phase of the beams. In the experiment we can only do a linear ramp, so the phase can only be quadratic.
