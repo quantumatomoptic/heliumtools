@@ -1,15 +1,24 @@
+# ----------------------------------
+# Created on the 09/2025 by Rui
+#
+# Copyright (c) 2025 - Helium1@LCF
+# ----------------------------------
+#
+
 import sys
 import numpy as np
 import scipy.integrate as integrate
 from scipy.interpolate import RegularGridInterpolator
 from tqdm import tqdm
 
-""" Units of quantities with dimensions are mm/ms/kg """
+""" Units of quantities with dimensions are mm/ms/kg.
+
+We use Runge-kutta 4th order to solve the differential equation. """
 
 class Bragg:
     
     """   Object initialization  """
-    def __init__(self,vB,**kwargs):
+    def __init__(self,vB):
         """ vB is the Bragg velocity in mm/ms. The class has a dictionary self.par with all relevant parameters 
         to the experiment and calculation. In case you modify "element A" of self.par, you 
         can update the elements of self.par that depend on "element A" using the method self.update_parameters() """
@@ -26,11 +35,8 @@ class Bragg:
         self.par["Bragg velocity"] = vB # Bragg velocity
         self.par["Rabi frequency"] = 1 # Rabi frequency
         self.par["Detuning"] = 10.2 # define detuning in kHz
-        self.par["Phase slope"] = 0.0 # slope of frequency sweep in kHz/ms
         self.par["Pulse beggining"] = 0.0 # beggining of the pulse 
         self.par["Pulse duration"] = 1 # duration of the pulse
-        self.par["Pulse type"] = "reburp" # type of pulse
-        self.par["Splitter"] = True # In case you choose a sinc, you if want splitter configuration
         self.update_parameters() # update dictionary
         
         """ Define calculation parameters """
@@ -39,10 +45,13 @@ class Bragg:
         # define propagation step when pulse is not on
         self.par["time step propagator"] = 0.1
         # define time step to solve differential equation in ms when pulse is on
-        if self.par["Rabi frequency"] > self.par["Bragg recoil frequency"]:
+        if self.par["Rabi frequency"] > self.par["Bragg recoil frequency"]/(2*np.pi):
             self.par["time step solver"] = 1/(20*self.par["Rabi frequency"])
         else:
-            self.par["time step solver"] = 1/(20*self.par["Bragg recoil frequency"])
+            self.par["time step solver"] = 1/(20*self.par["Bragg recoil frequency"]/(2*np.pi))
+
+        """ atribute to turn on or off tqdm bar """
+        self.tqdm = False
         
         self.update_parameters() # update dictionary
         
@@ -53,7 +62,7 @@ class Bragg:
         self.par["mHe/hbar"] = self.par["mHe"]/self.par["hbar"]
         self.par["Bragg wavevector"] = self.par["mHe/hbar"]*self.par["Bragg velocity"]
         self.par["Bragg recoil frequency"] = np.power(self.par["Bragg wavevector"],2)/(2*self.par["mHe/hbar"])
-        self.par["slope to compensate gravity"] = -self.par["Bragg wavevector"]*self.par["gravity"]/(2*np.pi)
+        self.par["Frequency slope to compensate gravity"] = -self.par["Bragg wavevector"]*self.par["gravity"]/(2*np.pi)
 
     def frequencyOrderDifference(self,n,v):
         """ Frequency order difference (2 pi factor included) \delta_n = (\epsilon_{n+1} - \epsilon_{n})/hbar
@@ -212,7 +221,7 @@ class Bragg:
         # initialize timer
         timer = 0.0
         # for each time
-        for j in tqdm(range(1,len(tau))):
+        for j in tqdm(range(1,len(tau)),disable = self.tqdm):
 
             # increment timer
             timer = timer + step
@@ -443,7 +452,7 @@ class Bragg:
 
         # for each tau subarray
         min = 0
-        for a in tqdm(range(0,len(tauLists))):
+        for a in tqdm(range(0,len(tauLists)),disable = self.tqdm):
             # for each x subarray
             xMin = 0
             for p in range(0,len(xLists)):
