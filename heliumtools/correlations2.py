@@ -522,7 +522,14 @@ class CorrelationHe2Style(DataBuilder):
             x = self.axis[i]
             y = self.axis[(i + 1) % 3]
             ax = axes[i]
+<<<<<<< HEAD
 
+=======
+            sns.histplot(
+                self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.Blues
+            )  # , palette = "twilight")
+            sns.histplot(self.atoms, x=x, y=y, ax=axes[i], cbar=False, cmap=plt.cm.coolwarm)
+>>>>>>> 24c0758 (Save before pulling changes)
             def draw_box(cX, σX, cY, σY, **kwargs):
                 ax.plot(
                     [cX - σX, cX + σX, cX + σX, cX - σX, cX - σX],
