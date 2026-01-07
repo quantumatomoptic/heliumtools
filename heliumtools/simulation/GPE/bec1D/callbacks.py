@@ -108,7 +108,7 @@ class L1Norm(Callback):
 
     .. math::
 
-        L_1 = \sum_{(x,y)}|\Psi_t - \Psi_{t+\\Delta t}| \, dx \, dy
+        L_1 = \sum_{(x,y)}|\Psi_t - \Psi_{t+\\Delta t}| \, dx 
 
     Args:
         compute_every (int): Optional. The number of epochs after which the norm is computed. Defaults to 1.
@@ -148,7 +148,7 @@ class L1Norm(Callback):
         psi = self.gas.psi
 
         self.norms.append((torch.sum(torch.abs(psi-self.psi))
-                          * self.gas.dx*self.gas.dy).cpu())
+                          * self.gas.dx).cpu())
         del self.psi
 
         if epoch % self.print_every == 0:
@@ -162,7 +162,7 @@ class L2Norm(Callback):
 
     .. math::
 
-        L_2 = \sqrt{\sum_{(x,y)}|\Psi_t - \Psi_{t+\\Delta t}|^2 \, dx \, dy}
+        L_2 = \sqrt{\sum_{(x,y)}|\Psi_t - \Psi_{t+\\Delta t}|^2 \, dx}
 
     Args:
         compute_every (int): Optional. The number of epochs after which the norm is computed. Defaults to 1.
@@ -201,7 +201,7 @@ class L2Norm(Callback):
         psi = self.gas.psi
 
         self.norms.append(torch.sqrt(
-            torch.sum(torch.abs(psi-self.psi)**2)*self.gas.dx*self.gas.dy).cpu())
+            torch.sum(torch.abs(psi-self.psi)**2)*self.gas.dx).cpu())
         del self.psi
 
         if epoch % self.print_every == 0:
@@ -222,6 +222,7 @@ class BecEvolution(Callback):
         super().__init__()
         #: list: A list of the computed norms
         self.norms = []
+        self.normsk = []
         self.compute_every = compute_every
         self.print_every = print_every
 
@@ -233,8 +234,6 @@ class BecEvolution(Callback):
         """
         if epoch % self.compute_every != 0:
             return
-
-        self.psi = self.gas.psi
 
     def on_epoch_end(self, epoch: int):
         """At the end of an epoch, if its number is a multiple of ``compute_every`` uses the stored wave function of the gas to compute 
@@ -248,9 +247,7 @@ class BecEvolution(Callback):
             return
 
         psi = self.gas.psi
+        psik = self.gas.psik
 
         self.norms.append(torch.real(psi*torch.conj(psi)).cpu())
-        del self.psi
-
-        #if epoch % self.print_every == 0:
-        #    print(self.norms[-1])
+        self.normsk.append(torch.real(psik*torch.conj(psik)).cpu())

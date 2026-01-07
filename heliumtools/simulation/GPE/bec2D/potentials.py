@@ -42,7 +42,7 @@ class Trap(LinearPotential):
         self._omegay = time_dependent_variable(self.omegay)
 
     def get_potential(self, X: torch.tensor, Y: torch.tensor, time: float = None):
-        return 2*(np.pi/self.gas.adim_pulse)**2*((self._omegax(time)*X)**2+(self._omegay(time)*Y)**2)
+        return 0.5*(1/self.gas.adim_pulse)**2*((self._omegax(time)*X)**2+(self._omegay(time)*Y)**2)
 
 
 class Lattice(LinearPotential):
