@@ -2,6 +2,7 @@ import os , glob , json
 from flatten_dict import flatten, reducers
 from tqdm import tqdm
 import pandas as pd
+from heliumtools.misc.gather_data import load_dictionary_metadata
 
 
 # gets all filepaths for files with picoscope raw data
@@ -25,6 +26,9 @@ def gatherRawFiles(folder,sequences,picoscope):
     # if we want the data from picosope 2000
     elif picoscope == "picoscope 2000":
         extension = "*.picoscope2000_raw_data"
+    # if we want piscoscope 2000 phase
+    elif picoscope == "picoscope 2000 phase":
+        extension = "*.picoscope2000phase_raw_data"
     # else picoscope is not implemented
     else:
         print("Picoscope you ask for is not implemented!")
@@ -33,7 +37,7 @@ def gatherRawFiles(folder,sequences,picoscope):
     # Iterate over each sequence and collect filepaths
     files = []
     for seq in sequences:
-        filepaths = glob.glob(os.path.join(folder, seq, extension))
+        filepaths = sorted(glob.glob(os.path.join(folder, seq, extension)))
         files.extend(filepaths)
     
     return files
@@ -80,9 +84,11 @@ def loadSeqParameters(folder,sequences):
         for file in tqdm(filepaths):
             # load dictionary
             df = load_dictionary_metadata(file)
-            # add cycle id to dictionary
+            # add cycle number to dictionary
             df["cycle"] = int(df["cycle prefix"].split("/")[-1].split("_")[-1])
-            df["cycle id"] = df["cycle"] + counter
+            # add cycle id
+            df["cycle id"] = getCycleId(file)
+            # add sequence number
             df["sequence number"] = int(df["sequence number"])
             # transform to pandas dataframe
             df = pd.DataFrame(df , index = [0])
@@ -94,32 +100,38 @@ def loadSeqParameters(folder,sequences):
     return metadata.sort_values(by = "cycle id").reset_index().drop(columns= ["sequence parameter path","scan parameter path","sequence folder","index"])
 
 
-def load_dictionary_metadata(file, key_separator = " | ", show_error = True) -> dict:
-    """load a dictionary from file, flatten it with separator and returns
-
+# given image file path it retrieves the cycle id in the json file
+def getCycleId(file):
+    """ Given image file path it retrieves the cycle id in the json file.
+    ---------------------------------------
     Parameters
-    ----------
-    file : string or pathlib path
-        path to the file you want to load
-    key_separator : str, optional
-        _description_, by default " | "
-
-    Returns
-    -------
-    dict
-        flatten dictionary from file
+        file : str
+        path to file image
+    ---------------------------------------
+    Return 
+        cycle id from json file
     """
-    try:
-        f = open(file)
-        data = json.load(f)
-        reducer = reducers.make_reducer(delimiter=key_separator)
-        data = flatten(data, reducer=reducer)
-        return data
-    except Exception as e:
-        msg = f"{__file__}"
-        msg += " \n     from load_dictionary_metadata \n "
-        msg += f"Loading dictionary from {file} failed. Are you sure "
-        msg += f"the file you want to load is a dictionnary-like file ? Error is {e}."
-        if show_error:
-            log.error(msg)
-    return {}
+    # replace extension to json
+    file = file.split(".")[0]+".json"
+    # open json file
+    with open(file, 'r') as f:
+        array = json.load(f)
+    # choose cycle id element
+    array = array[2]
+    return array["value"]
+
+# Gets sequence parameters for a particular file image
+def getSequenceParameters(file):
+    """ Gets sequence parameters for a particular file image.
+    ---------------------------------------
+    Parameters
+        file : str
+        path to file image
+    ---------------------------------------
+    Return 
+        dictionary with metadata
+    """
+    # replace extension
+    file = file.split(".")[0]+".sequence_parameters"
+    # return metadata
+    return load_dictionary_metadata(file)

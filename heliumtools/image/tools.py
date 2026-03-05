@@ -1,9 +1,12 @@
 from PIL import Image
 import numpy as np
 import scipy.optimize as opt
+import pandas as pd
 import os , glob , json
 from flatten_dict import flatten, reducers
 from tqdm import tqdm
+from heliumtools.misc.gather_data import load_dictionary_metadata
+
 
 """ Define functions to load and manipulate images """
 
@@ -22,6 +25,7 @@ def ImageToArray(image):
     img = Image.open(image)
     # return 2D numpy array
     return np.asarray(img)
+
 
 # Fits a 2D numpy array
 def FitImage(func,x,y,image,guess):
@@ -58,11 +62,12 @@ def FitImage(func,x,y,image,guess):
     image = image.flatten()
 
     # try to fit
+    guess = np.array(guess)
     try:
         popt , pcov = opt.curve_fit(func,xy_stack,image,p0=guess)
     except:
-        print("Fit failed!")
-        popt = guess
+        print("Fit failed! Max amplitude = "+str(np.amax(image)))
+        popt = guess*np.nan
         pcov = []
 
     return popt , pcov
@@ -122,7 +127,7 @@ def gatherImages(folder,sequences):
     # Iterate over each sequence and collect filepaths
     files = []
     for seq in sequences:
-        filepaths = glob.glob(os.path.join(folder, seq, extension))
+        filepaths = sorted(glob.glob(os.path.join(folder, seq, extension)))
         files.extend(filepaths)
     
     return files
@@ -156,9 +161,11 @@ def loadSeqParameters(folder,sequences):
         for file in tqdm(filepaths):
             # load dictionary
             df = load_dictionary_metadata(file)
-            # add cycle id to dictionary
+            # add cycle number to dictionary
             df["cycle"] = int(df["cycle prefix"].split("/")[-1].split("_")[-1])
-            df["cycle id"] = df["cycle"] + counter
+            # add cycle id
+            df["cycle id"] = getCycleId(file)
+            # add sequence number
             df["sequence number"] = int(df["sequence number"])
             # transform to pandas dataframe
             df = pd.DataFrame(df , index = [0])
@@ -168,6 +175,43 @@ def loadSeqParameters(folder,sequences):
         counter = counter + len(filepaths) + 1
     
     return metadata.sort_values(by = "cycle id").reset_index().drop(columns= ["sequence parameter path","scan parameter path","sequence folder","index"])
+
+
+# given image file path it retrieves the cycle id in the json file
+def getCycleId(file):
+    """ Given image file path it retrieves the cycle id in the json file.
+    ---------------------------------------
+    Parameters
+        file : str
+        path to file image
+    ---------------------------------------
+    Return 
+        cycle id from json file
+    """
+    # replace extension to json
+    file = file.split(".")[0]+".json"
+    # open json file
+    with open(file, 'r') as f:
+        array = json.load(f)
+    # choose cycle id element
+    array = array[2]
+    return array["value"]
+
+# Gets sequence parameters for a particular file image
+def getSequenceParameters(file):
+    """ Gets sequence parameters for a particular file image.
+    ---------------------------------------
+    Parameters
+        file : str
+        path to file image
+    ---------------------------------------
+    Return 
+        dictionary with metadata
+    """
+    # replace extension
+    file = file.split(".")[0]+".sequence_parameters"
+    # return metadata
+    return load_dictionary_metadata(file)
 
 
 """ Define usefull fit functions for imaging """

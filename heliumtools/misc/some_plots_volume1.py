@@ -385,9 +385,7 @@ def show_2D_density_XY_with_fit(corr, roi1={"Vz": [-10, -40]}, roi2={"Vz": [10, 
     plt.show()
 
 
-def oneD_density_fitted_plot(
-    corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30], mode_volume = 1*10*10
-):
+def oneD_density_fitted_plot(corr, miniVz=20, maxiVz=35, vperp_list=[10, 20, 30]):
     """ Plot the 1D density of pairs along z.
 
     Parameters
@@ -399,14 +397,10 @@ def oneD_density_fitted_plot(
         maximum speed for pair position fit, by default 35
     vperp_list : list, optional
         list of transverse velocities for display, by default [10, 20, 30]
-    mode_volume : float
-        volume of a mode in (mm/s)^3
     Returns
     -------
     None
     """
-    miniVz = 18
-    maxiVz = 35
 
     peak1 = [-maxiVz, -miniVz]
     peak2 = [miniVz, maxiVz]
@@ -418,7 +412,7 @@ def oneD_density_fitted_plot(
     #### Figure of the average number of atoms per box:
     total_df = []
     corr.define_variable1(
-        box = "1", axe = "Vz", type = "position", name = "Vz", min = -40, max = 40, step = boxZsize
+        box = "1", axe = "Vz", type = "position", name = "Vz", min = -maxiVz, max = maxiVz, step = boxZsize
     )
 
     fig, ax = plt.subplots(figsize=(4.3, 3.9), dpi=110)
@@ -430,7 +424,7 @@ def oneD_density_fitted_plot(
             "Vy": {"size": vperp_max, "position": 0},
         }
         atoms = corr.get_atoms_in_box(corr.atoms, my_box)
-        hist, bins = np.histogram(atoms["Vz"], bins=np.arange(-40, 40, boxZsize))
+        hist, bins = np.histogram(atoms["Vz"], bins=np.arange(-maxiVz, maxiVz, boxZsize))
         x = (bins[0:-1] + bins[1:]) / 2
         ax.scatter(
             x,
