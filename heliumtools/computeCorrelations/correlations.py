@@ -28,8 +28,8 @@ import matplotlib.cm as cm
 import matplotlib.colors as colors
 import time
 import logging
-from .data_builder import DataBuilder
 
+from .data_builder import DataBuilder
 from heliumtools.misc.gather_data import apply_ROI, apply_ROD
 from heliumtools.misc.logger import getLogger
 
@@ -56,7 +56,7 @@ class Correlation(DataBuilder):
     Other attributs
     --------------------
     boxes : dictionary giving position and size of boxes 1 and 2 for correlations.
-        Forme : { "1": {"Vx": {"size": 10, "position": 0},
+        boxes  = { "1": {"Vx": {"size": 10, "position": 0},
                         "Vy": {"size": 3, "position": 0},
                         "Vz": {"size": 0.9, "position": 56},   },
                 "2": {  "Vx": {"size": 10, "position": 0},
@@ -79,7 +79,7 @@ class Correlation(DataBuilder):
 
     round_decimal : it turned out (LabJournal of 05/24/2022) that python does some weird rounding when it calculates Vz1 + Vz2:
                     I therefore round all the numbers concerning Vz1 and Vz2 (or rather the self.var1.name variables) to the decimal place
-                    round_decimal (default 5) (--> see the copute_result method)
+                    round_decimal (default 5) (--> see the compute_result method)
 
 
     Some Methods
@@ -102,18 +102,9 @@ class Correlation(DataBuilder):
         self.var1 = None
         self.var2 = None
         self.round_decimal = 7
-        self.boxes = {
-            "1": {
-                "Vx": {"size": 10, "position": 0},
-                "Vy": {"size": 3, "position": 0},
-                "Vz": {"size": 0.9, "position": 56},
-            },
-            "2": {
-                "Vx": {"size": 10, "position": 0},
-                "Vy": {"size": 3, "position": 0},
-                "Vz": {"size": 0.9, "position": 130},
-            },
-        }
+        self.boxes = {"1": {"Vx": {"size": 10, "position": 0},"Vy": {"size": 3, "position": 0},"Vz": {"size": 0.9, "position": 56},},
+                      "2": {"Vx": {"size": 10, "position": 0},"Vy": {"size": 3, "position": 0},"Vz": {"size": 0.9, "position": 130}}}
+        
         self.is_there_a_copy_of_total = False
         self.remove_shot_noise = True
         self.__dict__.update(kwargs)
@@ -236,15 +227,12 @@ class Correlation(DataBuilder):
                 column_name (ex: "N1"): with the number of atoms in the box
                 var.name (ex: "ΔVx"): with the value of the position/size of the box.
         """
-        # We go through the different values ​​of the Variable var (tqdm --> waiting bar)
-        # for i in tqdm(range(var.n_step), desc="Gathering {}".format(var.name)):
+        # We go through the different values ​​of the Variable var
         for i in range(var.n_step):
             # We change the box according to the i-th value of var
             box[var.axe][var.type] = var.get_value_i(i)
             # We retrieve the dataframe with the number of atoms in the box at each cycle
-            dataframe = self.obtain_number_of_atoms_per_cycle_in_box(
-                df, box, column_name=column_name
-            )
+            dataframe = self.obtain_number_of_atoms_per_cycle_in_box(df, box, column_name=column_name)
             dataframe[var.name] = var.get_value_i(i)
             # We add the column with the variable value
             if i == 0:
@@ -260,19 +248,13 @@ class Correlation(DataBuilder):
     ###########################################################
     def compute_correlations(self):
         """
-
         This function computes the correlations and manages the different scanning scenarios.
-
         """
 
         # Case 1: we do not scan any parameters, we just want the correlation between two boxes.
         if (self.var1 == None) and (self.var2 == None):
-            atoms_box1 = self.obtain_number_of_atoms_per_cycle_in_box(
-                self.atoms, self.boxes["1"], column_name="N_1"
-            )
-            atoms_box2 = self.obtain_number_of_atoms_per_cycle_in_box(
-                self.atoms, self.boxes["2"], column_name="N_2"
-            )
+            atoms_box1 = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms, self.boxes["1"], column_name="N_1")
+            atoms_box2 = self.obtain_number_of_atoms_per_cycle_in_box(self.atoms, self.boxes["2"], column_name="N_2")
             total_atoms = self.merge_dataframe_on_cycles(atoms_box1, atoms_box2)
             self.total = total_atoms
             corr_names = self.quantity_of_interest()
@@ -306,16 +288,13 @@ class Correlation(DataBuilder):
         """
         boxes = ["1", "2"]
         if self.var1.box not in boxes:
-            print(
-                f"[ERROR] : the var1 box is neither '1' nor '2' but {self.var1.box } "
-            )
+            print(f"[ERROR] : the var1 box is neither '1' nor '2' but {self.var1.box } ")
             return
         boxes.remove(self.var1.box)
         box_not_scanned = boxes[0]
         # The following is a dataframe with only two column wich are the number of atom in the box that is not scanned
         atom_beam_not_scanned = self.obtain_number_of_atoms_per_cycle_in_box(
-            self.atoms, self.boxes[box_not_scanned], column_name="N_" + box_not_scanned
-        )
+            self.atoms, self.boxes[box_not_scanned], column_name="N_" + box_not_scanned)
         result_var_list = []
         for i in range(self.var1.n_step):
             # We must set the new value for the box which is scanned :
@@ -340,27 +319,27 @@ class Correlation(DataBuilder):
     def compute_correlations_different_box_scanned(self):
         """
         Method for calculating correlations when var1 and var2 (the scanned parameters) correspond to two different boxes.
-        """
-
-        """ To understand the algorithm consider the example: we want the correlation map in the Vz direction for both pairs, that is 
+         
+        To understand the algorithm consider the example: we want the correlation map in the Vz direction for both pairs, that is 
         determine g^(2)(Vz1 , Vz2). In this case, the scanned variable is Vz, that is we create several boxes in Vz, for both beams in the
         pairs, and cound the number of atoms in each box. Notice however, that the scanned variable can be Vx, for example, and they do not
-        need to be the same for both beams, e.g, for va1 the scanned variable can be Vz and for var2 the scanned varibale can be Vx. """
+        need to be the same for both beams, e.g, for va1 the scanned variable can be Vz and for var2 the scanned varibale can be Vx. 
+        """
 
         """ STEP 1: we retrieve the number of atoms in the boxes associated with var1 and var2. """
 
         # Let's say that intuitively, var1 corresponds to box 1 and var2 to box 2 but this is not necessary in the code.
 
-        # We start with var1. We start by retriving all atoms present in the box transverse to the scanned direction.
-        # E.g if Vz is the scanned direction, then we collect all atoms in the transverse (Vx,Vy) box defined in var1
+        # We start with var1. We start by retriving all atoms present in the transverse box to the scanned direction.
+        # E.g if Vz is the scanned direction, then we collect all atoms in the transverse box (Vx,Vy)
         # This lightens the calculation.
 
         # create copy of box defined in var1
         box = self.boxes[self.var1.box].copy()
         # remove the scanned axis of the box, e.g Vz
-        posi_and_size = box.pop(self.var1.axe)
+        scan = box.pop(self.var1.axe)
         # create scanned box
-        scanned_box = {self.var1.axe: posi_and_size}
+        scanned_box = {self.var1.axe: scan}
 
         # Now we have two boxes:
         # scanned_box -> corresponds to the scanned direction var1.axe, e.g Vz.
@@ -374,9 +353,7 @@ class Correlation(DataBuilder):
         # The return is result_var1 which is a dataframe with the number of atoms in each small box at each cycle.
         # result_var1 has 3 columns with headers "Cycle", "N_i" with i = 1 or 2 depending on the box and the name of the scanned variable e.g. "ΔVz".
         # See the documentation of counts_atoms_in_boxes_one_variable for more details.
-        result_var1 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box
-        )
+        result_var1 = self.counts_atoms_in_boxes_one_variable(df_atoms_var1, self.var1, scanned_box, column_name="N_" + self.var1.box)
 
         ## check 21 of may:
         column_name = "N_" + self.var1.box
@@ -388,15 +365,13 @@ class Correlation(DataBuilder):
         # create copy of box defined in var2
         box = self.boxes[self.var2.box].copy()
         # remove the scanned axis of the box
-        posi_and_size = box.pop(self.var2.axe)
+        scan = box.pop(self.var2.axe)
         # create scanned box
-        scanned_box = {self.var2.axe: posi_and_size}
+        scanned_box = {self.var2.axe: scan}
         # get all atoms that are inside the transverse box
         df_atoms_var2 = self.get_atoms_in_box(self.atoms, box)
         # split scanned direction into several small boxes and count the number of atoms in each box.
-        result_var2 = self.counts_atoms_in_boxes_one_variable(
-            df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box
-        )
+        result_var2 = self.counts_atoms_in_boxes_one_variable(df_atoms_var2, self.var2, scanned_box, column_name="N_" + self.var2.box)
 
         column_name = "N_" + self.var2.box
         df = result_var2[result_var2[column_name] < 0]
@@ -405,7 +380,8 @@ class Correlation(DataBuilder):
 
         """ STEP2: merge dataframes """
 
-        # We build the total dataframe, which initially contains 5 columns: Cycle, N_1 and N_2 (the number of atoms in box 1 and 2) and self.var1 and self.var2 (the position/size of the boxes during the scan).
+        # We build the total dataframe, which initially contains 5 columns: Cycle, N_1 and N_2 (the number of atoms in box 1 and 2) 
+        # and self.var1 and self.var2 (the position/size of the boxes during the scan).
         # The number of rows in total is therefore (Number_of_cycles) * (Number_of_different_var1) * (Number_of_different_var2).
 
         total = pd.merge(result_var1, result_var2, on="Cycle")
@@ -615,9 +591,7 @@ class Correlation(DataBuilder):
         total[":N_1**2:"] = total["N_1"] ** 2 - total["N_1"]
         total["N_2**2"] = total["N_2"] ** 2
         total[":N_2**2:"] = total["N_2"] ** 2 - total["N_2"]
-        total[":N_1^2xN_2^2:"] = (
-            total["N_1"] * (total["N_1"] - 1) * total["N_2"] * (total["N_2"] - 1)
-        )
+        total[":N_1^2xN_2^2:"] = total["N_1"] * (total["N_1"] - 1) * total["N_2"] * (total["N_2"] - 1)
         total["N_1-N_2"] = total["N_1"] - total["N_2"]
         total["(N_1-N_2)^2"] = (total["N_1"] - total["N_2"]) ** 2
         total["N_1+N_2"] = total["N_1"] + total["N_2"]
@@ -642,9 +616,7 @@ class Correlation(DataBuilder):
         self.total = total
 
         # we average the data over the cycles (we therefore group them by different values ​​of var1 and var2)
-        self.result = total.groupby(
-            [self.var1.name, self.var2.name], as_index=False
-        ).mean()
+        self.result = total.groupby([self.var1.name, self.var2.name], as_index=False).mean()
         column_name = "N_1*N_2"
         df = self.result[self.result[column_name] < 0]
         if len(df) > 1:
@@ -656,12 +628,8 @@ class Correlation(DataBuilder):
         # ---------------
         # Variance
         # ---------------
-        self.result["variance"] = (
-            self.result["(N_1-N_2)^2"] - self.result["N_1-N_2"] ** 2
-        )
-        self.result["normalized variance"] = self.result["variance"] / (
-            self.result["N_1"] + self.result["N_2"]
-        )
+        self.result["variance"] = self.result["(N_1-N_2)^2"] - self.result["N_1-N_2"] ** 2
+        self.result["normalized variance"] = self.result["variance"] / (self.result["N_1"] + self.result["N_2"])
 
         # ---------------
         # Calculate average density <N1><N2Z
@@ -671,36 +639,24 @@ class Correlation(DataBuilder):
         # ---------------
         # Calculate g^2
         # ---------------
-        self.result["g^2"] = self.result["N_1*N_2"] / (
-            self.result["N_1"] * self.result["N_2"]
-        )
+        self.result["g^2"] = self.result["N_1*N_2"] / (self.result["N_1"] * self.result["N_2"])
 
         # -----------------------------------------
         # Calculs de delta, Parentani's criterion
         # -----------------------------------------
-        self.result["Delta"] = (
-            -self.result["N_1*N_2"] / 2 + self.result["N_1"] * self.result["N_2"]
-        )
+        self.result["Delta"] = -self.result["N_1*N_2"] / 2 + self.result["N_1"] * self.result["N_2"]
         self.result["-Delta"] = -self.result["Delta"]
 
         # ---------------
         # Calculation of g^4
         # ---------------
-        self.result["g^4"] = self.result[":N_1^2xN_2^2:"] / (
-            self.result["N_1"] ** 2 * self.result["N_2"] ** 2
-        )
-        self.result["g^4 mini"] = (
-            16 * self.result["g^2"] + 4 * (self.result["g^2"] - 1) ** 2 - 12
-        )
-        self.result["g^4 maxi"] = (
-            16 * self.result["g^2"] + 6 * (self.result["g^2"] - 1) ** 2 - 12
-        )
+        self.result["g^4"] = self.result[":N_1^2xN_2^2:"] / (self.result["N_1"] ** 2 * self.result["N_2"] ** 2)
+        self.result["g^4 mini"] = (16 * self.result["g^2"] + 4 * (self.result["g^2"] - 1) ** 2 - 12)
+        self.result["g^4 maxi"] = (16 * self.result["g^2"] + 6 * (self.result["g^2"] - 1) ** 2 - 12)
         g2 = self.result["g^2"]
         g4 = self.result["g^4"]
         # Calcul de theta, as defined in Gondret et al, Gaussian FCS, (2025)
-        self.result["theta_g^4"] = (g4 - (16 * g2 + 4 * (g2 - 1) ** 2 - 12)) / (
-            2 * (g2 - 1) ** 2
-        )
+        self.result["theta_g^4"] = (g4 - (16 * g2 + 4 * (g2 - 1) ** 2 - 12)) / (2 * (g2 - 1) ** 2)
 
         # ---------------
         # Calculs de corrélations locales
@@ -711,24 +667,14 @@ class Correlation(DataBuilder):
         # ---------------
         # Cauchy-Schwarz inequality
         # ---------------
-        self.result["C-S"] = self.result["N_1*N_2"] / np.sqrt(
-            (self.result["N_1**2"] - self.result["N_1"])
-            * (self.result["N_2**2"] - self.result["N_2"])
-        )
+        self.result["C-S"] = self.result["N_1*N_2"] / np.sqrt((self.result["N_1**2"] - self.result["N_1"])* (self.result["N_2**2"] - self.result["N_2"]))
 
-        self.result["C-S difference"] = self.result["N_1*N_2"] - np.sqrt(
-            (self.result["N_1**2"] - self.result["N_1"])
-            * (self.result["N_2**2"] - self.result["N_2"])
-        )
+        self.result["C-S difference"] = self.result["N_1*N_2"] - np.sqrt((self.result["N_1**2"] - self.result["N_1"])* (self.result["N_2**2"] - self.result["N_2"]))
 
         self.result["G^2(k1,k1)"] = self.result["N_1**2"] - self.result["N_1"]
         self.result["G^2(k2,k2)"] = self.result["N_2**2"] - self.result["N_2"]
-        self.result["g^2(k1,k1)"] = (
-            self.result["N_1**2"] - self.result["N_1"]
-        ) / self.result["N_1"] ** 2
-        self.result["g^2(k2,k2)"] = (
-            self.result["N_2**2"] - self.result["N_2"]
-        ) / self.result["N_2"] ** 2
+        self.result["g^2(k1,k1)"] = (self.result["N_1**2"] - self.result["N_1"]) / self.result["N_1"] ** 2
+        self.result["g^2(k2,k2)"] = (self.result["N_2**2"] - self.result["N_2"]) / self.result["N_2"] ** 2
         # we remove the shot noise if requested by the user.
         if self.remove_shot_noise:
             if self.var1.type == "position":
@@ -765,12 +711,8 @@ class Correlation(DataBuilder):
                     #         "[WARNING] Shot Noise has not been taken off weird because boxes do not have the same size. Please be carefull when delaing with local correlations !"
                     #     )
                 else:
-                    self.result.loc[local_condition, "g^2"] = (
-                        self.result["N_1*N_2"] - self.result["N_1"]
-                    ) / (self.result["N_1"] * self.result["N_2"])
-                    self.result.loc[local_condition, "N_1*N_2"] = (
-                        self.result["N_1*N_2"] - self.result["N_1"]
-                    )
+                    self.result.loc[local_condition, "g^2"] = (self.result["N_1*N_2"] - self.result["N_1"]) / (self.result["N_1"] * self.result["N_2"])
+                    self.result.loc[local_condition, "N_1*N_2"] = self.result["N_1*N_2"] - self.result["N_1"]
                     ## Recompute Cauchy-Schwarz
                     self.result["C-S"] = self.result["N_1*N_2"] / (
                         np.sqrt(
@@ -1136,24 +1078,12 @@ class Correlation(DataBuilder):
                 sizeX = self.boxes[box_num][nameX]["size"]
                 posY = self.boxes[box_num][nameY]["position"]
                 sizeY = self.boxes[box_num][nameY]["size"]
-                draw_box(
-                    ax, posX, sizeX / 2, posY, sizeY / 2, color="orange", label="box"
-                )
-                draw_box(
-                    ax,
-                    posX,
-                    3 * sizeX / 2,
-                    posY,
-                    3 * sizeY / 2,
-                    color="darkred",
-                    label="3*box",
-                )
+                draw_box(ax, posX, sizeX / 2, posY, sizeY / 2, color="orange", label="box")
+                draw_box(ax,posX,3 * sizeX / 2,posY,3 * sizeY / 2,color="darkred",label="3*box")
             # ax.legend()
             ax.set_xlabel(nameX)
             ax.set_ylabel(nameY)
-            colorbar = plt.colorbar(
-                heatmap[3], ax=ax
-            )  # Utilisez la quatrième valeur de retour de hist2d
+            colorbar = plt.colorbar(heatmap[3], ax=ax)  # Utilisez la quatrième valeur de retour de hist2d
 
         plt.tight_layout()
         if return_fig:
@@ -1473,9 +1403,7 @@ class Variable:
     def __init__(self, **kwargs):
         self.box = "1"  # the box number of the scanned parameter (1 or 2)
         self.axe = "Vx"  # the axis of the scanned parameter (Vx, Vy or Vz)
-        self.type = (
-            "size"
-        )  # type: size or position, that is if we scan size of box or position
+        self.type = "size"  # type: size or position, that is if we scan size of box or position
         self.name = "ΔVx"  # its name for the column in the dataframe
 
         """ The scan can be defined in two ways: either we give a list of values or we provide min, max and step for scan"""
@@ -1497,7 +1425,7 @@ class Variable:
         """Creates list of values to scan using min, max and step defined by user"""
         mini = min(self.min, self.max)
         maxi = max(self.min, self.max)
-        self.values = np.arange(mini, maxi, self.step)
+        self.values = np.arange(mini, maxi + self.step, self.step)
         self.values = np.round(self.values, self.round_decimal)
 
     def built_name(self, add_box_number=True):
@@ -2001,68 +1929,3 @@ class CorrelationFourthOrder(Correlation):
         self.result["g2_13"] = self.result["N1N3"] / (
             self.result["N_1"] * self.result["N_3"]
         )
-
-
-if __name__ == "__main__":
-    import seaborn as sns
-    import pandas as pd
-
-    selected_data = pd.read_pickle(
-        "/home/victor/ownCloud/LabWiki/Journal/2023/06/13/data.pkl"
-    )
-    selec_bec_arrival_times = pd.read_pickle(
-        "/home/victor/ownCloud/LabWiki/Journal/2023/06/13/bec.pkl"
-    )
-    ROI = {
-        "Vz": {"min": -50, "max": 50},
-        "Vy": {"min": -70, "max": 70},
-        "Vx": {"max": 25, "min": -75},
-    }
-    boxZsize = 5
-    boxXsize = 10
-    boxYsize = 10
-    Xposition = 0
-    Yposition = 0
-    boxes = {
-        "1": {
-            "Vx": {"size": boxXsize, "position": Xposition},
-            "Vy": {"size": boxYsize, "position": Yposition},
-            "Vz": {"size": boxZsize, "position": 25},
-        },
-        "2": {
-            "Vx": {"size": boxXsize, "position": Xposition},
-            "Vy": {"size": boxYsize, "position": Yposition},
-            "Vz": {"size": boxZsize, "position": -25},
-        },
-    }
-    corr = Correlation(
-        selected_data,
-        ROI=ROI,
-        boxes=boxes,
-        raman_kick=42.5,
-        bec_arrival_time=selec_bec_arrival_times["BEC Arrival Time"].mean(),
-        ref_frame_speed={"Vx": -2, "Vy": -5, "Vz": 94},
-        remove_shot_noise=False,
-    )
-    corr.define_variable1(
-        box="1", axe="Vx", type="position", name="Vx1", min=-20, max=11, step=10
-    )
-    corr.define_variable2(
-        box="1", axe="Vy", type="position", name="Vy1", min=-20, max=20, step=10
-    )
-    corr.compute_correlations()
-    df_pivoted_correlations = corr.result.pivot(
-        index="Vx1", columns="Vy1", values="g^2"
-    )
-    fig, axes = plt.subplots(figsize=(8, 3), ncols=2)
-    sns.heatmap(
-        df_pivoted_correlations,
-        cmap="seismic",
-        ax=axes[0],
-        # norm=LogNorm()
-        center=1,
-    )
-    axes[0].invert_yaxis()
-    sns.scatterplot(data=corr.result, x="Vx1", y="N_1", hue="Vy1", palette="Dark2")
-    plt.tight_layout()
-    plt.show()

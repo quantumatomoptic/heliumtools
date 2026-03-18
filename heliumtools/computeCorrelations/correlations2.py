@@ -44,7 +44,7 @@ from tqdm import tqdm, trange
 import copy
 import time
 import torch
-from .misc.gather_data import apply_ROI, apply_ROD
+from heliumtools.misc.gather_data import apply_ROI, apply_ROD
 from .data_builder import DataBuilder
 
 
