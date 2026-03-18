@@ -214,17 +214,17 @@ class Dataset:
 
         if not os.path.exists(self.__name__):
             log.error(
-                "Datasets does not exists in {}.\nYou can create a Dataset using the self.ceate_dataset() function.".format(
+                "Datasets does not exists in {}.\nYou can create a Dataset using the self.create_dataset() function.".format(
                     self.__name__
                 )
             )
             log.info(
-                "You can create a Dataset using the self.ceate_dataset() function."
+                "You can create a Dataset using the self.create_dataset() function."
             )
             return False
         return True
 
-    def ceate_dataset(self):
+    def create_dataset(self):
         try:
             os.mkdir(self.__name__)
             msg = "Dataset was initialized in folder {}".format(self.__name__)
